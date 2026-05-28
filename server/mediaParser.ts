@@ -7,6 +7,7 @@ import crypto from "crypto";
 const PYTHON_PATH = process.env.PYTHON_BIN || "python3";
 const ytDlp = youtubedl.create({ python: PYTHON_PATH });
 import axios from "axios";
+import { settingsManager } from "./settingsManager.js";
 
 // Cobalt v10 API — https://github.com/imputnet/cobalt
 const COBALT_API = "https://api.cobalt.tools/";
@@ -61,7 +62,11 @@ export async function cleanupCache() {
 // Run cleanup every hour
 setInterval(cleanupCache, 60 * 60 * 1000);
 
-export function parseMediaUrl(url: string): { type: "image" | "video" | "iframe" | "link"; mediaUrl: string; provider?: string } {
+export function parseMediaUrl(url: string): {
+  type: "image" | "video" | "iframe" | "link";
+  mediaUrl: string;
+  provider?: string;
+} {
   const lowercaseUrl = url.toLowerCase();
 
   if (/\.(jpg|jpeg|gif|png|webp|bmp)(\?.*)?$/i.test(lowercaseUrl)) {
@@ -72,10 +77,15 @@ export function parseMediaUrl(url: string): { type: "image" | "video" | "iframe"
     return { type: "video", mediaUrl: url };
   }
 
-  const ytRegex = /(?:youtube(?:-nocookie|-education)?\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|watch\?v=|shorts\/)|youtu\.be\/)([^"&?\s]{11})/i;
+  const ytRegex =
+    /(?:youtube(?:-nocookie|-education)?\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|watch\?v=|shorts\/)|youtu\.be\/)([^"&?\s]{11})/i;
   const ytMatch = url.match(ytRegex);
   if (ytMatch && ytMatch[1]) {
-    return { type: "iframe", mediaUrl: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&fs=0&disablekb=1`, provider: "youtube" };
+    return {
+      type: "iframe",
+      mediaUrl: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&fs=0&disablekb=1`,
+      provider: "youtube",
+    };
   }
 
   const ttRegex = /tiktok\.com\/@[^\/]+\/video\/(\d+)/i;
@@ -111,16 +121,20 @@ export function parseMediaUrl(url: string): { type: "image" | "video" | "iframe"
 async function fetchWithCobalt(url: string): Promise<string | null> {
   try {
     console.log(`[Cobalt] Attempting extraction for: ${url}`);
-    const response = await axios.post(COBALT_API, {
-      url,
-      videoQuality: "720",
-      filenamePattern: "basic",
-    }, {
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
+    const response = await axios.post(
+      COBALT_API,
+      {
+        url,
+        videoQuality: "720",
+        filenamePattern: "basic",
       },
-    });
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
     const { status, url: streamUrl, tunnel, picker } = response.data;
 
@@ -155,16 +169,21 @@ async function cacheMedia(url: string, originalUrl: string): Promise<string | nu
 
     console.log(`[Cache] Downloading: ${url} -> ${filename}`);
     const response = await axios({
-      method: 'get',
+      method: "get",
       url: url,
-      responseType: 'stream'
+      responseType: "stream",
     });
+
+    const contentLength = response.headers["content-length"];
+    if (contentLength && parseInt(contentLength, 10) > settingsManager.settings.mediaMaxSizeMB * 1024 * 1024) {
+      throw new Error(`File size exceeds limit (${settingsManager.settings.mediaMaxSizeMB}MB)`);
+    }
 
     const writer = fs.createWriteStream(tempFilepath);
     response.data.pipe(writer);
 
     return new Promise((resolve, reject) => {
-      writer.on('finish', async () => {
+      writer.on("finish", async () => {
         try {
           await fs.promises.rename(tempFilepath, filepath);
           await cleanupCache(); // Run cleanup after new file is cached
@@ -173,7 +192,7 @@ async function cacheMedia(url: string, originalUrl: string): Promise<string | nu
           reject(err);
         }
       });
-      writer.on('error', async (err) => {
+      writer.on("error", async (err) => {
         if (fs.existsSync(tempFilepath)) {
           await fs.promises.unlink(tempFilepath).catch(() => {});
         }
@@ -200,12 +219,13 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
       noWarnings: true,
       noCheckCertificates: true,
       format: "best[ext=mp4]/best",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       referer: "https://www.google.com/",
       geoBypass: true,
       forceIpv4: true,
       output: tempFilepath,
-
+      maxFilesize: `${settingsManager.settings.mediaMaxSizeMB}M`,
     };
 
     if (hasCookies) {
@@ -220,7 +240,7 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
     }
 
     const info: any = await ytDlp(url, { ...dlOptions, dumpSingleJson: true });
-    
+
     if (!fs.existsSync(tempFilepath)) {
       await ytDlp(url, dlOptions);
     }
@@ -249,7 +269,16 @@ export async function updateYtDlp(): Promise<void> {
   }
 }
 
-export async function resolveMediaFromLink(url: string): Promise<{ type: "image" | "video" | "iframe" | "link"; mediaUrl: string; title?: string; duration?: number; provider?: string; ytDlpError?: string }> {
+export async function resolveMediaFromLink(
+  url: string
+): Promise<{
+  type: "image" | "video" | "iframe" | "link";
+  mediaUrl: string;
+  title?: string;
+  duration?: number;
+  provider?: string;
+  ytDlpError?: string;
+}> {
   const lowercaseUrl = url.toLowerCase();
 
   // Resolve the provider from the URL up-front so it is never lost,
@@ -258,7 +287,7 @@ export async function resolveMediaFromLink(url: string): Promise<{ type: "image"
 
   // 1. Try yt-dlp first (Local-First)
   if (
-    lowercaseUrl.includes("tiktok.com") || 
+    lowercaseUrl.includes("tiktok.com") ||
     lowercaseUrl.includes("instagram.com") ||
     lowercaseUrl.includes("twitter.com") ||
     lowercaseUrl.includes("x.com") ||
@@ -267,10 +296,10 @@ export async function resolveMediaFromLink(url: string): Promise<{ type: "image"
   ) {
     const ytdlResult = await fetchWithYtDlp(url);
     if (ytdlResult) {
-      return { 
-        type: "video", 
-        mediaUrl: `/api/media-cache/${ytdlResult.filename}`, 
-        title: ytdlResult.info.title || "Video", 
+      return {
+        type: "video",
+        mediaUrl: `/api/media-cache/${ytdlResult.filename}`,
+        title: ytdlResult.info.title || "Video",
         duration: ytdlResult.info.duration ? ytdlResult.info.duration * 1000 : undefined,
         provider: urlProvider,
       };
@@ -282,9 +311,9 @@ export async function resolveMediaFromLink(url: string): Promise<{ type: "image"
   if (cobaltUrl) {
     const cachedFilename = await cacheMedia(cobaltUrl, url);
     if (cachedFilename) {
-      return { 
-        type: "video", 
-        mediaUrl: `/api/media-cache/${cachedFilename}`, 
+      return {
+        type: "video",
+        mediaUrl: `/api/media-cache/${cachedFilename}`,
         title: "Video",
         provider: urlProvider,
       };
@@ -298,13 +327,14 @@ export async function resolveMediaFromLink(url: string): Promise<{ type: "image"
   }
 
   try {
-    const preview = await getLinkPreview(url, {
+    const preview = (await getLinkPreview(url, {
       timeout: 3000,
       followRedirects: "follow",
       headers: {
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
-      }
-    }) as any;
+        "user-agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+      },
+    })) as any;
 
     if (preview) {
       const contentType = (preview.contentType || "").toLowerCase();
@@ -313,11 +343,15 @@ export async function resolveMediaFromLink(url: string): Promise<{ type: "image"
       if (contentType.startsWith("image/") || mediaType === "image" || mediaType === "image.generic") {
         return { type: "image", mediaUrl: preview.url || url, title: preview.title || "" };
       }
-      
+
       if (contentType.startsWith("video/") || mediaType === "video" || mediaType === "video.other") {
         const rawUrl = preview.url || url;
         // Try to cache this too? For now keep proxy fallback
-        return { type: "video", mediaUrl: `/api/proxy-media?url=${encodeURIComponent(rawUrl)}`, title: preview.title || "" };
+        return {
+          type: "video",
+          mediaUrl: `/api/proxy-media?url=${encodeURIComponent(rawUrl)}`,
+          title: preview.title || "",
+        };
       }
 
       if (preview.images && preview.images.length > 0) {

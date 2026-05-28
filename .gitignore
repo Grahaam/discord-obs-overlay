@@ -8,6 +8,7 @@ coverage/
 !.env.example
 settings.json
 cookies.txt
+data/
 media_cache/
 proxy-debug.log
 logs.json
