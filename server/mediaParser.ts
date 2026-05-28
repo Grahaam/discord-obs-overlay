@@ -5,7 +5,11 @@ import { createRequire } from "module";
 
 const _require = createRequire(import.meta.url);
 const _ffmpegStatic: string | null = (() => {
-  try { return _require("ffmpeg-static") as string; } catch { return null; }
+  try {
+    return _require("ffmpeg-static") as string;
+  } catch {
+    return null;
+  }
 })();
 import fs from "fs";
 import path from "path";
@@ -16,18 +20,15 @@ import { SIZE_LIMITS } from "./mediaWorkerQueue.js";
 
 function findBestYtDlpPath(): string | null {
   const isWin = process.platform === "win32";
-  const venvBin = path.join(
-    process.cwd(),
-    ".venv",
-    isWin ? "Scripts" : "bin",
-    isWin ? "yt-dlp.exe" : "yt-dlp",
-  );
+  const venvBin = path.join(process.cwd(), ".venv", isWin ? "Scripts" : "bin", isWin ? "yt-dlp.exe" : "yt-dlp");
   if (fs.existsSync(venvBin)) {
     try {
       execFileSync(venvBin, ["--version"], { stdio: "ignore" });
       console.log(`[yt-dlp] Using venv binary: ${venvBin}`);
       return venvBin;
-    } catch {}
+    } catch {
+      /* binary not found or not executable */
+    }
   }
   try {
     const cmd = isWin ? "where" : "which";
@@ -37,7 +38,9 @@ function findBestYtDlpPath(): string | null {
       console.log(`[yt-dlp] Using system binary: ${found}`);
       return found;
     }
-  } catch {}
+  } catch {
+    /* yt-dlp not on PATH */
+  }
   console.warn("[yt-dlp] Falling back to bundled binary (may fail on Python <3.10)");
   return null;
 }
