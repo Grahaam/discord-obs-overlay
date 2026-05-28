@@ -101,6 +101,9 @@ async function runServer() {
     });
   }, HEARTBEAT_INTERVAL_MS);
 
+  // Track which socket IDs are real OBS overlay windows (not dashboard embeds)
+  const overlayClients = new Set<string>();
+
   io.on("connection", (socket) => {
     if (env.NODE_ENV !== "production") {
       console.log(`[Socket] Connect: ${socket.id} (total: ${io.engine.clientsCount})`);
@@ -114,6 +117,19 @@ async function runServer() {
       console.log(`[Socket] Alert ${alertId} played`);
       alertManager.removeAlert(alertId);
       io.emit("remove_queue_item", alertId);
+    });
+
+    // OBS overlay windows register themselves so dashboard embeds know not to consume alerts
+    socket.on("register_as_overlay", () => {
+      overlayClients.add(socket.id);
+      io.emit("overlay_count", overlayClients.size);
+    });
+
+    socket.on("disconnect", () => {
+      if (overlayClients.has(socket.id)) {
+        overlayClients.delete(socket.id);
+        io.emit("overlay_count", overlayClients.size);
+      }
     });
   });
 
