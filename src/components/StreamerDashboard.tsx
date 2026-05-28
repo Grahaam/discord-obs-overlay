@@ -53,6 +53,7 @@ export default function StreamerDashboard() {
   const [botStatus, setBotStatus] = useState<BotStatus>({ status: "disconnected", botUser: "", errorMsg: "" });
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [bannedWordInput, setBannedWordInput] = useState("");
+  const [roleIdInput, setRoleIdInput] = useState("");
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [simName, setSimName] = useState("Viewer_Lucky_Hype");
   const [simText, setSimText] = useState("Un clip sur le boss final ce soir ! GG");
@@ -192,6 +193,25 @@ export default function StreamerDashboard() {
 
   const handleRemoveBannedWord = (word: string) => {
     const newConfig = { ...config, bannedWords: config.bannedWords.filter((w) => w !== word) };
+    setConfig(newConfig);
+    handleSaveSettings(newConfig);
+  };
+
+  const handleAddRoleId = () => {
+    const clean = roleIdInput.trim();
+    if (!clean || !/^\d+$/.test(clean)) { setRoleIdInput(""); return; }
+    // @ts-ignore - allowedRoleIds will be added to UIConfig by another agent
+    if ((config.allowedRoleIds || []).includes(clean)) { setRoleIdInput(""); return; }
+    // @ts-ignore - allowedRoleIds will be added to UIConfig by another agent
+    const newConfig = { ...config, allowedRoleIds: [...(config.allowedRoleIds || []), clean] };
+    setConfig(newConfig);
+    setRoleIdInput("");
+    handleSaveSettings(newConfig);
+  };
+
+  const handleRemoveRoleId = (id: string) => {
+    // @ts-ignore - allowedRoleIds will be added to UIConfig by another agent
+    const newConfig = { ...config, allowedRoleIds: (config.allowedRoleIds || []).filter((r) => r !== id) };
     setConfig(newConfig);
     handleSaveSettings(newConfig);
   };
@@ -374,6 +394,10 @@ export default function StreamerDashboard() {
                 handleRemoveBannedWord={handleRemoveBannedWord}
                 saveLoading={saveLoading}
                 handleSaveSettings={handleSaveSettings}
+                roleIdInput={roleIdInput}
+                setRoleIdInput={setRoleIdInput}
+                handleAddRoleId={handleAddRoleId}
+                handleRemoveRoleId={handleRemoveRoleId}
               />
             )}
             {activeTab === "simulator" && (

@@ -350,6 +350,14 @@ export default function OBSOverlayView() {
     // Small rAF delay to let React flush DOM before binding events
     await new Promise((r) => requestAnimationFrame(r));
 
+    // Play alert sound if configured
+    if (nextItem.alertSoundUrl) {
+      try {
+        const audio = new Audio(nextItem.alertSoundUrl);
+        audio.play().catch(() => {});
+      } catch {}
+    }
+
     playbackStateRef.current = "playing";
 
     let resolveFinish: (() => void) | null = null;

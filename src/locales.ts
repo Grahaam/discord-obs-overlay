@@ -31,6 +31,8 @@ export const locales = {
       syncDurationHelp: "Si le média est une vidéo, ignorer la durée limite et lire le fichier en entier.",
       shortcut: "Raccourci d'arrêt d'urgence",
       shortcutHelp: "Appuyez sur cette touche pour masquer instantanément l'alerte média active.",
+      alertSound: "Son d'alerte (URL)",
+      alertSoundHelp: "URL d'un fichier audio joué au début de chaque alerte. Laissez vide pour désactiver.",
       cookies: "Cookies de Session (Optionnel)",
       cookiesHelp:
         "Nécessaires pour contourner les restrictions d'accès (ex: Instagram, TikTok). Utilisez l'extension 'Get cookies.txt LOCALLY' dans votre navigateur pour exporter vos cookies au format Netscape et collez-les ici.",
@@ -77,6 +79,9 @@ export const locales = {
       blockNSFW: "Ignorer les fichiers marqués Spoiler / NSFW",
       cooldown: "Délai imposé (Cooldown)",
       cooldownDesc: "Temps minimum d'attente requis entre deux demandes d'un même utilisateur.",
+      roleFilter: "Rôles autorisés (IDs Discord)",
+      roleFilterHelp: "Seuls les membres ayant l'un de ces rôles peuvent envoyer des alertes. Laissez vide pour autoriser tout le monde.",
+      roleFilterPh: "Ex: 123456789012345678",
     },
     logs: {
       title: "Journaux d'Activité",
@@ -142,6 +147,8 @@ export const locales = {
       syncDurationHelp: "If the media is a video, ignore the maximum duration and play it completely.",
       shortcut: "Emergency Stop Shortcut",
       shortcutHelp: "Press this key to instantly dismiss the currently active media alert.",
+      alertSound: "Alert Sound (URL)",
+      alertSoundHelp: "URL to an audio file played at the start of each alert. Leave empty to disable.",
       cookies: "Session Cookies (Optional)",
       cookiesHelp:
         "Required for platforms that block anonymous access. Use a browser extension like 'Get cookies.txt LOCALLY' to extract your cookies in Netscape format and paste them here.",
@@ -187,6 +194,9 @@ export const locales = {
       blockNSFW: "Reject media marked as Spoiler/NSFW",
       cooldown: "Request Cooldown",
       cooldownDesc: "Minimum time required between two requests submitted by the same user.",
+      roleFilter: "Allowed Roles (Discord IDs)",
+      roleFilterHelp: "Only members with at least one of these roles can trigger alerts. Leave empty to allow everyone.",
+      roleFilterPh: "e.g. 123456789012345678",
     },
     logs: {
       title: "Activity Logs",
@@ -251,6 +261,8 @@ export const locales = {
       syncDurationHelp: "Pway da whowe video instead of stopping eawwy :3",
       shortcut: "Emewgency Stahp Showtcut!",
       shortcutHelp: "Gwowal key to pwess to fowce immediatewy cwose the cuwwentwy active awewt. *hides*",
+      alertSound: "Awewt Sound UWL OwO",
+      alertSoundHelp: "UWL to an audio fiwe pwayed at da stawt of each awewt. Weave empty to disabwe~ nyaa",
       cookies: "TikTok/Instagwam Session Cookies (Optionaw, nya~)",
       cookiesHelp: "Standawd cookie text content to bypass connection bwockages fow sum netwowks.",
       save: "Save Configuwations~",
@@ -296,6 +308,9 @@ export const locales = {
       blockNSFW: "Bwock Spoiwews/NSFW fiwes ;w;",
       cooldown: "Coowdown~",
       cooldownDesc: "Minimum time between two wequests fwom the same usew. *yawn*",
+      roleFilter: "Awwowed Woles (Discowd IDs) UwU",
+      roleFilterHelp: "Onwy membews wiff at weast one of these woles can twiggew awewts. Weave empty to awwow evewyone~ nyaa",
+      roleFilterPh: "eg. 123456789012345678",
     },
     logs: {
       title: "Activities & Wogs o_o",
@@ -361,6 +376,8 @@ export const locales = {
       syncDurationHelp: "Jouwew wow media engtièwement ignowwre wa duwée owr wow :3",
       shortcut: "Waccouwci Cwaview d'Uwgence!",
       shortcutHelp: "Touche gwowabwe à appuyew pouw masquew w'awewte média active instantanément. *hides*",
+      alertSound: "Son d'Awewte (UWL) UwU",
+      alertSoundHelp: "UWL d'un fichiow audio joué au début de chaque awewte. Waisser vide pouw désactivew~ nyaa",
       cookies: "Cookies Vidéo (YouTube, Instagwam, TikTok, nya~)",
       cookiesHelp:
         "Cewa pewmet awwa pwatefowme de téwéchawgew des médias comme si ewwe était connectée à votwe compte.",
@@ -407,6 +424,9 @@ export const locales = {
       blockNSFW: "Bwoquew wes fichiews Spoiwews/NSFW ;w;",
       cooldown: "Déwai (Coowdown)~",
       cooldownDesc: "Minimum time entwew deux demandes de wa même pewsonne. *yawn*",
+      roleFilter: "Wôwes Autorisés (IDs Discowd) UwU",
+      roleFilterHelp: "Seuwement wes membwes avec w'un de ces wôwes peuvent envoyew des awewtes. Waisser vide pouw autorisew tout we monde~ nyaa",
+      roleFilterPh: "Ex: 123456789012345678",
     },
     logs: {
       title: "Activités & Wogs o_o",

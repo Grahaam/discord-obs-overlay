@@ -116,6 +116,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         blockLinks: z.boolean(),
         blockNSFW: z.boolean(),
         language: z.enum(["fr", "en", "uwu-fr", "uwu-en"]),
+        alertSoundUrl: z.string().optional(),
       });
       const incoming = SettingsSchema.parse(req.body);
       const originalToken = settingsManager.settings.discordToken;
@@ -138,6 +139,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         blockLinks: incoming.blockLinks || false,
         blockNSFW: incoming.blockNSFW || false,
         language: incoming.language || "fr",
+        alertSoundUrl: incoming.alertSoundUrl || "",
       };
 
       settingsManager.saveSettings(updatedSettings);
@@ -294,6 +296,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       neonColor: neonColor || settingsManager.settings.neonColor,
       alertStyle: alertStyle || settingsManager.settings.alertStyle,
       stopAlertShortcut: settingsManager.settings.stopAlertShortcut || "Escape",
+      alertSoundUrl: settingsManager.settings.alertSoundUrl || "",
       timestamp: Date.now(),
       isTest: true,
     };
