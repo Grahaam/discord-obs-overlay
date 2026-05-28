@@ -10,18 +10,30 @@ import { env } from "./env.js";
 import { settingsManager } from "./settingsManager.js";
 import { botManager } from "./discordBotManager.js";
 import { setupRoutes } from "./routes.js";
-import { updateYtDlp } from "./mediaParser.js";
+import { updateYtDlp, cleanupOrphanedTempFiles } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
+import { initDb, loadPersistedAlerts, loadPersistedLogs } from "./db.js";
+import { logManager } from "./logManager.js";
 
 dotenv.config();
 
 const PORT = parseInt(env.PORT, 10);
+const HEARTBEAT_INTERVAL_MS = 5000;
 
-// Setup server
 async function runServer() {
   settingsManager.loadSettings();
 
-  // Update yt-dlp on startup
+  // Phase 1: cleanup orphaned downloads from previous run
+  cleanupOrphanedTempFiles();
+
+  // Phase 3: initialize SQLite persistence and restore state
+  initDb();
+  const persistedAlerts = loadPersistedAlerts();
+  const persistedLogs = loadPersistedLogs();
+  alertManager.restoreFromDb(persistedAlerts);
+  logManager.restoreFromDb(persistedLogs);
+
+  // Update yt-dlp on startup (non-blocking)
   updateYtDlp().catch((err) => {
     console.error("[Server] yt-dlp update failed:", err);
   });
@@ -30,17 +42,29 @@ async function runServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  const apiLimiter = rateLimit({
+  // Write/action endpoints — tight limit (prevent accidental loops on mutations)
+  const writeLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 200,
+    max: 300,
     standardHeaders: true,
     legacyHeaders: false,
   });
 
-  app.use("/api", apiLimiter);
+  // Read/polling endpoints — generous limit (dashboard polls every 4s = ~900/hour)
+  const readLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 2000,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
-  // Content-Security-Policy — set via HTTP headers so it applies to all routes
-  // including the OBS browser source (meta tags are less reliable there).
+  app.use("/api/logs", readLimiter);
+  app.use("/api/bot-status", readLimiter);
+  app.use("/api/settings", readLimiter);
+  app.use("/api/media-cache", readLimiter);
+  app.use("/api", writeLimiter);
+
+  // Phase 4: CSP hardening — set via HTTP headers (more reliable in OBS than meta tags)
   const CSP = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com",
@@ -59,7 +83,7 @@ async function runServer() {
 
   const httpServer = createHttpServer(app);
 
-  // Configure socket.io
+  // Phase 4: keep Socket.IO bound to localhost only
   const io = new SocketServer(httpServer, {
     cors: {
       origin: [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`],
@@ -67,50 +91,51 @@ async function runServer() {
     },
   });
 
-  // Set overlay emitter for bots
   botManager.setIo(io);
 
+  // Phase 3: heartbeat — lets overlay detect server restarts and reconcile queue state
+  const heartbeatInterval = setInterval(() => {
+    io.emit("heartbeat", {
+      ts: Date.now(),
+      queueSize: alertManager.getAlerts().length,
+    });
+  }, HEARTBEAT_INTERVAL_MS);
+
   io.on("connection", (socket) => {
-    console.log(`[Socket] New connection: ${socket.id}`);
+    if (env.NODE_ENV !== "production") {
+      console.log(`[Socket] Connect: ${socket.id} (total: ${io.engine.clientsCount})`);
+    }
 
     socket.on("get_initial_state", () => {
-      console.log(`[Socket] Client ${socket.id} requested initial state`);
       socket.emit("initial_state", alertManager.getAlerts());
     });
 
     socket.on("alert_played", (alertId: string) => {
-      console.log(`[Socket] Alert ${alertId} played, removing from queue`);
+      console.log(`[Socket] Alert ${alertId} played`);
       alertManager.removeAlert(alertId);
       io.emit("remove_queue_item", alertId);
     });
   });
 
-  // Lazily connect bot if settings loaded token
   if (settingsManager.settings.discordToken && settingsManager.settings.channelId) {
     botManager.connectBot(settingsManager.settings.discordToken, settingsManager.settings.channelId).catch((err) => {
       console.error("[Discord] Bot connection error:", err);
     });
   }
 
-  // Setup server routes
   setupRoutes(app, io);
 
-  // Global error handler
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     void _next;
     console.error("[Server] Unhandled route error:", err);
-
     if (!res.headersSent) {
       res.status(500).json({ error: "Internal server error" });
     }
   });
 
-  // Integrate Vite for development, or serve built static files for production
   if (env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");
-
     app.use(express.static(distPath));
-
     app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
@@ -119,13 +144,17 @@ async function runServer() {
       server: { middlewareMode: true },
       appType: "spa",
     });
-
     app.use(vite.middlewares);
   }
 
-  // Start the composite Server
   httpServer.listen(PORT, env.HOST, () => {
     console.log(`[Server] Stream OBS server active on ${env.HOST}:${PORT}`);
+  });
+
+  // Graceful shutdown
+  process.on("SIGTERM", () => {
+    clearInterval(heartbeatInterval);
+    httpServer.close();
   });
 }
 

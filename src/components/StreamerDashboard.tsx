@@ -219,11 +219,11 @@ export default function StreamerDashboard() {
       if (!response.ok) {
         let errorMsg = response.statusText;
         try {
-          const errData = await response.json();
-          if (errData.error) errorMsg = errData.error;
-        } catch {
           const errText = await response.text();
-          if (errText) errorMsg = errText.substring(0, 50);
+          const parsed = JSON.parse(errText);
+          if (parsed.error) errorMsg = parsed.error;
+        } catch {
+          // keep statusText
         }
         throw new Error(`Failed to save: ${response.status} ${errorMsg}`);
       }
@@ -963,7 +963,7 @@ export default function StreamerDashboard() {
                       <HardDrive className="w-4 h-4" /> {t.health.cacheStats}
                     </h3>
                     <p className="text-xs text-white/70">
-                      {t.health.cacheSize}: {(botStatus.health?.cache.size / (1024 * 1024)).toFixed(2)} MB
+                      {t.health.cacheSize}: {((botStatus.health?.cache.size ?? 0) / (1024 * 1024)).toFixed(2)} MB
                     </p>
                     <p className="text-xs text-white/70">
                       {t.health.cacheFiles}: {botStatus.health?.cache.files}
@@ -979,12 +979,12 @@ export default function StreamerDashboard() {
                       {t.health.cpuUsage}: {botStatus.health?.system.cpu.toFixed(2)} (1m avg)
                     </p>
                     <p className="text-xs text-white/70">
-                      {t.health.memoryUsed}: {(botStatus.health?.system.memory.used / (1024 * 1024 * 1024)).toFixed(2)}{" "}
+                      {t.health.memoryUsed}: {((botStatus.health?.system.memory.used ?? 0) / (1024 * 1024 * 1024)).toFixed(2)}{" "}
                       GB
                     </p>
                     <p className="text-xs text-white/70">
                       {t.health.memoryTotal}:{" "}
-                      {(botStatus.health?.system.memory.total / (1024 * 1024 * 1024)).toFixed(2)} GB
+                      {((botStatus.health?.system.memory.total ?? 0) / (1024 * 1024 * 1024)).toFixed(2)} GB
                     </p>
                   </div>
 

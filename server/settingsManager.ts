@@ -31,7 +31,7 @@ export const defaultSettings: Settings = {
   alertDuration: 8000,
   syncDurationWithMedia: true,
   bannedWords: ["scam", "spam", "troll", "nsfw", "hacker", "fakebot"],
-  mediaMaxSizeMB: 8,
+  mediaMaxSizeMB: 50,
   neonColor: "#6366f1",
   alertStyle: "neon",
   bannedWordsAction: "censor",
@@ -90,7 +90,7 @@ export class SettingsManager {
       fs.writeFileSync(SETTINGS_FILE, JSON.stringify(publicSettings, null, 2), "utf-8");
 
       // 3. Save discordToken safely to .env
-      this.writeEnvVars({ DISCORD_TOKEN: discordToken });
+      this.writeEnvVars({ DISCORD_TOKEN: newSettings.discordToken });
 
       this.settings = { ...newSettings };
 

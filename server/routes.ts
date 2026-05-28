@@ -11,7 +11,7 @@ import { exec } from "child_process";
 import { settingsManager } from "./settingsManager.js";
 import { logManager } from "./logManager.js";
 import { botManager } from "./discordBotManager.js";
-import { parseMediaUrl, resolveMediaFromLink } from "./mediaParser.js";
+import { resolveMediaFromLink } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
 
 // Helper to get yt-dlp version
@@ -82,7 +82,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         alertDuration: z.number().min(500).max(60000),
         syncDurationWithMedia: z.boolean(),
         bannedWords: z.array(z.string()),
-        mediaMaxSizeMB: z.number().min(1).max(50),
+        mediaMaxSizeMB: z.number().min(1).max(500),
         neonColor: z.string().regex(/^#/),
         alertStyle: z.enum(["neon", "glitch", "cyberpunk", "glass"]),
         bannedWordsAction: z.enum(["block", "censor"]),
@@ -207,7 +207,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       if (logId) {
         const log = logManager.logs.find((l) => l.id === logId);
         if (log) {
-          log.status = resolved.type === "video" || resolved.type === "image" ? "approved" : "link";
+          log.status = "approved";
           log.reason = "Manual retry successful";
           log.mediaUrl = resolved.mediaUrl;
           log.type = resolved.type;
@@ -240,14 +240,15 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
     if (finalMediaUrl.startsWith("http://") || finalMediaUrl.startsWith("https://")) {
       try {
-        const resolved = parseMediaUrl(finalMediaUrl);
+        // Use full resolver so social media URLs download locally (no iframes)
+        const resolved = await resolveMediaFromLink(finalMediaUrl);
         if (resolved && resolved.mediaUrl) {
           finalMediaUrl = resolved.mediaUrl;
           finalType = resolved.type;
           finalProvider = resolved.provider;
         }
       } catch (err) {
-        console.error("Failed to parse test media URL:", err);
+        console.error("Failed to resolve test media URL:", err);
       }
     }
 

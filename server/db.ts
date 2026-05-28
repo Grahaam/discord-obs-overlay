@@ -1,0 +1,101 @@
+import path from "path";
+import { createRequire } from "module";
+import { AlertPayload } from "../src/types.js";
+import { LogEntry } from "./logManager.js";
+
+const _require = createRequire(import.meta.url);
+const DB_PATH = path.join(process.cwd(), "overlay.db");
+const MAX_LOG_ROWS = 1000;
+const LOG_TRIM_INTERVAL = 100;
+
+type DB = import("better-sqlite3").Database;
+let db: DB | null = null;
+let logInsertCount = 0;
+
+function withDb<T>(fn: (d: any) => T, caller: string): T | undefined {
+  if (!db) return undefined;
+  try {
+    return fn(db);
+  } catch (err: any) {
+    console.error(`[DB] ${caller} failed:`, err.message);
+    return undefined;
+  }
+}
+
+export function initDb(): void {
+  try {
+    const Database = _require("better-sqlite3") as typeof import("better-sqlite3");
+    db = new (Database as any)(DB_PATH);
+    withDb((d) => {
+      d.pragma("journal_mode = WAL");
+      d.pragma("synchronous = NORMAL");
+      d.exec(`
+        CREATE TABLE IF NOT EXISTS alerts (
+          id TEXT PRIMARY KEY,
+          data TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS logs (
+          id TEXT PRIMARY KEY,
+          data TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+      `);
+    }, "initDb");
+    console.log(`[DB] SQLite ready at ${DB_PATH}`);
+  } catch (err: any) {
+    console.warn(`[DB] SQLite unavailable (${err.message}) — persistence disabled`);
+    db = null;
+  }
+}
+
+export function persistAlert(alert: AlertPayload): void {
+  withDb((d) => {
+    d.prepare("INSERT OR REPLACE INTO alerts (id, data, created_at) VALUES (?, ?, ?)")
+      .run(alert.id, JSON.stringify(alert), alert.timestamp);
+  }, "persistAlert");
+}
+
+export function removePersistedAlert(id: string): void {
+  withDb((d) => {
+    d.prepare("DELETE FROM alerts WHERE id = ?").run(id);
+  }, "removePersistedAlert");
+}
+
+export function loadPersistedAlerts(): AlertPayload[] {
+  return withDb((d) => {
+    const rows = d.prepare("SELECT data FROM alerts ORDER BY created_at ASC").all() as { data: string }[];
+    return rows.map((r) => JSON.parse(r.data) as AlertPayload);
+  }, "loadPersistedAlerts") ?? [];
+}
+
+export function clearPersistedAlerts(): void {
+  withDb((d) => {
+    d.prepare("DELETE FROM alerts").run();
+  }, "clearPersistedAlerts");
+}
+
+export function persistLog(log: LogEntry): void {
+  withDb((d) => {
+    d.prepare("INSERT OR REPLACE INTO logs (id, data, created_at) VALUES (?, ?, ?)")
+      .run(log.id, JSON.stringify(log), log.timestamp);
+    if (++logInsertCount % LOG_TRIM_INTERVAL === 0) {
+      d.prepare("DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY created_at DESC LIMIT ?)")
+        .run(MAX_LOG_ROWS);
+    }
+  }, "persistLog");
+}
+
+export function loadPersistedLogs(): LogEntry[] {
+  return withDb((d) => {
+    const rows = d.prepare("SELECT data FROM logs ORDER BY created_at DESC LIMIT ?")
+      .all(MAX_LOG_ROWS) as { data: string }[];
+    return rows.map((r) => JSON.parse(r.data) as LogEntry).reverse();
+  }, "loadPersistedLogs") ?? [];
+}
+
+export function clearPersistedLogs(): void {
+  withDb((d) => {
+    d.prepare("DELETE FROM logs").run();
+  }, "clearPersistedLogs");
+}
