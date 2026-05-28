@@ -117,6 +117,14 @@ export default function StreamerDashboard() {
         return [log, ...prev].slice(0, 500);
       });
     });
+    socket.on("initial_logs", (logs: LogEntry[]) => {
+      setLogs((prev) => {
+        const knownIds = new Set(prev.map((l) => l.id));
+        const newEntries = logs.filter((l) => !knownIds.has(l.id));
+        if (newEntries.length === 0) return prev;
+        return [...newEntries, ...prev].slice(0, 500);
+      });
+    });
     socket.on("logs_cleared", () => setLogs([]));
 
     return () => { socket.disconnect(); };

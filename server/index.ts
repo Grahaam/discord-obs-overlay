@@ -120,6 +120,7 @@ async function runServer() {
     socket.on("get_initial_state", () => {
       socket.emit("initial_state", alertManager.getAlerts());
       socket.emit("now_playing", currentlyPlaying);
+      socket.emit("initial_logs", logManager.getLogs());
     });
 
     socket.on("alert_started", (alertId: string) => {
