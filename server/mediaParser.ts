@@ -1,6 +1,12 @@
 import { getLinkPreview } from "link-preview-js";
 import youtubedl, { create as ytDlpCreate, update as ytDlpUpdateRaw } from "youtube-dl-exec";
 import { execFileSync } from "child_process";
+import { createRequire } from "module";
+
+const _require = createRequire(import.meta.url);
+const _ffmpegStatic: string | null = (() => {
+  try { return _require("ffmpeg-static") as string; } catch { return null; }
+})();
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -39,6 +45,22 @@ function findBestYtDlpPath(): string | null {
 const _ytDlpCustomPath = findBestYtDlpPath();
 const ytDlp = _ytDlpCustomPath ? ytDlpCreate(_ytDlpCustomPath) : youtubedl;
 
+const _ffmpegBin: string | null = (() => {
+  if (_ffmpegStatic) return _ffmpegStatic;
+  try {
+    const cmd = process.platform === "win32" ? "where" : "which";
+    const found = execFileSync(cmd, ["ffmpeg"], { encoding: "utf8" }).trim().split("\n")[0].trim();
+    return found || null;
+  } catch {
+    return null;
+  }
+})();
+if (!_ffmpegBin) {
+  console.warn("[ffmpeg] Not found — yt-dlp will use pre-muxed formats only (max 720p).");
+} else {
+  console.log(`[ffmpeg] Using: ${_ffmpegBin}`);
+}
+
 function hashUrl(url: string): string {
   return crypto.createHash("md5").update(url).digest("hex");
 }
@@ -57,7 +79,7 @@ if (!fs.existsSync(CACHE_DIR)) {
 export function cleanupOrphanedTempFiles(): void {
   try {
     const files = fs.readdirSync(CACHE_DIR);
-    const tmpFiles = files.filter((f) => f.endsWith(".tmp"));
+    const tmpFiles = files.filter((f) => f.includes(".tmp"));
     if (tmpFiles.length > 0) {
       console.log(`[Cache] Removing ${tmpFiles.length} orphaned .tmp files`);
       for (const f of tmpFiles) {
@@ -281,7 +303,8 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
   const hash = hashUrl(url);
   const rawFilename = `${hash}.mp4`;
   const rawFilepath = path.join(CACHE_DIR, rawFilename);
-  const tempFilepath = `${rawFilepath}.tmp`;
+  // .tmp.mp4 — ends in .mp4 so yt-dlp doesn't append another extension after merging
+  const tempFilepath = path.join(CACHE_DIR, `${hash}.tmp.mp4`);
 
   // Hard cap at 50MB (per SIZE_LIMITS.video). The user-facing mediaMaxSizeMB setting
   // is intentionally NOT applied here — it was designed for Discord attachments, not
@@ -291,9 +314,10 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
   const dlOptions: any = {
     noWarnings: true,
     noCheckCertificates: true,
-    // Prefer 1080p H264+AAC for OBS compatibility. Falls back progressively.
-    format:
-      "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+    // Without ffmpeg, use pre-muxed format only (max ~720p). With ffmpeg, prefer 1080p merged.
+    format: _ffmpegBin
+      ? "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
+      : "best[height<=1080][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best",
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     referer: "https://www.google.com/",
@@ -301,7 +325,7 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
     forceIpv4: true,
     output: tempFilepath,
     maxFilesize: `${maxMB}M`,
-    mergeOutputFormat: "mp4",
+    ...(_ffmpegBin && { mergeOutputFormat: "mp4", ffmpegLocation: path.dirname(_ffmpegBin) }),
   };
 
   if (hasCookies) {
