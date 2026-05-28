@@ -1,4 +1,5 @@
-import { AlertPayload } from "../src/types";
+import { AlertPayload } from "../src/types.js";
+import { persistAlert, removePersistedAlert, clearPersistedAlerts } from "./db.js";
 
 const MAX_ALERT_QUEUE_SIZE = 100;
 
@@ -6,11 +7,14 @@ class AlertManager {
   private queue: AlertPayload[] = [];
 
   public addAlert(alert: AlertPayload): void {
-    this.queue.push(alert);
+    if (this.queue.some((a) => a.id === alert.id)) return;
 
-    // Prevent unbounded memory growth during long streams.
+    this.queue.push(alert);
+    persistAlert(alert);
+
     if (this.queue.length > MAX_ALERT_QUEUE_SIZE) {
-      this.queue.shift();
+      const evicted = this.queue.shift();
+      if (evicted) removePersistedAlert(evicted.id);
     }
   }
 
@@ -20,10 +24,18 @@ class AlertManager {
 
   public removeAlert(id: string): void {
     this.queue = this.queue.filter((alert) => alert.id !== id);
+    removePersistedAlert(id);
   }
 
   public clearQueue(): void {
     this.queue = [];
+    clearPersistedAlerts();
+  }
+
+  /** Called once on startup to restore queue from SQLite. */
+  public restoreFromDb(alerts: AlertPayload[]): void {
+    this.queue = alerts.slice(0, MAX_ALERT_QUEUE_SIZE);
+    console.log(`[AlertManager] Restored ${this.queue.length} alert(s) from DB`);
   }
 }
 

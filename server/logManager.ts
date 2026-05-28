@@ -15,7 +15,7 @@ export interface LogEntry {
 const MAX_LOG_ENTRIES = 500;
 
 export class LogManager {
-  private logs: LogEntry[] = [];
+  public logs: LogEntry[] = [];
 
   public addLog(log: Omit<LogEntry, "id" | "timestamp">) {
     const entry: LogEntry = {
@@ -26,10 +26,12 @@ export class LogManager {
 
     this.logs.unshift(entry);
 
-    // Prevent memory growth during long-running sessions.
     if (this.logs.length > MAX_LOG_ENTRIES) {
       this.logs = this.logs.slice(0, MAX_LOG_ENTRIES);
     }
+
+    // Persist to DB without blocking — import lazily to avoid circular deps at startup
+    import("./db.js").then(({ persistLog }) => persistLog(entry)).catch(() => {});
 
     return entry;
   }
@@ -40,6 +42,13 @@ export class LogManager {
 
   public clearLogs() {
     this.logs = [];
+    import("./db.js").then(({ clearPersistedLogs }) => clearPersistedLogs()).catch(() => {});
+  }
+
+  /** Called once on startup to restore recent logs from SQLite. */
+  public restoreFromDb(logs: LogEntry[]): void {
+    this.logs = logs.slice(0, MAX_LOG_ENTRIES);
+    console.log(`[LogManager] Restored ${this.logs.length} log(s) from DB`);
   }
 }
 

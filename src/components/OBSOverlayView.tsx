@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import { Tv, Bot, Flame, AlertTriangle } from "lucide-react";
 import { AlertPayload, Sparkle } from "../types";
@@ -10,6 +10,9 @@ declare global {
   }
 }
 
+// Deterministic playback states — no arbitrary timeouts drive transitions.
+type PlaybackState = "waiting" | "preloading" | "ready" | "playing" | "finished" | "failed";
+
 export default function OBSOverlayView({
   embedMode = false,
   onQueueChange,
@@ -19,10 +22,14 @@ export default function OBSOverlayView({
 }) {
   const [queue, setQueue] = useState<AlertPayload[]>([]);
   const [activeAlert, setActiveAlert] = useState<AlertPayload | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [wsStatus, setWsStatus] = useState<"connected" | "connecting" | "disconnected">("connecting");
   const [preloadedUrls, setPreloadedUrls] = useState<Record<string, boolean>>({});
   const [particles, setParticles] = useState<Sparkle[]>([]);
+  const [currentDuration, setCurrentDuration] = useState(8000);
+
+  // Refs that don't cause rerenders — critical for OBS performance
+  const playbackStateRef = useRef<PlaybackState>("waiting");
+  const activeAlertRef = useRef<AlertPayload | null>(null);
   const activeVideoRef = useRef<HTMLVideoElement | null>(null);
   const ytPlayerRef = useRef<any>(null);
   const ytPlayerContainerRef = useRef<HTMLDivElement | null>(null);
@@ -32,11 +39,15 @@ export default function OBSOverlayView({
   const socketRef = useRef<Socket | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const alertStartTimeRef = useRef<number>(0);
-  const [currentDuration, setCurrentDuration] = useState(8000);
   const cancelCurrentAlertRef = useRef<(() => void) | null>(null);
   const extendCurrentTimeoutRef = useRef<((durationMs: number) => void) | null>(null);
 
-  // Load YouTube API
+  // Keep activeAlertRef in sync for use in async callbacks
+  useEffect(() => {
+    activeAlertRef.current = activeAlert;
+  }, [activeAlert]);
+
+  // Load YouTube IFrame API once
   useEffect(() => {
     if (!window.YT) {
       const tag = document.createElement("script");
@@ -46,9 +57,8 @@ export default function OBSOverlayView({
     }
   }, []);
 
-  // Handle connection & events
+  // Socket connection — reconnect-safe with state reconciliation
   useEffect(() => {
-    // Connect to host socket
     const socket = io(window.location.origin, {
       reconnection: true,
       reconnectionAttempts: Infinity,
@@ -60,29 +70,43 @@ export default function OBSOverlayView({
 
     socket.on("connect", () => {
       setWsStatus("connected");
-      console.log("🔌 Overlay Socket Connected.");
+      console.log("[Overlay] Socket connected, requesting queue state");
       socket.emit("get_initial_state");
     });
 
-    socket.on("initial_state", (initialQueue: AlertPayload[]) => {
-      console.log("🔌 Received initial state from server:", initialQueue);
-      setQueue(initialQueue);
+    // On reconnect, merge server queue with local state — deduplicate by ID
+    socket.on("initial_state", (serverQueue: AlertPayload[]) => {
+      setQueue((prev) => {
+        const knownIds = new Set([
+          ...prev.map((a) => a.id),
+          ...(activeAlertRef.current ? [activeAlertRef.current.id] : []),
+        ]);
+        const newItems = serverQueue.filter((a) => !knownIds.has(a.id));
+        if (newItems.length > 0) {
+          console.log(`[Overlay] Reconciled ${newItems.length} new item(s) from server`);
+        }
+        return [...prev, ...newItems];
+      });
     });
 
     socket.on("disconnect", () => {
       setWsStatus("disconnected");
-      console.log("🔌 Overlay Socket Disconnected.");
+      console.log("[Overlay] Socket disconnected");
     });
 
     socket.on("connect_error", () => {
       setWsStatus("connecting");
     });
 
-    // Capture incoming discord & simulated alerts
+    // Heartbeat — update connection status, no queue action needed (handled via initial_state on reconnect)
+    socket.on("heartbeat", (_data: { ts: number; queueSize: number }) => {
+      // Presence of heartbeat confirms server is alive
+    });
+
     socket.on("new_alert", (alert: AlertPayload) => {
       setQueue((prev) => {
-        // Prevent duplicate alerts if they are already in the queue or being played
         if (prev.some((item) => item.id === alert.id)) return prev;
+        if (activeAlertRef.current?.id === alert.id) return prev;
         return [...prev, alert];
       });
     });
@@ -100,10 +124,8 @@ export default function OBSOverlayView({
     });
 
     socket.on("skip_alert", () => {
-      console.log("[Overlay] Alert stopped by remote shortcut / dashboard");
-      if (cancelCurrentAlertRef.current) {
-        cancelCurrentAlertRef.current();
-      }
+      console.log("[Overlay] Skip requested");
+      cancelCurrentAlertRef.current?.();
     });
 
     return () => {
@@ -111,13 +133,11 @@ export default function OBSOverlayView({
     };
   }, []);
 
-  // Listen to keyboard shortcut to skip/force stop active alerts
+  // Keyboard shortcut to skip active alert
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!activeAlert) return;
-
       const configKey = activeAlert.stopAlertShortcut || "Escape";
-
       const matchesKey =
         e.key.toLowerCase() === configKey.toLowerCase() ||
         e.code.toLowerCase() === configKey.toLowerCase() ||
@@ -125,87 +145,55 @@ export default function OBSOverlayView({
         (configKey.toLowerCase() === "escape" && e.key === "Escape");
 
       if (matchesKey) {
-        console.log("[Overlay] Alert stopped by keyboard shortcut:", configKey);
         e.preventDefault();
         e.stopPropagation();
-        if (cancelCurrentAlertRef.current) {
-          cancelCurrentAlertRef.current();
-        }
+        console.log("[Overlay] Alert skipped via keyboard:", configKey);
+        cancelCurrentAlertRef.current?.();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [activeAlert]);
 
-  // Media preloading
+  // Phase 2: preload next items in queue using hidden elements
   useEffect(() => {
     queue.forEach((item) => {
       if (preloadedUrls[item.mediaUrl]) return;
 
-      console.log(`⏳ Preloading media resource: ${item.mediaUrl}`);
       if (item.type === "iframe" || item.type === "link") {
-        // Embed links and external web views don't need direct Media preloading
         setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
-      } else if (item.type === "image") {
+        return;
+      }
+
+      if (item.type === "image") {
         const img = new Image();
         img.referrerPolicy = "no-referrer";
         img.src = item.mediaUrl;
-        img.onload = () => {
-          setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
-          console.log(`[Overlay] Cached Image: ${item.mediaUrl}`);
-        };
-        img.onerror = () => {
-          // Fallback to true so we don't stall standard rendering
-          setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
-        };
-      } else {
-        const video = document.createElement("video");
-        video.crossOrigin = "anonymous";
-        video.src = item.mediaUrl;
-        video.preload = "auto";
-        video.muted = true;
-
-        video.onloadedmetadata = (e) => {
-          const target = e.target as HTMLVideoElement;
-          console.log(
-            `[Video Preload Debug] onLoadedMetadata - ID: ${item.id}, videoWidth: ${target.videoWidth}, videoHeight: ${target.videoHeight}`
-          );
-        };
-
-        video.oncanplaythrough = (e) => {
-          const target = e.target as HTMLVideoElement;
-          console.log(
-            `[Video Preload Debug] onCanPlayThrough - ID: ${item.id}, videoWidth: ${target.videoWidth}, videoHeight: ${target.videoHeight}`
-          );
-          setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
-          console.log(`[Overlay] Cached Video: ${item.mediaUrl}`);
-        };
-        video.onerror = (e: any) => {
-          const target = e.target as HTMLVideoElement;
-          const err = target.error;
-          console.error(
-            `[Video Preload Debug] onError URL: ${item.mediaUrl.substring(0, 100)}... Code: ${err?.code}, Message: ${err?.message}, networkState: ${target.networkState}`
-          );
-          // Fallback
-          setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
-        };
+        img.onload = () => setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
+        img.onerror = () => setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
+        return;
       }
+
+      // Video: wait for canplaythrough before marking ready
+      const video = document.createElement("video");
+      video.crossOrigin = "anonymous";
+      video.src = item.mediaUrl;
+      video.preload = "auto";
+      video.muted = true;
+      video.playsInline = true;
+
+      const markReady = () => setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
+      video.oncanplaythrough = markReady;
+      video.onerror = markReady; // don't stall on broken media
     });
   }, [queue, preloadedUrls]);
 
-  // YouTube Player initialization
+  // YouTube Player — init/destroy with active alert lifecycle
   useEffect(() => {
     if (!activeAlert || !activeAlert.mediaUrl.includes("youtube.com/embed")) {
       if (ytPlayerRef.current) {
-        try {
-          ytPlayerRef.current.destroy();
-        } catch (e) {
-          // ignore
-          void e;
-        }
+        try { ytPlayerRef.current.destroy(); } catch { /* ignore */ }
         ytPlayerRef.current = null;
       }
       return;
@@ -217,15 +205,13 @@ export default function OBSOverlayView({
         return;
       }
 
-      // Extract video ID from embed URL
       const match = activeAlert.mediaUrl.match(/\/embed\/([^?]+)/);
       const videoId = match ? match[1] : "";
 
-      console.log(`[YouTube API] Initializing player for video: ${videoId}`);
       ytPlayerRef.current = new window.YT.Player(ytPlayerContainerRef.current, {
         height: "100%",
         width: "100%",
-        videoId: videoId,
+        videoId,
         playerVars: {
           autoplay: 1,
           controls: 0,
@@ -238,20 +224,11 @@ export default function OBSOverlayView({
           enablejsapi: 1,
         },
         events: {
-          onReady: (event: any) => {
-            event.target.playVideo();
-          },
+          onReady: (event: any) => { event.target.playVideo(); },
           onStateChange: (event: any) => {
-            // YT.PlayerState.ENDED is 0
-            if (event.data === 0) {
-              console.log("[YouTube API] Video ended. Triggering alert finish.");
-              onVideoEndedRef.current?.();
-            }
+            if (event.data === 0) onVideoEndedRef.current?.();
           },
-          onError: (event: any) => {
-            console.error("[YouTube API] Player error:", event.data);
-            onVideoErrorRef.current?.();
-          },
+          onError: () => { onVideoErrorRef.current?.(); },
         },
       });
     };
@@ -260,137 +237,129 @@ export default function OBSOverlayView({
 
     return () => {
       if (ytPlayerRef.current) {
-        try {
-          ytPlayerRef.current.destroy();
-        } catch (e) {
-          // ignore error on destroy
-          void e;
-        }
+        try { ytPlayerRef.current.destroy(); } catch { /* ignore */ }
         ytPlayerRef.current = null;
       }
     };
   }, [activeAlert]);
 
-  // Queue processing
-  useEffect(() => {
-    if (isPlaying || queue.length === 0) return;
+  // Core playback loop — event-driven state machine
+  const runNextAlert = useCallback(async () => {
+    if (queue.length === 0) return;
+    if (playbackStateRef.current !== "waiting") return;
 
-    const runNextAlert = async () => {
-      setIsPlaying(true);
-      const nextItem = { ...queue[0] };
+    playbackStateRef.current = "preloading";
+    const nextItem = { ...queue[0] };
+    setQueue((prev) => prev.slice(1));
+    setCurrentDuration(nextItem.duration || 8000);
 
-      // Shift item representation
-      setQueue((prev) => prev.slice(1));
-      setCurrentDuration(nextItem.duration || 8000);
-
-      // Generate spark particles
-      const newSparkles: Sparkle[] = [];
-      const particleColors = [nextItem.neonColor, "#ffffff", "#fbcfe8", "#c7d2fe"];
-      for (let i = 0; i < 40; i++) {
-        const randomColor = particleColors[Math.floor(Math.random() * particleColors.length)];
-        newSparkles.push({
-          id: i,
-          dx: `${(Math.random() * 300 - 150).toFixed(0)}px`,
-          dy: `${(Math.random() * -240 - 60).toFixed(0)}px`,
-          size: `${(Math.random() * 10 + 4).toFixed(0)}px`,
-          delay: `${(Math.random() * 1.2).toFixed(2)}s`,
-          dur: `${(Math.random() * 2 + 1.2).toFixed(2)}s`,
-          bg: randomColor,
-        });
-      }
-      setParticles(newSparkles);
-      setActiveAlert(nextItem);
-
-      // Wait for state shift
-      await new Promise((r) => setTimeout(r, 150));
-
-      // Display alert
-      let resolvePromise: (() => void) | null = null;
-      const alertDelayPromise = new Promise<void>((resolve) => {
-        resolvePromise = resolve;
+    // Generate spark particles
+    const newSparkles: Sparkle[] = [];
+    const particleColors = [nextItem.neonColor, "#ffffff", "#fbcfe8", "#c7d2fe"];
+    for (let i = 0; i < 40; i++) {
+      const randomColor = particleColors[Math.floor(Math.random() * particleColors.length)];
+      newSparkles.push({
+        id: i,
+        dx: `${(Math.random() * 300 - 150).toFixed(0)}px`,
+        dy: `${(Math.random() * -240 - 60).toFixed(0)}px`,
+        size: `${(Math.random() * 10 + 4).toFixed(0)}px`,
+        delay: `${(Math.random() * 1.2).toFixed(2)}s`,
+        dur: `${(Math.random() * 2 + 1.2).toFixed(2)}s`,
+        bg: randomColor,
       });
+    }
+    setParticles(newSparkles);
 
-      let timeoutId: any = null;
+    playbackStateRef.current = "ready";
+    setActiveAlert(nextItem);
 
-      const finishAlert = () => {
-        if (timeoutId) clearTimeout(timeoutId);
-        onVideoEndedRef.current = null;
-        onVideoErrorRef.current = null;
-        onVideoLoadedMetadataRef.current = null;
-        if (resolvePromise) {
-          resolvePromise();
-          resolvePromise = null;
-        }
-      };
+    // Small rAF delay to let React flush DOM before binding events
+    await new Promise((r) => requestAnimationFrame(r));
 
-      const extendTimeout = (newDurationMs: number) => {
-        if (timeoutId) clearTimeout(timeoutId);
-        setCurrentDuration(newDurationMs);
-        timeoutId = setTimeout(finishAlert, Math.max(newDurationMs, 2000));
-      };
+    playbackStateRef.current = "playing";
 
-      cancelCurrentAlertRef.current = finishAlert;
-      extendCurrentTimeoutRef.current = extendTimeout;
+    let resolveFinish: (() => void) | null = null;
+    const finishPromise = new Promise<void>((resolve) => { resolveFinish = resolve; });
 
-      const defaultDuration = nextItem.duration || 8000;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-      if (nextItem.type === "video") {
-        if (nextItem.syncDurationWithMedia) {
-          onVideoEndedRef.current = finishAlert;
-          onVideoLoadedMetadataRef.current = (durationMs) => {
-            setCurrentDuration(durationMs);
-            extendCurrentTimeoutRef.current?.(durationMs);
-          };
-          timeoutId = setTimeout(finishAlert, 300000); // 5 min max fallback
-        } else {
-          timeoutId = setTimeout(finishAlert, defaultDuration);
-        }
-        onVideoErrorRef.current = finishAlert;
-      } else if ((nextItem.type === "iframe" || nextItem.type === "link") && nextItem.syncDurationWithMedia) {
-        if (nextItem.mediaUrl.includes("youtube.com/embed")) {
-          onVideoEndedRef.current = finishAlert;
-          onVideoErrorRef.current = finishAlert;
-          timeoutId = setTimeout(finishAlert, 300000); // 5 min max fallback
-        } else {
-          // We can't detect when other iframes end reliably without cross-origin postMessage,
-          // so we afford a long timeout (let's say 4 minutes) and rely on the streamer
-          // to manually skip if it ends earlier.
-          timeoutId = setTimeout(finishAlert, 240000);
-        }
+    const finishAlert = () => {
+      if (playbackStateRef.current === "finished" || playbackStateRef.current === "waiting") return;
+      playbackStateRef.current = "finished";
+      if (timeoutId) clearTimeout(timeoutId);
+      onVideoEndedRef.current = null;
+      onVideoErrorRef.current = null;
+      onVideoLoadedMetadataRef.current = null;
+      resolveFinish?.();
+      resolveFinish = null;
+    };
+
+    const extendTimeout = (newDurationMs: number) => {
+      if (timeoutId) clearTimeout(timeoutId);
+      setCurrentDuration(newDurationMs);
+      timeoutId = setTimeout(finishAlert, Math.max(newDurationMs, 2000));
+    };
+
+    cancelCurrentAlertRef.current = finishAlert;
+    extendCurrentTimeoutRef.current = extendTimeout;
+
+    const defaultDuration = nextItem.duration || 8000;
+
+    if (nextItem.type === "video") {
+      if (nextItem.syncDurationWithMedia) {
+        onVideoEndedRef.current = finishAlert;
+        onVideoLoadedMetadataRef.current = (durationMs) => {
+          setCurrentDuration(durationMs);
+          extendCurrentTimeoutRef.current?.(durationMs);
+        };
+        timeoutId = setTimeout(finishAlert, 300000); // 5 min hard cap
       } else {
         timeoutId = setTimeout(finishAlert, defaultDuration);
       }
-
-      await alertDelayPromise;
-      cancelCurrentAlertRef.current = null;
-
-      // Shutdown active alert triggering exit animations
-      setActiveAlert(null);
-      setParticles([]);
-
-      // Notify server that alert has been played
-      if (socketRef.current) {
-        socketRef.current.emit("alert_played", nextItem.id);
+      onVideoErrorRef.current = finishAlert;
+    } else if ((nextItem.type === "iframe" || nextItem.type === "link") && nextItem.syncDurationWithMedia) {
+      if (nextItem.mediaUrl.includes("youtube.com/embed")) {
+        onVideoEndedRef.current = finishAlert;
+        onVideoErrorRef.current = finishAlert;
+        timeoutId = setTimeout(finishAlert, 300000);
+      } else {
+        timeoutId = setTimeout(finishAlert, 240000);
       }
+    } else {
+      timeoutId = setTimeout(finishAlert, defaultDuration);
+    }
 
-      // Pause active element safely
-      if (activeVideoRef.current) {
-        activeVideoRef.current.pause();
-      }
+    await finishPromise;
+    cancelCurrentAlertRef.current = null;
 
-      // Allow CSS transitions to play before loading next cue item
-      await new Promise((r) => setTimeout(r, 1000));
-      setIsPlaying(false);
-    };
+    setActiveAlert(null);
+    setParticles([]);
 
-    runNextAlert();
-  }, [queue, isPlaying]);
+    if (socketRef.current) {
+      socketRef.current.emit("alert_played", nextItem.id);
+    }
+
+    if (activeVideoRef.current) {
+      activeVideoRef.current.pause();
+    }
+
+    // CSS exit transition
+    await new Promise((r) => setTimeout(r, 800));
+
+    playbackStateRef.current = "waiting";
+  }, [queue]);
+
+  useEffect(() => {
+    if (playbackStateRef.current === "waiting" && queue.length > 0) {
+      runNextAlert();
+    }
+  }, [queue, runNextAlert]);
 
   useEffect(() => {
     if (onQueueChange) onQueueChange(queue);
   }, [queue, onQueueChange]);
 
-  // Progress Bar Animation Sync
+  // Progress bar — rAF-driven, no setState during playback
   useEffect(() => {
     let animationFrameId: number;
 
@@ -400,11 +369,7 @@ export default function OBSOverlayView({
       let progress = 0;
       if (activeAlert.type === "video" && activeVideoRef.current && activeAlert.syncDurationWithMedia) {
         const video = activeVideoRef.current;
-        if (video.duration) {
-          progress = 1 - video.currentTime / video.duration;
-        } else {
-          progress = 1;
-        }
+        progress = video.duration ? 1 - video.currentTime / video.duration : 1;
       } else {
         const elapsed = Date.now() - alertStartTimeRef.current;
         progress = 1 - elapsed / currentDuration;
@@ -423,10 +388,31 @@ export default function OBSOverlayView({
       animationFrameId = requestAnimationFrame(updateProgress);
     }
 
-    return () => {
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-    };
+    return () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); };
   }, [activeAlert, currentDuration]);
+
+  // OBS-safe autoplay: start muted, then unmute after play() resolves
+  const handleCanPlay = useCallback(
+    (e: React.SyntheticEvent<HTMLVideoElement>) => {
+      const vid = e.currentTarget;
+      const durationMs = vid.duration * 1000;
+
+      if (durationMs && isFinite(durationMs)) {
+        onVideoLoadedMetadataRef.current?.(durationMs);
+      }
+
+      // Muted autoplay strategy — works in OBS browser source
+      vid.muted = true;
+      vid.play()
+        .then(() => {
+          if (!embedMode) {
+            vid.muted = false; // restore audio in OBS full-overlay mode
+          }
+        })
+        .catch((err) => console.warn("[Video] autoplay failed:", err));
+    },
+    [embedMode]
+  );
 
   return (
     <div
@@ -446,7 +432,8 @@ export default function OBSOverlayView({
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-indigo-600/10 blur-[80px] rounded-full pointer-events-none z-0"></div>
         </>
       )}
-      {/* Status indicator */}
+
+      {/* Reconnect status indicator */}
       {wsStatus !== "connected" && !embedMode && (
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-slate-950/90 text-amber-500 border border-amber-500/30 px-3 py-1.5 rounded-full text-xs font-mono select-none animate-pulse">
           <AlertTriangle className="w-4.5 h-4.5" />
@@ -488,7 +475,6 @@ export default function OBSOverlayView({
           activeAlert &&
           (activeAlert.provider === "tiktok" ||
             activeAlert.provider === "instagram" ||
-            // YouTube Shorts cached as mp4 keep the original URL as a hint
             activeAlert.mediaUrl.includes("shorts"));
         return (
           <div
@@ -511,7 +497,7 @@ export default function OBSOverlayView({
                       ? `bg-stone-950 shadow-[4px_4px_0_#ef4444] animate-glitch crt-overlay ${!embedMode ? "" : "border-2 border-cyan-500"}`
                       : activeAlert.alertStyle === "cyberpunk"
                         ? `bg-zinc-950 shadow-[4px_4px_24px_rgba(234,179,8,0.15)] ${!embedMode ? "" : "border-l-4 border-yellow-400 border-t-2 border-r border-b border-zinc-900"} [clip-path:polygon(0_0,95%_0,100%_15px,100%_100%,5%_100%,0_85%)]`
-                        : `bg-slate-950/95 relative animate-neon-pulse ${!embedMode ? "" : "border-2"}` // default neon style
+                        : `bg-slate-950/95 relative animate-neon-pulse ${!embedMode ? "" : "border-2"}`
                 }`}
                 style={
                   {
@@ -520,18 +506,15 @@ export default function OBSOverlayView({
                   } as any
                 }
               >
-                {/* Style Accent for Cyberpunk Style */}
                 {activeAlert.alertStyle === "cyberpunk" && (
                   <div className="absolute top-0 right-12 bg-yellow-400 text-zinc-950 font-mono text-[9px] px-2 py-0.5 tracking-wider font-extrabold uppercase">
                     ALERT // COM_GATEWAY_IN
                   </div>
                 )}
 
-                {/* Content Top Overlay for OBS mode */}
                 <div
                   className={`relative z-10 flex flex-col ${!embedMode ? "p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none" : ""}`}
                 >
-                  {/* Header: User credentials */}
                   <div className={`flex items-center gap-3 ${!embedMode ? "mb-3" : ""}`}>
                     <div className="relative">
                       <img
@@ -562,7 +545,6 @@ export default function OBSOverlayView({
                     </div>
                   </div>
 
-                  {/* Message Alert text block */}
                   {(() => {
                     const cleanedText = activeAlert.text
                       ? activeAlert.text.replace(/https?:\/\/[^\s]+/gi, "").trim()
@@ -582,7 +564,7 @@ export default function OBSOverlayView({
                   })()}
                 </div>
 
-                {/* Media Canvas layout frame */}
+                {/* Media Canvas */}
                 {(() => {
                   const isVertical =
                     activeAlert.provider === "tiktok" ||
@@ -595,7 +577,7 @@ export default function OBSOverlayView({
                       : activeAlert.type !== "image" && activeAlert.type !== "link"
                         ? "aspect-video w-full max-h-[75vh] mt-2"
                         : "w-full min-h-[140px] sm:min-h-[220px] max-h-[350px] sm:max-h-[500px] mt-2"
-                    : ""; // OBS mode strictly absolute full size
+                    : "";
 
                   return (
                     <div
@@ -603,7 +585,7 @@ export default function OBSOverlayView({
                     >
                       {activeAlert.type === "video" ? (
                         <>
-                          {/* Blurred ambient background — video element for vertical, blurred video for widescreen */}
+                          {/* Blurred ambient background */}
                           {!embedMode && isVertical ? (
                             <video
                               src={activeAlert.mediaUrl}
@@ -625,6 +607,8 @@ export default function OBSOverlayView({
                               crossOrigin="anonymous"
                             />
                           )}
+
+                          {/* Primary video — OBS autoplay strategy */}
                           <video
                             ref={activeVideoRef}
                             src={activeAlert.mediaUrl}
@@ -635,62 +619,37 @@ export default function OBSOverlayView({
                             }
                             playsInline
                             controls={!embedMode}
-                            muted={embedMode}
-                            autoPlay
+                            // Do NOT set muted here — handleCanPlay starts muted then unmutes
                             crossOrigin="anonymous"
                             onEnded={() => onVideoEndedRef.current?.()}
                             onError={(e) => {
                               const err = e.currentTarget.error;
                               const rawUrl = activeAlert?.mediaUrl || "unknown";
                               console.error(
-                                `[Media Cache] Video Error: ${err?.message || "Unknown error"} (Code: ${err?.code}) for URL: ${rawUrl}`
+                                `[Video] Error code ${err?.code}: ${err?.message} — ${rawUrl}`
                               );
-
-                              // Single retry logic for cached files or proxy media
                               if (activeAlert && !activeAlert.mediaUrl.includes("retry=1")) {
-                                console.log("[Media Cache] Attempting single retry for video...");
                                 const retryUrl =
-                                  activeAlert.mediaUrl + (activeAlert.mediaUrl.includes("?") ? "&" : "?") + "retry=1";
+                                  activeAlert.mediaUrl +
+                                  (activeAlert.mediaUrl.includes("?") ? "&" : "?") +
+                                  "retry=1";
                                 setTimeout(() => {
                                   setActiveAlert((prev) => (prev ? { ...prev, mediaUrl: retryUrl } : prev));
                                 }, 1000);
                               } else {
-                                console.error("[Media Cache] Video failed after retry. Skipping.");
                                 onVideoErrorRef.current?.();
                               }
                             }}
-                            onPlay={(e) => {
-                              if (activeAlert?.type === "video" && onVideoLoadedMetadataRef.current) {
-                                const videoDurationMs = e.currentTarget.duration * 1000;
-                                if (videoDurationMs && isFinite(videoDurationMs)) {
-                                  onVideoLoadedMetadataRef.current(videoDurationMs);
-                                }
+                            onCanPlay={handleCanPlay}
+                            onLoadedMetadata={(e) => {
+                              const durationMs = e.currentTarget.duration * 1000;
+                              if (durationMs && isFinite(durationMs)) {
+                                onVideoLoadedMetadataRef.current?.(durationMs);
                               }
                             }}
                             onPause={() => {
-                              if (cancelCurrentAlertRef.current && extendCurrentTimeoutRef.current) {
-                                // clear the timeout when paused so they can interact as long as they want
-                                extendCurrentTimeoutRef.current(3600000);
-                              }
-                            }}
-                            onLoadedMetadata={(e) => {
-                              const videoDurationMs = e.currentTarget.duration * 1000;
-                              console.log(
-                                `[Video Debug] onLoadedMetadata - videoWidth: ${e.currentTarget.videoWidth}, videoHeight: ${e.currentTarget.videoHeight}, duration: ${videoDurationMs}`
-                              );
-                              if (videoDurationMs && !isNaN(videoDurationMs) && isFinite(videoDurationMs)) {
-                                onVideoLoadedMetadataRef.current?.(videoDurationMs);
-                              }
-                            }}
-                            onCanPlay={(e) => {
-                              const videoDurationMs = e.currentTarget.duration * 1000;
-                              console.log(
-                                `[Video Debug] onCanPlay - videoWidth: ${e.currentTarget.videoWidth}, videoHeight: ${e.currentTarget.videoHeight}, readyState: ${e.currentTarget.readyState}, duration: ${videoDurationMs}`
-                              );
-                              if (videoDurationMs && !isNaN(videoDurationMs) && isFinite(videoDurationMs)) {
-                                onVideoLoadedMetadataRef.current?.(videoDurationMs);
-                              }
-                              e.currentTarget.play().catch((err) => console.error("CanPlay auto play catch:", err));
+                              // When user manually pauses in dashboard, pause the alert timer
+                              extendCurrentTimeoutRef.current?.(3600000);
                             }}
                           />
                         </>
@@ -698,7 +657,7 @@ export default function OBSOverlayView({
                         <div
                           className="w-full h-full relative z-10 flex flex-col pt-0"
                           onMouseEnter={() => {
-                            if (extendCurrentTimeoutRef.current) extendCurrentTimeoutRef.current(3600000);
+                            extendCurrentTimeoutRef.current?.(3600000);
                           }}
                         >
                           {activeAlert.mediaUrl.includes("youtube.com/embed") ? (
@@ -732,7 +691,7 @@ export default function OBSOverlayView({
                           />
                         </>
                       )}
-                      {/* Spinning background glow accent for standard neon styles */}
+
                       {activeAlert.alertStyle === "neon" && (
                         <div
                           className="absolute inset-0 opacity-15 filter blur-2xl animate-pulse pointer-events-none z-0"
@@ -761,7 +720,6 @@ export default function OBSOverlayView({
         );
       })()}
 
-      {/* Simple debug background label for the web dashboard preview */}
       {embedMode && queue.length > 0 && (
         <div className="absolute bottom-3 left-4 text-[10px] font-mono text-slate-400 bg-slate-950/80 px-2.5 py-1 rounded">
           Pending: {queue.length} alert(s)

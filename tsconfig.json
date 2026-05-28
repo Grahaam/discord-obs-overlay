@@ -20,5 +20,6 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": ["node_modules", "dist", "test*.ts", "test_*.ts"]
 }

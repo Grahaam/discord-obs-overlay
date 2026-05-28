@@ -3,63 +3,90 @@ import youtubedl from "youtube-dl-exec";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-
-const PYTHON_PATH = process.env.PYTHON_BIN || "python3";
-const ytDlp = youtubedl.create({ python: PYTHON_PATH });
 import axios from "axios";
 import { settingsManager } from "./settingsManager.js";
+import { normalizeToMp4 } from "./ffmpegNormalizer.js";
+import { SIZE_LIMITS } from "./mediaWorkerQueue.js";
 
-// Cobalt v10 API — https://github.com/imputnet/cobalt
+const ytDlp = youtubedl;
+
+function hashUrl(url: string): string {
+  return crypto.createHash("md5").update(url).digest("hex");
+}
+
+const YTDLP_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
+
 const COBALT_API = "https://api.cobalt.tools/";
 const CACHE_DIR = path.join(process.cwd(), "media_cache");
-const MAX_CACHE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB default
+const MAX_CACHE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 if (!fs.existsSync(CACHE_DIR)) {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
 }
 
+export function cleanupOrphanedTempFiles(): void {
+  try {
+    const files = fs.readdirSync(CACHE_DIR);
+    const tmpFiles = files.filter((f) => f.endsWith(".tmp"));
+    if (tmpFiles.length > 0) {
+      console.log(`[Cache] Removing ${tmpFiles.length} orphaned .tmp files`);
+      for (const f of tmpFiles) {
+        try {
+          fs.unlinkSync(path.join(CACHE_DIR, f));
+        } catch {
+          // ignore per-file errors
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[Cache] Orphan cleanup failed:", err);
+  }
+}
+
 export async function cleanupCache() {
   try {
     const files = await fs.promises.readdir(CACHE_DIR);
+    const now = Date.now();
+
     const fileStats = await Promise.all(
       files.map(async (file) => {
         const filePath = path.join(CACHE_DIR, file);
         const stats = await fs.promises.stat(filePath);
-        return { file, filePath, size: stats.size, atime: stats.atimeMs };
+        return { file, filePath, size: stats.size, atime: stats.atimeMs, mtime: stats.mtimeMs };
       })
     );
 
-    // Sort by access time (oldest first)
-    fileStats.sort((a, b) => a.atime - b.atime);
-
-    let totalSize = fileStats.reduce((sum, f) => sum + f.size, 0);
-
-    if (totalSize <= MAX_CACHE_SIZE) return;
-
-    console.log(`[Cache] Cleanup started. Current size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
-
+    // Remove TTL-expired files first (skip .tmp — might be in-progress)
     for (const f of fileStats) {
-      if (totalSize <= MAX_CACHE_SIZE) break;
-
-      // Don't delete .tmp files that might be currently downloading
       if (f.file.endsWith(".tmp")) continue;
-
-      try {
-        await fs.promises.unlink(f.filePath);
-        totalSize -= f.size;
-        console.log(`[Cache] Deleted old file: ${f.file}`);
-      } catch (err) {
-        console.warn(`[Cache] Failed to delete ${f.file}:`, err);
+      if (now - f.atime > CACHE_TTL_MS) {
+        await fs.promises.unlink(f.filePath).catch(() => {});
+        console.log(`[Cache] TTL expired: ${f.file}`);
       }
     }
 
-    console.log(`[Cache] Cleanup finished. New size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
+    // Then enforce max size (oldest-access first)
+    const remaining = fileStats.filter(
+      (f) => !f.file.endsWith(".tmp") && now - f.atime <= CACHE_TTL_MS && fs.existsSync(f.filePath)
+    );
+    remaining.sort((a, b) => a.atime - b.atime);
+    let totalSize = remaining.reduce((sum, f) => sum + f.size, 0);
+
+    if (totalSize > MAX_CACHE_SIZE) {
+      console.log(`[Cache] Size limit cleanup: ${(totalSize / 1024 / 1024).toFixed(0)}MB`);
+      for (const f of remaining) {
+        if (totalSize <= MAX_CACHE_SIZE) break;
+        await fs.promises.unlink(f.filePath).catch(() => {});
+        totalSize -= f.size;
+        console.log(`[Cache] Evicted: ${f.file}`);
+      }
+    }
   } catch (err) {
     console.error("[Cache] Cleanup failed:", err);
   }
 }
 
-// Run cleanup every hour
 setInterval(cleanupCache, 60 * 60 * 1000);
 
 export function parseMediaUrl(url: string): {
@@ -125,7 +152,7 @@ async function fetchWithCobalt(url: string): Promise<string | null> {
       COBALT_API,
       {
         url,
-        videoQuality: "720",
+        videoQuality: "1080",
         filenamePattern: "basic",
       },
       {
@@ -157,98 +184,127 @@ async function fetchWithCobalt(url: string): Promise<string | null> {
 
 async function cacheMedia(url: string, originalUrl: string): Promise<string | null> {
   try {
-    const hash = crypto.createHash("md5").update(originalUrl).digest("hex");
-    const filename = `${hash}.mp4`; // Assume mp4 for Cobalt/yt-dlp results
-    const filepath = path.join(CACHE_DIR, filename);
-    const tempFilepath = `${filepath}.tmp`;
+    const hash = hashUrl(originalUrl);
+    const rawFilename = `${hash}.mp4`;
+    const rawFilepath = path.join(CACHE_DIR, rawFilename);
+    const tempFilepath = `${rawFilepath}.tmp`;
 
-    if (fs.existsSync(filepath)) {
-      console.log(`[Cache] Hit: ${filename}`);
-      return filename;
-    }
+    if (!fs.existsSync(rawFilepath)) {
+      console.log(`[Cache] Downloading: ${rawFilename}`);
+      const response = await axios({ method: "get", url, responseType: "stream" });
 
-    console.log(`[Cache] Downloading: ${url} -> ${filename}`);
-    const response = await axios({
-      method: "get",
-      url: url,
-      responseType: "stream",
-    });
+      const contentLength = response.headers["content-length"];
+      if (contentLength && Number(contentLength) > SIZE_LIMITS.video) {
+        throw new Error(`Content-Length exceeds video size limit`);
+      }
 
-    const contentLength = response.headers["content-length"];
-    if (contentLength && parseInt(contentLength, 10) > settingsManager.settings.mediaMaxSizeMB * 1024 * 1024) {
-      throw new Error(`File size exceeds limit (${settingsManager.settings.mediaMaxSizeMB}MB)`);
-    }
+      const writer = fs.createWriteStream(tempFilepath);
+      response.data.pipe(writer);
 
-    const writer = fs.createWriteStream(tempFilepath);
-    response.data.pipe(writer);
-
-    return new Promise((resolve, reject) => {
-      writer.on("finish", async () => {
-        try {
-          await fs.promises.rename(tempFilepath, filepath);
-          await cleanupCache(); // Run cleanup after new file is cached
-          resolve(filename);
-        } catch (err) {
+      await new Promise<void>((resolve, reject) => {
+        writer.on("finish", resolve);
+        writer.on("error", async (err) => {
+          fs.promises.unlink(tempFilepath).catch(() => {});
           reject(err);
-        }
+        });
       });
-      writer.on("error", async (err) => {
-        if (fs.existsSync(tempFilepath)) {
-          await fs.promises.unlink(tempFilepath).catch(() => {});
-        }
-        reject(err);
-      });
-    });
+
+      // Validate actual file size
+      const stat = await fs.promises.stat(tempFilepath);
+      if (stat.size > SIZE_LIMITS.video) {
+        await fs.promises.unlink(tempFilepath).catch(() => {});
+        throw new Error(`Downloaded file exceeds video size limit (${(stat.size / 1024 / 1024).toFixed(0)}MB)`);
+      }
+
+      await fs.promises.rename(tempFilepath, rawFilepath);
+    } else {
+      console.log(`[Cache] Hit: ${rawFilename}`);
+    }
+
+    const normFilename = await normalizeToMp4(rawFilepath, hash);
+    return normFilename ?? rawFilename;
   } catch (err: any) {
     console.error(`[Cache] Download failed: ${err.message}`);
+    fs.promises.unlink(path.join(CACHE_DIR, `${hashUrl(originalUrl)}.mp4.tmp`)).catch(() => {});
     return null;
   }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`[yt-dlp] Timeout (${ms / 1000}s): ${label}`)), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
 }
 
 async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: any } | null> {
   const cookiesPath = path.join(process.cwd(), "cookies.txt");
   const hasCookies = fs.existsSync(cookiesPath);
-  const hash = crypto.createHash("md5").update(url).digest("hex");
-  const filename = `${hash}.mp4`;
-  const filepath = path.join(CACHE_DIR, filename);
-  const tempFilepath = `${filepath}.tmp`;
+  const hash = hashUrl(url);
+  const rawFilename = `${hash}.mp4`;
+  const rawFilepath = path.join(CACHE_DIR, rawFilename);
+  const tempFilepath = `${rawFilepath}.tmp`;
+
+  // Hard cap at 50MB (per SIZE_LIMITS.video). The user-facing mediaMaxSizeMB setting
+  // is intentionally NOT applied here — it was designed for Discord attachments, not
+  // downloads. Applying it to yt-dlp was silently forcing low quality on long videos.
+  const maxMB = Math.round(SIZE_LIMITS.video / (1024 * 1024)); // 50MB
+
+  const dlOptions: any = {
+    noWarnings: true,
+    noCheckCertificates: true,
+    // Prefer 1080p H264+AAC for OBS compatibility. Falls back progressively.
+    format: "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    referer: "https://www.google.com/",
+    geoBypass: true,
+    forceIpv4: true,
+    output: tempFilepath,
+    maxFilesize: `${maxMB}M`,
+    mergeOutputFormat: "mp4",
+  };
+
+  if (hasCookies) {
+    dlOptions.cookies = cookiesPath;
+  }
 
   try {
-    console.log(`[yt-dlp] Attempting extraction for: ${url}`);
-    const dlOptions: any = {
-      noWarnings: true,
-      noCheckCertificates: true,
-      format: "best[ext=mp4]/best",
-      userAgent:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      referer: "https://www.google.com/",
-      geoBypass: true,
-      forceIpv4: true,
-      output: tempFilepath,
-      maxFilesize: `${settingsManager.settings.mediaMaxSizeMB}M`,
-    };
+    console.log(`[yt-dlp] Extracting: ${url}`);
 
-    if (hasCookies) {
-      dlOptions.cookies = cookiesPath;
+    if (fs.existsSync(rawFilepath)) {
+      console.log(`[Cache] Hit (yt-dlp): ${rawFilename}`);
+      const normFilename = `${hash}_norm.mp4`;
+      const finalFilename = fs.existsSync(path.join(CACHE_DIR, normFilename)) ? normFilename : rawFilename;
+      return { filename: finalFilename, info: {} };
     }
 
-    if (fs.existsSync(filepath)) {
-      console.log(`[Cache] Hit (yt-dlp): ${filename}`);
-      // Still need info for title/duration
-      const info: any = await ytDlp(url, { ...dlOptions, dumpSingleJson: true, output: undefined });
-      return { filename, info };
-    }
-
-    const info: any = await ytDlp(url, { ...dlOptions, dumpSingleJson: true });
+    const info: any = await withTimeout(
+      ytDlp(url, { ...dlOptions, dumpSingleJson: true }),
+      YTDLP_TIMEOUT_MS,
+      url
+    );
 
     if (!fs.existsSync(tempFilepath)) {
-      await ytDlp(url, dlOptions);
+      await withTimeout(ytDlp(url, dlOptions), YTDLP_TIMEOUT_MS, url);
     }
 
-    await fs.promises.rename(tempFilepath, filepath);
-    await cleanupCache();
+    // Validate size before accepting
+    if (fs.existsSync(tempFilepath)) {
+      const stat = await fs.promises.stat(tempFilepath);
+      if (stat.size > SIZE_LIMITS.video) {
+        await fs.promises.unlink(tempFilepath).catch(() => {});
+        throw new Error(`File size ${(stat.size / 1024 / 1024).toFixed(0)}MB exceeds video limit`);
+      }
+    }
 
-    return { filename, info };
+    await fs.promises.rename(tempFilepath, rawFilepath);
+
+    const normFilename = await normalizeToMp4(rawFilepath, hash);
+    return { filename: normFilename ?? rawFilename, info };
   } catch (err: any) {
     console.warn(`[yt-dlp] Failed: ${err.message}`);
     if (fs.existsSync(tempFilepath)) {
@@ -262,11 +318,28 @@ export async function updateYtDlp(): Promise<void> {
   try {
     console.log("[yt-dlp] Checking for updates...");
     // youtube-dl-exec doesn't have a direct update() method, so we run the command
-    await ytDlp.exec("", ["--update"], { python: PYTHON_PATH });
+    await ytDlp.exec("yt-dlp", { update: true });
     console.log("[yt-dlp] Update check completed.");
   } catch (err: any) {
     console.warn(`[yt-dlp] Update failed: ${err.message}`);
   }
+}
+
+// Platforms where yt-dlp/Cobalt should be attempted — iframes are never a fallback for these.
+const DOWNLOADABLE_PLATFORMS = [
+  "tiktok.com",
+  "instagram.com",
+  "twitter.com",
+  "x.com",
+  "youtube.com",
+  "youtu.be",
+  "twitch.tv",
+  "clips.twitch.tv",
+];
+
+function isDownloadablePlatform(url: string): boolean {
+  const lower = url.toLowerCase();
+  return DOWNLOADABLE_PLATFORMS.some((p) => lower.includes(p));
 }
 
 export async function resolveMediaFromLink(url: string): Promise<{
@@ -277,21 +350,9 @@ export async function resolveMediaFromLink(url: string): Promise<{
   provider?: string;
   ytDlpError?: string;
 }> {
-  const lowercaseUrl = url.toLowerCase();
-
-  // Resolve the provider from the URL up-front so it is never lost,
-  // even when yt-dlp or Cobalt download the media and change the mediaUrl.
   const { provider: urlProvider } = parseMediaUrl(url);
 
-  // 1. Try yt-dlp first (Local-First)
-  if (
-    lowercaseUrl.includes("tiktok.com") ||
-    lowercaseUrl.includes("instagram.com") ||
-    lowercaseUrl.includes("twitter.com") ||
-    lowercaseUrl.includes("x.com") ||
-    lowercaseUrl.includes("youtube.com") ||
-    lowercaseUrl.includes("youtu.be")
-  ) {
+  if (isDownloadablePlatform(url)) {
     const ytdlResult = await fetchWithYtDlp(url);
     if (ytdlResult) {
       return {
@@ -304,10 +365,9 @@ export async function resolveMediaFromLink(url: string): Promise<{
     }
   }
 
-  // 2. Fallback to Cobalt
-  const cobaltUrl = await fetchWithCobalt(url);
-  if (cobaltUrl) {
-    const cachedFilename = await cacheMedia(cobaltUrl, url);
+  const cobaltStreamUrl = await fetchWithCobalt(url);
+  if (cobaltStreamUrl) {
+    const cachedFilename = await cacheMedia(cobaltStreamUrl, url);
     if (cachedFilename) {
       return {
         type: "video",
@@ -318,7 +378,16 @@ export async function resolveMediaFromLink(url: string): Promise<{
     }
   }
 
-  // 3. Fallback to link-preview-js for images/generic links
+  if (isDownloadablePlatform(url)) {
+    console.warn(`[MediaParser] All extractors failed for ${url} — refusing iframe fallback`);
+    return {
+      type: "link",
+      mediaUrl: url,
+      provider: urlProvider,
+      ytDlpError: "yt-dlp and Cobalt both failed — media unavailable",
+    };
+  }
+
   const quick = parseMediaUrl(url);
   if (quick.type === "iframe") {
     return { ...quick, title: "" };
@@ -344,7 +413,6 @@ export async function resolveMediaFromLink(url: string): Promise<{
 
       if (contentType.startsWith("video/") || mediaType === "video" || mediaType === "video.other") {
         const rawUrl = preview.url || url;
-        // Try to cache this too? For now keep proxy fallback
         return {
           type: "video",
           mediaUrl: `/api/proxy-media?url=${encodeURIComponent(rawUrl)}`,

@@ -5,30 +5,7 @@ import { logManager } from "./logManager.js";
 import { processBannedWords } from "./bannedWords.js";
 import { resolveMediaFromLink } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
-
-class AsyncQueue {
-  private queue: (() => Promise<void>)[] = [];
-  private processing = false;
-
-  async add(task: () => Promise<void>) {
-    this.queue.push(task);
-    if (!this.processing) {
-      this.processing = true;
-      while (this.queue.length > 0) {
-        const next = this.queue.shift();
-        if (next) {
-          try {
-            await next();
-          } catch (err) {
-            console.error("[AsyncQueue] Task error:", err);
-          }
-        }
-      }
-      this.processing = false;
-    }
-  }
-}
-const mediaJobQueue = new AsyncQueue();
+import { addJob } from "./mediaWorkerQueue.js";
 
 export class DiscordBotManager {
   private client: Client | null = null;
@@ -98,7 +75,7 @@ export class DiscordBotManager {
           }
           this.lastUserRequestTimes[message.author.id] = Date.now();
 
-          mediaJobQueue.add(async () => {
+          addJob(`discord-msg-${message.id}`, async () => {
             try {
               let resolvedType: "image" | "video" | "iframe" | "link" = "image";
               let mediaUrl = "";
@@ -199,7 +176,7 @@ export class DiscordBotManager {
               // Strip the primary media link if there is no attachment (meaning the link IS the media)
               if (matches.length > 0 && message.attachments.size === 0) {
                 // We assume the first link matched was used for media extraction
-                finalText = finalText.replace(matches[0], "").trim();
+                finalText = finalText.replace(matches[0]!, "").trim();
               }
 
               if (settingsManager.settings.blockLinks) {
@@ -285,6 +262,7 @@ export class DiscordBotManager {
             } catch (jobErr) {
               console.error("[Discord] Exception inside media job queue:", jobErr);
             }
+            return null;
           });
         } catch (msgErr) {
           console.error("[Discord] Exception inside messageCreate handler:", msgErr);
