@@ -108,6 +108,7 @@ export const locales = {
     },
     overlay: {
       newAlert: "Nouveau média d'abonnés",
+      queued: "en attente",
     },
   },
   en: {
@@ -217,6 +218,7 @@ export const locales = {
     },
     overlay: {
       newAlert: "New subscriber media",
+      queued: "queued",
     },
   },
   "uwu-en": {
@@ -325,6 +327,7 @@ export const locales = {
     },
     overlay: {
       newAlert: "New subscwibew media UwU~",
+      queued: "queued uwu~",
     },
   },
   "uwu-fr": {
@@ -435,6 +438,7 @@ export const locales = {
     },
     overlay: {
       newAlert: "Nouveau média d'abonnés UwU~",
+      queued: "en attente OwO",
     },
   },
 };

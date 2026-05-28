@@ -30,6 +30,13 @@ export default function OBSOverlayView() {
   const [currentDuration, setCurrentDuration] = useState(8000);
   const [isPaused, setIsPaused] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [volume, setVolume] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem("overlay_volume");
+      if (saved !== null) return Math.max(0, Math.min(1, parseFloat(saved)));
+    } catch {}
+    return 1;
+  });
   // How many real OBS overlay windows are connected (0 = embed is the sole player)
   // Refs that don't cause rerenders — critical for OBS performance
   const playbackStateRef = useRef<PlaybackState>("waiting");
@@ -201,7 +208,7 @@ export default function OBSOverlayView() {
 
   // Phase 2: preload next items in queue using hidden elements
   useEffect(() => {
-    queue.forEach((item) => {
+    queue.slice(0, 2).forEach((item) => {
       if (preloadedUrls[item.mediaUrl]) return;
 
       if (item.type === "iframe" || item.type === "link") {
@@ -273,6 +280,7 @@ export default function OBSOverlayView() {
         events: {
           onReady: (event: any) => {
             event.target.playVideo();
+            try { event.target.setVolume(volume * 100); } catch {}
           },
           onStateChange: (event: any) => {
             if (event.data === 0) onVideoEndedRef.current?.();
@@ -296,7 +304,7 @@ export default function OBSOverlayView() {
         ytPlayerRef.current = null;
       }
     };
-  }, [activeAlert]);
+  }, [activeAlert, volume]);
 
   // Core playback loop — event-driven state machine
   const runNextAlert = useCallback(async () => {
@@ -486,8 +494,9 @@ export default function OBSOverlayView() {
       // OBS browser source: start muted then immediately unmute for autoplay
       vid.muted = true;
       vid.muted = false;
+      vid.volume = volume;
     },
-    []
+    [volume]
   );
 
   const showControlsTemporarily = useCallback(() => {
@@ -585,6 +594,14 @@ export default function OBSOverlayView() {
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-slate-950/90 text-amber-500 border border-amber-500/30 px-3 py-1.5 rounded-full text-xs font-mono select-none animate-pulse">
           <AlertTriangle className="w-4.5 h-4.5" />
           <span>OBS Link: Reconnecting WS...</span>
+        </div>
+      )}
+
+      {/* Queue count badge */}
+      {activeAlert && queue.length > 0 && (
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm text-white/80 border border-white/10 px-2.5 py-1 rounded-full text-xs font-mono select-none pointer-events-none">
+          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse inline-block" />
+          {queue.length} {locales[language].overlay.queued}
         </div>
       )}
 
@@ -862,6 +879,24 @@ export default function OBSOverlayView() {
                     >
                       <SkipForward className="w-4 h-4" />
                     </button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={volume}
+                      onChange={(e) => {
+                        const v = parseFloat(e.target.value);
+                        setVolume(v);
+                        if (activeVideoRef.current) activeVideoRef.current.volume = v;
+                        if (ytPlayerRef.current) {
+                          try { ytPlayerRef.current.setVolume(v * 100); } catch {}
+                        }
+                        try { localStorage.setItem("overlay_volume", String(v)); } catch {}
+                      }}
+                      className="w-20 h-1 accent-white cursor-pointer"
+                      title="Volume"
+                    />
                   </div>
                 )}
 
