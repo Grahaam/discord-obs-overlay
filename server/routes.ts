@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Server as SocketServer } from "socket.io";
 import os from "os";
 import { exec } from "child_process";
+import { logger } from "./logger.js";
 import { settingsManager } from "./settingsManager.js";
 import { logManager } from "./logManager.js";
 import { botManager } from "./discordBotManager.js";
@@ -15,36 +16,54 @@ import { resolveMediaFromLink } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
 
 // Helper to get yt-dlp version
+let _ytDlpVersionCache: string | null = null;
+let _ytDlpVersionExpiry = 0;
+
 function getYtDlpVersion(): Promise<string> {
+  if (_ytDlpVersionCache && Date.now() < _ytDlpVersionExpiry) {
+    return Promise.resolve(_ytDlpVersionCache);
+  }
   return new Promise((resolve) => {
     exec("yt-dlp --version", (error, stdout) => {
-      if (error) {
-        resolve("Not installed / Error");
-        return;
-      }
-      resolve(stdout.trim());
+      const version = error ? "Not installed / Error" : stdout.trim();
+      _ytDlpVersionCache = version;
+      _ytDlpVersionExpiry = Date.now() + 5 * 60_000;
+      resolve(version);
     });
   });
 }
 
 // Helper to get cache stats
-function getCacheStats() {
+let _cacheStatsCache: { totalSize: number; fileCount: number } | null = null;
+let _cacheStatsExpiry = 0;
+
+async function getCacheStats() {
+  if (_cacheStatsCache && Date.now() < _cacheStatsExpiry) {
+    return _cacheStatsCache;
+  }
   const cacheDir = path.join(process.cwd(), "media_cache");
   if (!fs.existsSync(cacheDir)) {
-    return { totalSize: 0, fileCount: 0 };
+    _cacheStatsCache = { totalSize: 0, fileCount: 0 };
+    _cacheStatsExpiry = Date.now() + 60_000;
+    return _cacheStatsCache;
   }
-  const files = fs.readdirSync(cacheDir);
+  const files = await fs.promises.readdir(cacheDir);
   let totalSize = 0;
   let fileCount = 0;
   for (const file of files) {
-    const filePath = path.join(cacheDir, file);
-    const stats = fs.statSync(filePath);
-    if (stats.isFile()) {
-      totalSize += stats.size;
-      fileCount++;
+    try {
+      const stats = await fs.promises.stat(path.join(cacheDir, file));
+      if (stats.isFile()) {
+        totalSize += stats.size;
+        fileCount++;
+      }
+    } catch {
+      // file disappeared between readdir and stat
     }
   }
-  return { totalSize, fileCount };
+  _cacheStatsCache = { totalSize, fileCount };
+  _cacheStatsExpiry = Date.now() + 60_000;
+  return _cacheStatsCache;
 }
 
 /** Blocks private/loopback/metadata addresses to prevent SSRF. */
@@ -56,7 +75,7 @@ function isUrlSafeToProxy(rawUrl: string): boolean {
     if (/^10\./.test(hostname)) return false;
     if (/^192\.168\./.test(hostname)) return false;
     if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return false;
-    if (hostname === "169.254.169.254") return false; // AWS/GCP metadata endpoint
+    if (/^169\.254\./.test(hostname)) return false; // link-local (AWS/GCP/Azure metadata)
     return true;
   } catch {
     return false;
@@ -76,6 +95,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
   // Save Settings
   app.post("/api/settings", async (req, res) => {
     try {
+      logger.info({ body: req.body }, "Received settings update");
       const SettingsSchema = z.object({
         discordToken: z.string().optional(),
         channelId: z.string(),
@@ -119,8 +139,10 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       settingsManager.saveSettings(updatedSettings);
 
       if (updatedSettings.discordToken !== originalToken || updatedSettings.channelId !== originalChannel) {
-        console.log("[Server] Token or Channel ID altered: re-initialising Discord worker...");
-        botManager.connectBot(updatedSettings.discordToken, updatedSettings.channelId).catch(() => {});
+        logger.info("Token or Channel ID altered: re-initialising Discord worker");
+        botManager.connectBot(updatedSettings.discordToken, updatedSettings.channelId).catch((err) => {
+          logger.error({ err }, "Discord worker re-initialization failed");
+        });
       }
 
       res.json({
@@ -132,9 +154,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       });
     } catch (err: any) {
       if (err instanceof z.ZodError) {
+        logger.error({ issues: err.issues }, "Validation failed for settings");
         res.status(400).json({ error: "Validation failed", details: (err as z.ZodError).issues });
         return;
       }
+      logger.error({ err }, "Failed storing configurations");
       res.status(500).json({ error: err.message || "Failed storing configurations" });
     }
   });
@@ -152,7 +176,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
   // Bot Status/Reconnect
   app.get("/api/bot-status", async (req, res) => {
-    const cacheStats = getCacheStats();
+    const cacheStats = await getCacheStats();
     const ytDlpVersion = await getYtDlpVersion();
 
     // System stats
@@ -187,7 +211,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     if (!url) return res.status(400).json({ error: "No URL provided" });
 
     try {
-      console.log(`[Retry] Manually re-triggering extraction for: ${url}`);
+      logger.info({ url }, "Manually re-triggering extraction");
 
       // Calculate the hash of the URL to find potential cached files
       const urlHash = crypto.createHash("md5").update(url).digest("hex");
@@ -195,10 +219,10 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
       // Clear any potentially cached failures or old versions
       if (fs.existsSync(possibleCachedFile)) {
-        console.log(`[Retry] Clearing cached file for ${url}: ${possibleCachedFile}`);
+        logger.info({ url, file: possibleCachedFile }, "Clearing cached file");
         await fs.promises
           .unlink(possibleCachedFile)
-          .catch((err) => console.warn(`[Retry] Failed to delete cached file: ${err.message}`));
+          .catch((err) => logger.warn({ err: err.message }, "Failed to delete cached file"));
       }
 
       const resolved = await resolveMediaFromLink(url);
@@ -248,7 +272,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
           finalProvider = resolved.provider;
         }
       } catch (err) {
-        console.error("Failed to resolve test media URL:", err);
+        logger.error({ err }, "Failed to resolve test media URL");
       }
     }
 
@@ -359,7 +383,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         const decoded = Buffer.from(req.query.headers as string, "base64").toString("utf-8");
         headersFromUrl = JSON.parse(decoded);
       } catch {
-        console.warn("Failed to parse headers from proxy-media URL");
+        logger.warn("Failed to parse headers from proxy-media URL");
       }
     }
 
@@ -382,12 +406,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       options.headers["Range"] = req.headers.range;
     }
 
-    const logFile = path.resolve(process.cwd(), "proxy-debug.log");
-    const log = (msg: string) => {
-      console.log(msg);
-      // Use async write — appendFileSync blocks the event loop on every proxied request
-      fs.appendFile(logFile, `[${new Date().toISOString()}] ${msg}\n`, () => {});
-    };
+    const log = (msg: string) => logger.debug(msg);
 
     log(`[Proxy Media] Requesting: ${targetUrl}`);
 
@@ -429,7 +448,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     });
 
     proxyReq.on("error", (e: any) => {
-      console.error("[Proxy Media] Proxy request error:", e);
+      logger.error({ err: e }, "Proxy request error");
       if (!res.headersSent) res.status(500).send("Proxy error");
     });
 
