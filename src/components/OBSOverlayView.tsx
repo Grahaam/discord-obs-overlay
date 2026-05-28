@@ -60,8 +60,16 @@ export default function OBSOverlayView({
     if (!window.YT) {
       const tag = document.createElement("script");
       tag.src = "https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName("script")[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+      try {
+        const first = document.getElementsByTagName("script")[0];
+        if (first?.parentNode) {
+          first.parentNode.insertBefore(tag, first);
+        } else {
+          document.head.appendChild(tag);
+        }
+      } catch {
+        document.head.appendChild(tag);
+      }
     }
   }, []);
 
@@ -289,6 +297,16 @@ export default function OBSOverlayView({
     playbackStateRef.current = "preloading";
     const nextItem = { ...queue[0] };
     setQueue((prev) => prev.slice(1));
+
+    // Silently drop link-type alerts for platforms that block iframe embedding
+    const NON_EMBEDDABLE = ["youtube.com/watch", "youtu.be/", "twitter.com/", "x.com/", "instagram.com/p/"];
+    if (nextItem.type === "link" && NON_EMBEDDABLE.some((p) => nextItem.mediaUrl.includes(p))) {
+      console.warn(`[Overlay] Skipping non-embeddable link alert (yt-dlp failed): ${nextItem.mediaUrl}`);
+      socketRef.current?.emit("alert_played", nextItem.id);
+      playbackStateRef.current = "waiting";
+      return;
+    }
+
     setCurrentDuration(nextItem.duration || 8000);
 
     // Generate spark particles
