@@ -47,23 +47,27 @@ async function getCacheStats() {
     _cacheStatsExpiry = Date.now() + 60_000;
     return _cacheStatsCache;
   }
-  const files = await fs.promises.readdir(cacheDir);
-  let totalSize = 0;
-  let fileCount = 0;
-  for (const file of files) {
-    try {
-      const stats = await fs.promises.stat(path.join(cacheDir, file));
-      if (stats.isFile()) {
-        totalSize += stats.size;
-        fileCount++;
+  try {
+    const files = await fs.promises.readdir(cacheDir);
+    let totalSize = 0;
+    let fileCount = 0;
+    for (const file of files) {
+      try {
+        const stats = await fs.promises.stat(path.join(cacheDir, file));
+        if (stats.isFile()) {
+          totalSize += stats.size;
+          fileCount++;
+        }
+      } catch {
+        // file disappeared between readdir and stat
       }
-    } catch {
-      // file disappeared between readdir and stat
     }
+    _cacheStatsCache = { totalSize, fileCount };
+    _cacheStatsExpiry = Date.now() + 60_000;
+    return _cacheStatsCache;
+  } catch {
+    return { totalSize: 0, fileCount: 0 };
   }
-  _cacheStatsCache = { totalSize, fileCount };
-  _cacheStatsExpiry = Date.now() + 60_000;
-  return _cacheStatsCache;
 }
 
 /** Blocks private/loopback/metadata addresses to prevent SSRF. */
@@ -171,6 +175,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
   // Clear Logs
   app.post("/api/logs/clear", (req, res) => {
     logManager.clearLogs();
+    io.emit("logs_cleared");
     res.json({ success: true });
   });
 

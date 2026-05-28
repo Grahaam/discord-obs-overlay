@@ -1,3 +1,5 @@
+import { logger } from "./logger.js";
+
 // MediaType is the canonical union — never add "react-player" here again.
 export type MediaType = "image" | "video" | "iframe" | "link";
 
@@ -16,6 +18,7 @@ const MAX_LOG_ENTRIES = 500;
 
 export class LogManager {
   public logs: LogEntry[] = [];
+  public onLogAdded: ((log: LogEntry) => void) | null = null;
 
   public addLog(log: Omit<LogEntry, "id" | "timestamp">) {
     const entry: LogEntry = {
@@ -33,6 +36,7 @@ export class LogManager {
     // Persist to DB without blocking — import lazily to avoid circular deps at startup
     import("./db.js").then(({ persistLog }) => persistLog(entry)).catch(() => {});
 
+    this.onLogAdded?.(entry);
     return entry;
   }
 
@@ -48,7 +52,7 @@ export class LogManager {
   /** Called once on startup to restore recent logs from SQLite. */
   public restoreFromDb(logs: LogEntry[]): void {
     this.logs = logs.slice(0, MAX_LOG_ENTRIES);
-    console.log(`[LogManager] Restored ${this.logs.length} log(s) from DB`);
+    logger.info({ count: this.logs.length }, "Restored log(s) from DB");
   }
 }
 
