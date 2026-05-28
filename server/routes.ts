@@ -231,7 +231,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
   // Test Alerts
   app.post("/api/trigger-test", async (req, res) => {
-    const { authorName, text, type, mediaUrl, alertStyle, neonColor, duration } = req.body;
+    const { authorName, text, type, mediaUrl, alertStyle, neonColor, duration } = req.body ?? {};
 
     let finalType = type || "image";
     let finalMediaUrl =
