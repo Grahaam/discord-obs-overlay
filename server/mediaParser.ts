@@ -2,6 +2,7 @@ import { getLinkPreview } from "link-preview-js";
 import youtubedl, { create as ytDlpCreate, update as ytDlpUpdateRaw } from "youtube-dl-exec";
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
+import { logger } from "./logger.js";
 
 const _require = createRequire(import.meta.url);
 const _ffmpegStatic: string | null = (() => {
@@ -24,7 +25,7 @@ function findBestYtDlpPath(): string | null {
   if (fs.existsSync(venvBin)) {
     try {
       execFileSync(venvBin, ["--version"], { stdio: "ignore" });
-      console.log(`[yt-dlp] Using venv binary: ${venvBin}`);
+      logger.info({ venvBin }, "Using venv yt-dlp binary");
       return venvBin;
     } catch {
       /* binary not found or not executable */
@@ -35,13 +36,13 @@ function findBestYtDlpPath(): string | null {
     const found = execFileSync(cmd, ["yt-dlp"], { encoding: "utf8" }).trim().split("\n")[0].trim();
     if (found) {
       execFileSync(found, ["--version"], { stdio: "ignore" });
-      console.log(`[yt-dlp] Using system binary: ${found}`);
+      logger.info({ systemBin: found }, "Using system yt-dlp binary");
       return found;
     }
   } catch {
     /* yt-dlp not on PATH */
   }
-  console.warn("[yt-dlp] Falling back to bundled binary (may fail on Python <3.10)");
+  logger.warn("Falling back to bundled yt-dlp binary (may fail on Python <3.10)");
   return null;
 }
 
@@ -59,9 +60,9 @@ const _ffmpegBin: string | null = (() => {
   }
 })();
 if (!_ffmpegBin) {
-  console.warn("[ffmpeg] Not found — yt-dlp will use pre-muxed formats only (max 720p).");
+  logger.warn("ffmpeg not found — yt-dlp will use pre-muxed formats only (max 720p)");
 } else {
-  console.log(`[ffmpeg] Using: ${_ffmpegBin}`);
+  logger.info({ ffmpegBin: _ffmpegBin }, "Using ffmpeg binary");
 }
 
 function hashUrl(url: string): string {
@@ -84,7 +85,7 @@ export function cleanupOrphanedTempFiles(): void {
     const files = fs.readdirSync(CACHE_DIR);
     const tmpFiles = files.filter((f) => f.includes(".tmp"));
     if (tmpFiles.length > 0) {
-      console.log(`[Cache] Removing ${tmpFiles.length} orphaned .tmp files`);
+      logger.info({ count: tmpFiles.length }, "Removing orphaned .tmp files");
       for (const f of tmpFiles) {
         try {
           fs.unlinkSync(path.join(CACHE_DIR, f));
@@ -94,7 +95,7 @@ export function cleanupOrphanedTempFiles(): void {
       }
     }
   } catch (err) {
-    console.error("[Cache] Orphan cleanup failed:", err);
+    logger.error({ err }, "Orphan cleanup failed");
   }
 }
 
@@ -116,7 +117,7 @@ export async function cleanupCache() {
       if (f.file.endsWith(".tmp")) continue;
       if (now - f.atime > CACHE_TTL_MS) {
         await fs.promises.unlink(f.filePath).catch(() => {});
-        console.log(`[Cache] TTL expired: ${f.file}`);
+        logger.info({ file: f.file }, "Cache TTL expired");
       }
     }
 
@@ -128,16 +129,16 @@ export async function cleanupCache() {
     let totalSize = remaining.reduce((sum, f) => sum + f.size, 0);
 
     if (totalSize > MAX_CACHE_SIZE) {
-      console.log(`[Cache] Size limit cleanup: ${(totalSize / 1024 / 1024).toFixed(0)}MB`);
+      logger.info({ totalSizeMB: (totalSize / 1024 / 1024).toFixed(0) }, "Cache size limit cleanup");
       for (const f of remaining) {
         if (totalSize <= MAX_CACHE_SIZE) break;
         await fs.promises.unlink(f.filePath).catch(() => {});
         totalSize -= f.size;
-        console.log(`[Cache] Evicted: ${f.file}`);
+        logger.info({ file: f.file }, "Cache evicted");
       }
     }
   } catch (err) {
-    console.error("[Cache] Cleanup failed:", err);
+    logger.error({ err }, "Cache cleanup failed");
   }
 }
 
@@ -201,7 +202,7 @@ export function parseMediaUrl(url: string): {
 
 async function fetchWithCobalt(url: string): Promise<string | null> {
   try {
-    console.log(`[Cobalt] Attempting extraction for: ${url}`);
+    logger.info({ url }, "Cobalt attempting extraction");
     const response = await axios.post(
       COBALT_API,
       {
@@ -231,7 +232,7 @@ async function fetchWithCobalt(url: string): Promise<string | null> {
 
     return null;
   } catch (err: any) {
-    console.warn(`[Cobalt] Failed: ${err.message}`);
+    logger.warn({ err: err.message, url }, "Cobalt failed");
     return null;
   }
 }
@@ -244,7 +245,7 @@ async function cacheMedia(url: string, originalUrl: string): Promise<string | nu
     const tempFilepath = `${rawFilepath}.tmp`;
 
     if (!fs.existsSync(rawFilepath)) {
-      console.log(`[Cache] Downloading: ${rawFilename}`);
+      logger.info({ rawFilename }, "Downloading to cache");
       const response = await axios({ method: "get", url, responseType: "stream" });
 
       const contentLength = response.headers["content-length"];
@@ -272,13 +273,13 @@ async function cacheMedia(url: string, originalUrl: string): Promise<string | nu
 
       await fs.promises.rename(tempFilepath, rawFilepath);
     } else {
-      console.log(`[Cache] Hit: ${rawFilename}`);
+      logger.info({ rawFilename }, "Cache hit");
     }
 
     const normFilename = await normalizeToMp4(rawFilepath, hash);
     return normFilename ?? rawFilename;
   } catch (err: any) {
-    console.error(`[Cache] Download failed: ${err.message}`);
+    logger.error({ err: err.message, originalUrl }, "Cache download failed");
     fs.promises.unlink(path.join(CACHE_DIR, `${hashUrl(originalUrl)}.mp4.tmp`)).catch(() => {});
     return null;
   }
@@ -310,7 +311,7 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
   const tempFilepath = path.join(CACHE_DIR, `${hash}.tmp.mp4`);
 
   // 500MB cap for yt-dlp downloads (Discord attachment limit stays at SIZE_LIMITS.video = 50MB)
-  const maxMB = 500;
+  const maxMB = 5000;
 
   const dlOptions: any = {
     noWarnings: true,
@@ -334,20 +335,21 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
   }
 
   try {
-    console.log(`[yt-dlp] Extracting: ${url}`);
+    logger.info({ url }, "yt-dlp extracting");
 
     if (fs.existsSync(rawFilepath)) {
-      console.log(`[Cache] Hit (yt-dlp): ${rawFilename}`);
+      logger.info({ rawFilename }, "Cache hit (yt-dlp)");
       const normFilename = `${hash}_norm.mp4`;
       const finalFilename = fs.existsSync(path.join(CACHE_DIR, normFilename)) ? normFilename : rawFilename;
-      return { filename: finalFilename, info: {} };
+      return { filename: finalFilename, info: { title: "Cached Video" } };
     }
 
-    const info: any = await withTimeout(ytDlp(url, { ...dlOptions, dumpSingleJson: true }), YTDLP_TIMEOUT_MS, url);
-
-    if (!fs.existsSync(tempFilepath)) {
-      await withTimeout(ytDlp(url, dlOptions), YTDLP_TIMEOUT_MS, url);
-    }
+    const info: any = await withTimeout(
+      ytDlp(url, { ...dlOptions, printJson: true }),
+      YTDLP_TIMEOUT_MS,
+      url
+    );
+    logger.info({ infoTitle: info?.title }, "yt-dlp download complete");
 
     if (!fs.existsSync(tempFilepath)) {
       // yt-dlp exited 0 but created no file — typically means --max-filesize was exceeded
@@ -366,7 +368,7 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
     const normFilename = await normalizeToMp4(rawFilepath, hash);
     return { filename: normFilename ?? rawFilename, info };
   } catch (err: any) {
-    console.warn(`[yt-dlp] Failed: ${err.message}`);
+    logger.warn({ err: err.message, url }, "yt-dlp failed");
     if (fs.existsSync(tempFilepath)) {
       await fs.promises.unlink(tempFilepath).catch(() => {});
     }
@@ -376,11 +378,11 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
 
 export async function updateYtDlp(): Promise<void> {
   try {
-    console.log("[yt-dlp] Checking for updates...");
+    logger.info("yt-dlp checking for updates");
     await (_ytDlpCustomPath ? ytDlpUpdateRaw(_ytDlpCustomPath) : ytDlpUpdateRaw());
-    console.log("[yt-dlp] Update check completed.");
+    logger.info("yt-dlp update check completed");
   } catch (err: any) {
-    console.warn(`[yt-dlp] Update failed: ${err.message}`);
+    logger.warn({ err: err.message }, "yt-dlp update failed");
   }
 }
 
@@ -414,6 +416,7 @@ export async function resolveMediaFromLink(url: string): Promise<{
   if (isDownloadablePlatform(url)) {
     const ytdlResult = await fetchWithYtDlp(url);
     if (ytdlResult) {
+      logger.info({ ytdlTitle: ytdlResult.info.title }, "yt-dlp resolution title");
       return {
         type: "video",
         mediaUrl: `/api/media-cache/${ytdlResult.filename}`,
@@ -422,23 +425,24 @@ export async function resolveMediaFromLink(url: string): Promise<{
         provider: urlProvider,
       };
     }
-  }
 
-  const cobaltStreamUrl = await fetchWithCobalt(url);
-  if (cobaltStreamUrl) {
-    const cachedFilename = await cacheMedia(cobaltStreamUrl, url);
-    if (cachedFilename) {
-      return {
-        type: "video",
-        mediaUrl: `/api/media-cache/${cachedFilename}`,
-        title: "Video",
-        provider: urlProvider,
-      };
+    const cobaltStreamUrl = await fetchWithCobalt(url);
+    if (cobaltStreamUrl) {
+      logger.info("Cobalt resolution title: Video (Hardcoded)");
+      const cachedFilename = await cacheMedia(cobaltStreamUrl, url);
+      if (cachedFilename) {
+        return {
+          type: "video",
+          mediaUrl: `/api/media-cache/${cachedFilename}`,
+          title: "Video",
+          provider: urlProvider,
+        };
+      }
     }
   }
 
   if (isDownloadablePlatform(url)) {
-    console.warn(`[MediaParser] All extractors failed for ${url} — media unavailable`);
+    logger.warn({ url }, "All extractors failed — media unavailable");
     return {
       type: "link",
       mediaUrl: url,
@@ -484,7 +488,7 @@ export async function resolveMediaFromLink(url: string): Promise<{
       }
     }
   } catch {
-    console.warn("[MediaParser] link-preview-js retrieval timed out:", url);
+    logger.warn({ url }, "link-preview-js retrieval timed out");
   }
 
   return { ...quick, title: "" };
