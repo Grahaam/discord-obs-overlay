@@ -55,7 +55,7 @@ export async function normalizeToMp4(inputPath: string, inputHash: string): Prom
 
     const timer = setTimeout(() => {
       done = true;
-      ffmpeg.kill("SIGKILL");
+      ffmpeg.kill(9);
       fs.promises.unlink(tempOutput).catch(() => {});
       console.error(`[FFmpeg] Timeout normalizing: ${path.basename(inputPath)}`);
       resolve(null);

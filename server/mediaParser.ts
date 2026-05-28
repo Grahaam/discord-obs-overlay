@@ -1,5 +1,5 @@
 import { getLinkPreview } from "link-preview-js";
-import youtubedl from "youtube-dl-exec";
+import youtubedl, { update as ytDlpUpdate } from "youtube-dl-exec";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -319,8 +319,7 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
 export async function updateYtDlp(): Promise<void> {
   try {
     console.log("[yt-dlp] Checking for updates...");
-    // youtube-dl-exec doesn't have a direct update() method, so we run the command
-    await ytDlp.exec("yt-dlp", { update: true });
+    await ytDlpUpdate();
     console.log("[yt-dlp] Update check completed.");
   } catch (err: any) {
     console.warn(`[yt-dlp] Update failed: ${err.message}`);
