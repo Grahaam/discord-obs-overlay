@@ -78,7 +78,7 @@ export function parseMediaUrl(url: string): {
   }
 
   const ytRegex =
-    /(?:youtube(?:-nocookie|-education)?\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|watch\?v=|shorts\/)|youtu\.be\/)([^"&?\s]{11})/i;
+    /(?:youtube(?:-nocookie|-education)?\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|watch\?v=|shorts\/)|youtu\.be\/)([^"&?\s]{11})/i;
   const ytMatch = url.match(ytRegex);
   if (ytMatch && ytMatch[1]) {
     return {
@@ -88,7 +88,7 @@ export function parseMediaUrl(url: string): {
     };
   }
 
-  const ttRegex = /tiktok\.com\/@[^\/]+\/video\/(\d+)/i;
+  const ttRegex = /tiktok\.com\/@[^/]+\/video\/(\d+)/i;
   const ttMatch = url.match(ttRegex);
   if (ttMatch && ttMatch[1]) {
     return { type: "iframe", mediaUrl: `https://www.tiktok.com/embed/v2/${ttMatch[1]}`, provider: "tiktok" };
@@ -269,9 +269,7 @@ export async function updateYtDlp(): Promise<void> {
   }
 }
 
-export async function resolveMediaFromLink(
-  url: string
-): Promise<{
+export async function resolveMediaFromLink(url: string): Promise<{
   type: "image" | "video" | "iframe" | "link";
   mediaUrl: string;
   title?: string;

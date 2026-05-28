@@ -8,7 +8,6 @@ import rateLimit from "express-rate-limit";
 
 import { env } from "./env.js";
 import { settingsManager } from "./settingsManager.js";
-import { logManager } from "./logManager.js";
 import { botManager } from "./discordBotManager.js";
 import { setupRoutes } from "./routes.js";
 import { updateYtDlp } from "./mediaParser.js";
@@ -63,10 +62,7 @@ async function runServer() {
   // Configure socket.io
   const io = new SocketServer(httpServer, {
     cors: {
-      origin: [
-        `http://localhost:${PORT}`,
-        `http://127.0.0.1:${PORT}`,
-      ],
+      origin: [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`],
       methods: ["GET", "POST"],
     },
   });
@@ -101,6 +97,7 @@ async function runServer() {
 
   // Global error handler
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    void _next;
     console.error("[Server] Unhandled route error:", err);
 
     if (!res.headersSent) {

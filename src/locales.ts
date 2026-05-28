@@ -6,7 +6,7 @@ export const locales = {
       styling: "Look OBS",
       filter: "Filtres & Modération",
       simulator: "Simulateur",
-      health: "Santé du Système"
+      health: "Santé du Système",
     },
     bot: {
       title: "Configuration du Bot Discord",
@@ -20,9 +20,11 @@ export const locales = {
       devPortal: "Portail Développeur de Discord",
       channel: "ID du salon à écouter",
       channelPlaceholder: "Exemple: 121528642398457810",
-      channelHelp: "Faites un clic droit sur le nom du salon puis \"Copier l'identifiant\" (le Mode Développeur doit être activé sur Discord).",
+      channelHelp:
+        'Faites un clic droit sur le nom du salon puis "Copier l\'identifiant" (le Mode Développeur doit être activé sur Discord).',
       maxSize: "Taille maximale des fichiers",
-      maxSizeHelp: "Afin de limiter l'utilisation de la bande passante, les fichiers excédant cette limite seront ignorés.",
+      maxSizeHelp:
+        "Afin de limiter l'utilisation de la bande passante, les fichiers excédant cette limite seront ignorés.",
       duration: "Durée d'affichage (ms)",
       durationHelp: "Le laps de temps durant lequel l'alerte restera à l'écran (ex: 8000 pour 8 secondes).",
       syncDuration: "Synchroniser avec la durée de la vidéo",
@@ -30,15 +32,17 @@ export const locales = {
       shortcut: "Raccourci d'arrêt d'urgence",
       shortcutHelp: "Appuyez sur cette touche pour masquer instantanément l'alerte média active.",
       cookies: "Cookies de Session (Optionnel)",
-      cookiesHelp: "Nécessaires pour contourner les restrictions d'accès (ex: Instagram, TikTok). Utilisez l'extension 'Get cookies.txt LOCALLY' dans votre navigateur pour exporter vos cookies au format Netscape et collez-les ici.",
+      cookiesHelp:
+        "Nécessaires pour contourner les restrictions d'accès (ex: Instagram, TikTok). Utilisez l'extension 'Get cookies.txt LOCALLY' dans votre navigateur pour exporter vos cookies au format Netscape et collez-les ici.",
       save: "Enregistrer les modifications",
-      saveWorking: "Sauvegarde en cours..."
+      saveWorking: "Sauvegarde en cours...",
     },
     display: {
       title: "Apparence des alertes",
       desc: "Personnalisez le style visuel de vos alertes de stream et choisissez vos couleurs.",
       urlTitle: "Lien de l'Overlay OBS",
-      urlDesc: "Copiez ce lien et ajoutez-le en tant que 'Source Navigateur' dans OBS Studio. La résolution recommandée est de 1920x1080.",
+      urlDesc:
+        "Copiez ce lien et ajoutez-le en tant que 'Source Navigateur' dans OBS Studio. La résolution recommandée est de 1920x1080.",
       copy: "Copier",
       copied: "Copié !",
       visualTheme: "Thème Visuel",
@@ -51,7 +55,7 @@ export const locales = {
       glassStyle: "Verre Sablé",
       glassDesc: "Un effet translucide élégant avec flou d'arrière-plan.",
       customColor: "Couleur principale (Hex)",
-      colorSwatches: "Nuancier rapide :"
+      colorSwatches: "Nuancier rapide :",
     },
     filter: {
       title: "Sécurité & Modération",
@@ -71,7 +75,7 @@ export const locales = {
       blockLinks: "Bannir les messages contenant des URLs",
       blockNSFW: "Ignorer les fichiers marqués Spoiler / NSFW",
       cooldown: "Délai imposé (Cooldown)",
-      cooldownDesc: "Temps minimum d'attente requis entre deux demandes d'un même utilisateur."
+      cooldownDesc: "Temps minimum d'attente requis entre deux demandes d'un même utilisateur.",
     },
     logs: {
       title: "Journaux d'Activité",
@@ -85,7 +89,7 @@ export const locales = {
       approved: "Approuvé",
       blocked: "Bloqué",
       censored: "Censuré",
-      empty: "Aucune activité récente."
+      empty: "Aucune activité récente.",
     },
     health: {
       title: "Moniteur de Santé du Système",
@@ -99,8 +103,8 @@ export const locales = {
       cpuUsage: "Utilisation CPU (1m)",
       memoryUsed: "Mémoire Utilisée",
       memoryTotal: "Mémoire Totale",
-      ytdlpStatus: "Statut yt-dlp"
-    }
+      ytdlpStatus: "Statut yt-dlp",
+    },
   },
   en: {
     dashboardTitle: "Dashboard",
@@ -109,7 +113,7 @@ export const locales = {
       styling: "OBS Look",
       filter: "Filters & Mod",
       simulator: "Simulator",
-      health: "System Health"
+      health: "System Health",
     },
     bot: {
       title: "Discord Bot Configuration",
@@ -123,7 +127,8 @@ export const locales = {
       devPortal: "Discord Developer Portal",
       channel: "Listen Channel ID",
       channelPlaceholder: "Example: 121528642398457810",
-      channelHelp: "Right-click a channel name and select \"Copy ID\" (Requires Developer Mode to be enabled in Discord).",
+      channelHelp:
+        'Right-click a channel name and select "Copy ID" (Requires Developer Mode to be enabled in Discord).',
       maxSize: "Max File Size",
       maxSizeHelp: "To restrict bandwidth usage, files exceeding this limit will be ignored.",
       duration: "Display Duration (ms)",
@@ -133,9 +138,10 @@ export const locales = {
       shortcut: "Emergency Stop Shortcut",
       shortcutHelp: "Press this key to instantly dismiss the currently active media alert.",
       cookies: "Session Cookies (Optional)",
-      cookiesHelp: "Required for platforms that block anonymous access. Use a browser extension like 'Get cookies.txt LOCALLY' to extract your cookies in Netscape format and paste them here.",
+      cookiesHelp:
+        "Required for platforms that block anonymous access. Use a browser extension like 'Get cookies.txt LOCALLY' to extract your cookies in Netscape format and paste them here.",
       save: "Save changes",
-      saveWorking: "Saving configuration..."
+      saveWorking: "Saving configuration...",
     },
     display: {
       title: "Alert Appearance",
@@ -154,7 +160,7 @@ export const locales = {
       glassStyle: "Frosted Glass",
       glassDesc: "A clean layout with translucent background blurring.",
       customColor: "Primary Color (Hex)",
-      colorSwatches: "Color Swatches:"
+      colorSwatches: "Color Swatches:",
     },
     filter: {
       title: "Security & Moderation",
@@ -174,7 +180,7 @@ export const locales = {
       blockLinks: "Reject requests containing URLs",
       blockNSFW: "Reject media marked as Spoiler/NSFW",
       cooldown: "Request Cooldown",
-      cooldownDesc: "Minimum time required between two requests submitted by the same user."
+      cooldownDesc: "Minimum time required between two requests submitted by the same user.",
     },
     logs: {
       title: "Activity Logs",
@@ -188,7 +194,7 @@ export const locales = {
       approved: "Approved",
       blocked: "Blocked",
       censored: "Censored",
-      empty: "The activity log is currently empty."
+      empty: "The activity log is currently empty.",
     },
     health: {
       title: "System Health Monitor",
@@ -202,8 +208,8 @@ export const locales = {
       cpuUsage: "CPU Usage (1m avg)",
       memoryUsed: "Memory Used",
       memoryTotal: "Total Memory",
-      ytdlpStatus: "yt-dlp Status"
-    }
+      ytdlpStatus: "yt-dlp Status",
+    },
   },
   "uwu-en": {
     dashboardTitle: "Dashbowd UwU",
@@ -212,7 +218,7 @@ export const locales = {
       styling: "OBS Stywes~",
       filter: "Modewation",
       simulator: "Simuwator",
-      health: "System Hewlth"
+      health: "System Hewlth",
     },
     bot: {
       title: "Discowd Bawt Settings >w<",
@@ -226,7 +232,7 @@ export const locales = {
       devPortal: "Discowd Devewopew Powtaw",
       channel: "Discowd Wisten Channew ID",
       channelPlaceholder: "Exampwe: 121528642398457810",
-      channelHelp: "Wight cwick youw Discowd text channew to \"Copy ID\" (Discowd Devewopew Mode wequiwed) >w<",
+      channelHelp: 'Wight cwick youw Discowd text channew to "Copy ID" (Discowd Devewopew Mode wequiwed) >w<',
       maxSize: "Media Size Wimit",
       maxSizeHelp: "To westwict bandwidth, fiwes wawgew than this wiww be ignowed :3",
       duration: "Awewt Wength UwU",
@@ -238,7 +244,7 @@ export const locales = {
       cookies: "TikTok/Instagwam Session Cookies (Optionaw, nya~)",
       cookiesHelp: "Standawd cookie text content to bypass connection bwockages fow sum netwowks.",
       save: "Save Configuwations~",
-      saveWorking: "Saving to memowy... *sweats*"
+      saveWorking: "Saving to memowy... *sweats*",
     },
     display: {
       title: "Aesthetic Stywes & Visuaws >///<",
@@ -257,14 +263,15 @@ export const locales = {
       glassStyle: "Gwassmowphic",
       glassDesc: "Twanswucent gwass backwit by cowow~ so pweatty!",
       customColor: "Hexadecimaw Neon Tint",
-      colorSwatches: "Quick Swatches :"
+      colorSwatches: "Quick Swatches :",
     },
     filter: {
       title: "Modewation & Secuwity! >:3",
       desc: "Contwow wequests, bwock unwanted wowds and secuwe youw stweam fwom twowws. *gwowls*",
       autoModTitle: "Native Pwotection: Discowd AutoMod!",
       autoModDesc1: "The appwication integwates nativewy wiff Discowd's AutoMod.",
-      autoModDesc2: "Any message bwocked by Discowd wiww nevew weach the Ovewway. This is the pwo-est secuwity wevew!!!",
+      autoModDesc2:
+        "Any message bwocked by Discowd wiww nevew weach the Ovewway. This is the pwo-est secuwity wevew!!!",
       localFilter: "Wocaw Text Fiwtew",
       localFilterSub: "Additionaw fiwtew executed by the app~",
       bannedWords: "Banned Wowds T_T",
@@ -277,7 +284,7 @@ export const locales = {
       blockLinks: "Bwock UWLs in titwe",
       blockNSFW: "Bwock Spoiwews/NSFW fiwes ;w;",
       cooldown: "Coowdown~",
-      cooldownDesc: "Minimum time between two wequests fwom the same usew. *yawn*"
+      cooldownDesc: "Minimum time between two wequests fwom the same usew. *yawn*",
     },
     logs: {
       title: "Activities & Wogs o_o",
@@ -291,7 +298,7 @@ export const locales = {
       approved: "Appwoved",
       blocked: "Bwocked",
       censored: "Censowed",
-      empty: "The activity wog is cuwwentwy empty. *owphan noises*"
+      empty: "The activity wog is cuwwentwy empty. *owphan noises*",
     },
     health: {
       title: "System Hewlth Monitow",
@@ -305,8 +312,8 @@ export const locales = {
       cpuUsage: "CPU Usage (1m avg)",
       memoryUsed: "Memowy Used",
       memoryTotal: "Totaw Memowy",
-      ytdlpStatus: "yt-dlp Status"
-    }
+      ytdlpStatus: "yt-dlp Status",
+    },
   },
   "uwu-fr": {
     dashboardTitle: "Panneau de contwôwe UwU",
@@ -315,7 +322,7 @@ export const locales = {
       styling: "Affichages OBS",
       filter: "Fiwtwes & Modéwation",
       simulator: "Simuwateuw",
-      health: "Santé du Systwème"
+      health: "Santé du Systwème",
     },
     bot: {
       title: "Pawamètwes du Bawt Discowd >w<",
@@ -329,7 +336,8 @@ export const locales = {
       devPortal: "Powtaiw Discowd Devewopew",
       channel: "ID Sawon Discowd Écoute (Sawon de Cwips)",
       channelPlaceholder: "Exempwe: 121528642398457810",
-      channelHelp: "Faites un cwic dwoit suw votwe sawon textuew Discowd pouw \"Copiew w'identifiant\" (Mode Dévewoppeuw wequis) >w<",
+      channelHelp:
+        'Faites un cwic dwoit suw votwe sawon textuew Discowd pouw "Copiew w\'identifiant" (Mode Dévewoppeuw wequis) >w<',
       maxSize: "Wimite de taiwwe média",
       maxSizeHelp: "Pouw souwagew wa bande passante, ignowe wes fichiews pwus wouwds :3",
       duration: "Temps d'affichage Awewte UwU",
@@ -339,9 +347,10 @@ export const locales = {
       shortcut: "Waccouwci Cwaview d'Uwgence!",
       shortcutHelp: "Touche gwowabwe à appuyew pouw masquew w'awewte média active instantanément. *hides*",
       cookies: "Cookies Vidéo (YouTube, Instagwam, TikTok, nya~)",
-      cookiesHelp: "Cewa pewmet awwa pwatefowme de téwéchawgew des médias comme si ewwe était connectée à votwe compte.",
+      cookiesHelp:
+        "Cewa pewmet awwa pwatefowme de téwéchawgew des médias comme si ewwe était connectée à votwe compte.",
       save: "Sauvewgwawdew wes configuwations~",
-      saveWorking: "Inscwiption en mémoiwe... *sweats*"
+      saveWorking: "Inscwiption en mémoiwe... *sweats*",
     },
     display: {
       title: "Aesthetic Stywes & Visuaws >///<",
@@ -360,14 +369,15 @@ export const locales = {
       glassStyle: "Gwassmowphic",
       glassDesc: "Vewwe twanswucide wétwoécwaiwé paw wa teinte~ si jouli!",
       customColor: "Teinte Hexadécimawe du Néon",
-      colorSwatches: "Nuanciew Wapide :"
+      colorSwatches: "Nuanciew Wapide :",
     },
     filter: {
       title: "Modéwation & Sécuwité! >:3",
       desc: "Contwôwez wes demandes, bwoquez wes mots indésiwabwes et sécuwisez votwe stweam contwe wes twowws. *gwowls*",
       autoModTitle: "Pwotection native : Discowd AutoMod!",
       autoModDesc1: "W'appwication s'intègwe natuwewwement wiff Discowd's AutoMod.",
-      autoModDesc2: "Tout message bwoqué paw Discowd n'atteindwa jamais w'Ovewway. C'est wa méthode de sécuwité wa pwus puissanteee!!!",
+      autoModDesc2:
+        "Tout message bwoqué paw Discowd n'atteindwa jamais w'Ovewway. C'est wa méthode de sécuwité wa pwus puissanteee!!!",
       localFilter: "Fiwtwe Textuew Wocaw",
       localFilterSub: "Fiwtwe additionnew exécuté paw w'appwication~",
       bannedWords: "Mots-cwés fiwtwés (Banned Wowds) T_T",
@@ -380,7 +390,7 @@ export const locales = {
       blockLinks: "Bwoquew wes URLs dans we titwe",
       blockNSFW: "Bwoquew wes fichiews Spoiwews/NSFW ;w;",
       cooldown: "Déwai (Coowdown)~",
-      cooldownDesc: "Minimum time entwew deux demandes de wa même pewsonne. *yawn*"
+      cooldownDesc: "Minimum time entwew deux demandes de wa même pewsonne. *yawn*",
     },
     logs: {
       title: "Activités & Wogs o_o",
@@ -394,7 +404,7 @@ export const locales = {
       approved: "Appwouvé",
       blocked: "Bwoqué",
       censored: "Censuwé",
-      empty: "We jouwnaw d'activité est actwewement vide. *owphan noises*"
+      empty: "We jouwnaw d'activité est actwewement vide. *owphan noises*",
     },
     health: {
       title: "Monitew de Santé du Systwème",
@@ -408,9 +418,9 @@ export const locales = {
       cpuUsage: "Utilisation CPU (1m)",
       memoryUsed: "Mémoiwe Utilisée",
       memoryTotal: "Mémoiwe Totale",
-      ytdlpStatus: "Statut yt-dlp"
-    }
-  }
+      ytdlpStatus: "Statut yt-dlp",
+    },
+  },
 };
 
 export type Language = keyof typeof locales;

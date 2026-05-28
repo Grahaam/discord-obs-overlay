@@ -17,7 +17,7 @@ export interface Settings {
   bannedWordsAction: "block" | "censor";
   stopAlertShortcut: string;
   youtubeCookiesContent?: string;
-  
+
   // Moderation Extras
   cooldownSeconds?: number;
   blockLinks?: boolean;
@@ -49,15 +49,15 @@ export class SettingsManager {
   public loadSettings() {
     try {
       dotenv.config(); // Reload env
-      
+
       let loaded: Partial<Settings> = {};
       if (fs.existsSync(SETTINGS_FILE)) {
         const raw = fs.readFileSync(SETTINGS_FILE, "utf-8");
         loaded = JSON.parse(raw);
       }
-      
+
       this.settings = { ...defaultSettings, ...loaded };
-      
+
       // Override from .env if present
       const envToken = process.env.DISCORD_TOKEN;
       if (envToken) {
@@ -71,7 +71,7 @@ export class SettingsManager {
       }
 
       console.log("[Settings] Loaded securely (tokens mapped from env).");
-      
+
       if (!fs.existsSync(SETTINGS_FILE)) {
         this.saveSettings(this.settings);
       }
@@ -83,18 +83,19 @@ export class SettingsManager {
   public saveSettings(newSettings: Settings) {
     try {
       // 1. Separate sensitive from public
-      const { discordToken, youtubeCookiesContent, ...publicSettings } = newSettings;
-      
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { discordToken: _t, youtubeCookiesContent: _c, ...publicSettings } = newSettings;
+
       // 2. Save public things safely to settings.json
       fs.writeFileSync(SETTINGS_FILE, JSON.stringify(publicSettings, null, 2), "utf-8");
-      
+
       // 3. Save discordToken safely to .env
       this.writeEnvVars({ DISCORD_TOKEN: discordToken });
-      
+
       this.settings = { ...newSettings };
-      
+
       console.log("[Settings] Saved successfully (secrets secured).");
-      
+
       // 4. Sycn Cookies to cookies.txt natively
       this.syncCookiesFile();
     } catch (err) {
@@ -104,15 +105,15 @@ export class SettingsManager {
 
   private writeEnvVars(vars: Record<string, string>) {
     try {
-      let envContent = '';
+      let envContent = "";
       if (fs.existsSync(ENV_FILE)) {
         envContent = fs.readFileSync(ENV_FILE, "utf8");
       }
 
       for (const [key, value] of Object.entries(vars)) {
         const safeValue = `"${value.replace(/"/g, '\\"')}"`;
-        const regex = new RegExp(`^${key}=.*$`, 'm');
-        
+        const regex = new RegExp(`^${key}=.*$`, "m");
+
         if (regex.test(envContent)) {
           envContent = envContent.replace(regex, `${key}=${safeValue}`);
         } else {
@@ -120,7 +121,7 @@ export class SettingsManager {
         }
         process.env[key] = value; // Update the live process environment reference
       }
-      
+
       fs.writeFileSync(ENV_FILE, envContent.trim() + "\n", "utf8");
     } catch (e) {
       console.error("[Settings] Could not write to .env", e);
@@ -131,7 +132,7 @@ export class SettingsManager {
     try {
       const cookiesFile = path.join(process.cwd(), "cookies.txt");
       const content = (this.settings.youtubeCookiesContent || "").trim();
-      
+
       if (!content) {
         if (fs.existsSync(cookiesFile)) {
           fs.unlinkSync(cookiesFile);
@@ -143,7 +144,7 @@ export class SettingsManager {
       if (!finalContent.includes("# Netscape HTTP Cookie File")) {
         finalContent = "# Netscape HTTP Cookie File\n# This is a generated file! Do not edit.\n\n" + finalContent;
       }
-      
+
       fs.writeFileSync(cookiesFile, finalContent, "utf-8");
     } catch (err) {
       console.error("[Settings] Failed to sync cookies.txt.", err);

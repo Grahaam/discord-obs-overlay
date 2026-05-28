@@ -1,41 +1,36 @@
-import { useState, useEffect, useRef } from "react";
-import { 
-  Bot, 
-  Settings, 
-  Activity, 
-  Sliders, 
+import { useState, useEffect } from "react";
+import {
+  Bot,
+  Activity,
+  Sliders,
   Shield,
-  ShieldAlert, 
-  Sparkles, 
-  Play, 
-  Tv, 
-  Copy, 
-  Plus, 
-  Trash2, 
-  Loader2, 
-  RefreshCw, 
-  FileText, 
-  X, 
-  CheckCircle2, 
+  ShieldAlert,
+  Tv,
+  Copy,
+  Trash2,
+  Loader2,
+  RefreshCw,
+  FileText,
+  X,
+  CheckCircle2,
   AlertTriangle,
-  Flame,
-  User,
   Image as ImageIcon,
   Video as VideoIcon,
-  Volume2,
   GripVertical,
   Send,
   Cpu,
   HardDrive,
-  HeartPulse // Added for System Health
+  HeartPulse, // Added for System Health
 } from "lucide-react";
-import { UIConfig, LogEntry, AlertPayload, BotStatus, SimulationPreset } from "../types";
+import { UIConfig, LogEntry, AlertPayload, BotStatus } from "../types";
 import { locales, Language } from "../locales";
 import OBSOverlayView from "./OBSOverlayView";
 import TutorialOverlay from "./TutorialOverlay";
 
 export default function StreamerDashboard() {
-  const [activeTab, setActiveTab] = useState<"credentials" | "styling" | "filters" | "moderation" | "simulator" | "health">("credentials");
+  const [activeTab, setActiveTab] = useState<
+    "credentials" | "styling" | "filters" | "moderation" | "simulator" | "health"
+  >("credentials");
   const [saveLoading, setSaveLoading] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [pendingQueue, setPendingQueue] = useState<AlertPayload[]>([]);
@@ -49,13 +44,13 @@ export default function StreamerDashboard() {
   const handleDrop = async (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === targetIndex) return;
-    
+
     const newQueue = [...pendingQueue];
     const [movedItem] = newQueue.splice(draggedIndex, 1);
     newQueue.splice(targetIndex, 0, movedItem);
     setPendingQueue(newQueue);
     setDraggedIndex(null);
-    
+
     try {
       await fetch("/api/queue/force-update", {
         method: "POST",
@@ -107,7 +102,7 @@ export default function StreamerDashboard() {
     cooldownSeconds: 0,
     blockLinks: false,
     blockNSFW: false,
-    language: "fr"
+    language: "fr",
   });
 
   const currentLang = config.language || "fr";
@@ -127,7 +122,9 @@ export default function StreamerDashboard() {
   const [simName, setSimName] = useState("Viewer_Lucky_Hype");
   const [simText, setSimText] = useState("Un clip sur le boss final ce soir ! GG");
   const [simType, setSimType] = useState<AlertPayload["type"]>("image");
-  const [simMediaUrl, setSimMediaUrl] = useState("https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1280&auto=format&fit=crop");
+  const [simMediaUrl, setSimMediaUrl] = useState(
+    "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1280&auto=format&fit=crop"
+  );
 
   // Load configuration & logs at boot
   const fetchSettingsAndLogs = async () => {
@@ -182,16 +179,13 @@ export default function StreamerDashboard() {
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       // Don't trigger if the user is typing in an input or textarea
-      if (
-        document.activeElement?.tagName === "INPUT" ||
-        document.activeElement?.tagName === "TEXTAREA"
-      ) {
+      if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") {
         return;
       }
 
       const configKey = config.stopAlertShortcut || "Escape";
 
-      const matchesKey = 
+      const matchesKey =
         e.key.toLowerCase() === configKey.toLowerCase() ||
         e.code.toLowerCase() === configKey.toLowerCase() ||
         (configKey.toLowerCase() === "space" && e.key === " ") ||
@@ -225,11 +219,11 @@ export default function StreamerDashboard() {
       if (!response.ok) {
         let errorMsg = response.statusText;
         try {
-            const errData = await response.json();
-            if (errData.error) errorMsg = errData.error;
+          const errData = await response.json();
+          if (errData.error) errorMsg = errData.error;
         } catch {
-            const errText = await response.text();
-            if (errText) errorMsg = errText.substring(0, 50);
+          const errText = await response.text();
+          if (errText) errorMsg = errText.substring(0, 50);
         }
         throw new Error(`Failed to save: ${response.status} ${errorMsg}`);
       }
@@ -337,47 +331,10 @@ export default function StreamerDashboard() {
     });
   };
 
-  // Simulation presets
-  const presets: SimulationPreset[] = [
-    {
-      label: "GIF Chat Rigolo",
-      authorName: "Gamer_Mimi_😺",
-      text: "Quand le stream commence enfin et que l'ambiance est au rendez-vous ! 🥂🎉",
-      type: "image",
-      mediaUrl: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3hveXQ1djRycXUzZW03Nm1sdXQyYjBhMjBrd281ZnA1ODlhZm5kZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/L13yIu3sO2W50LDZKs/giphy.gif"
-    },
-    {
-      label: "Vidéo Boucle Synthwave",
-      authorName: "Neon_Pilot_88",
-      text: "Ton stream de ce soir est très intéressant.",
-      type: "video",
-      mediaUrl: "https://assets.mixkit.co/videos/preview/mixkit-retro-futuristic-grid-background-with-laser-lights-42582-large.mp4"
-    },
-    {
-      label: "Victoire de Team (Image Unsplash)",
-      authorName: "Captain_Raid",
-      text: "Top 1 mémorable ! On a roulé sur la game !! Incroyable travail d'équipe 🥇🥊",
-      type: "image",
-      mediaUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1280&auto=format&fit=crop"
-    },
-    {
-      label: "Vibe Relax Calme",
-      authorName: "ZenStreamer",
-      text: "Un stream chill ce soir.",
-      type: "image",
-      mediaUrl: "https://images.unsplash.com/photo-1518495973542-4542c06a5843?q=80&w=1280&auto=format&fit=crop"
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-[#050508] text-[#e0e0e6] flex flex-col font-sans selection:bg-indigo-600 selection:text-white relative overflow-hidden">
-      {showTutorial && (
-        <TutorialOverlay 
-          onComplete={finishTutorial} 
-          setActiveTab={setActiveTab} 
-        />
-      )}
-      
+      {showTutorial && <TutorialOverlay onComplete={finishTutorial} setActiveTab={setActiveTab} />}
+
       {/* Dynamic Background Glowing Accents */}
       <div className="absolute top-[15%] left-[75%] -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none z-0"></div>
       <div className="absolute top-[65%] left-[15%] -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-purple-600/5 blur-[130px] rounded-full pointer-events-none z-0"></div>
@@ -397,7 +354,7 @@ export default function StreamerDashboard() {
 
         <div className="flex items-center gap-2 sm:gap-4 relative z-10 w-full sm:w-auto justify-between sm:justify-end">
           {/* Language Selector */}
-          <select 
+          <select
             value={config.language}
             onChange={(e) => {
               const newLang = e.target.value as Language;
@@ -405,7 +362,7 @@ export default function StreamerDashboard() {
               fetch("/api/settings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...config, language: newLang })
+                body: JSON.stringify({ ...config, language: newLang }),
               }).catch(() => {});
             }}
             className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white uppercase focus:outline-none focus:border-indigo-500 cursor-pointer"
@@ -417,22 +374,31 @@ export default function StreamerDashboard() {
           </select>
 
           {/* Discord Bot Status Card */}
-          <div className={`flex items-center gap-2 px-3 py-1 border rounded-full transition-all duration-300 text-xs font-semibold uppercase tracking-wider ${
-            botStatus.status === "connected"
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-              : botStatus.status === "connecting"
-              ? "bg-amber-500/10 border-amber-500/20 text-amber-400 animate-pulse"
-              : "bg-red-500/10 border-red-500/20 text-red-0"
-          }`}>
-            <div className={`w-2 h-2 rounded-full ${
+          <div
+            className={`flex items-center gap-2 px-3 py-1 border rounded-full transition-all duration-300 text-xs font-semibold uppercase tracking-wider ${
               botStatus.status === "connected"
-                ? "bg-emerald-400 animate-pulse"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                 : botStatus.status === "connecting"
-                ? "bg-amber-400"
-                : "bg-red-400"
-            }`} />
+                  ? "bg-amber-500/10 border-amber-500/20 text-amber-400 animate-pulse"
+                  : "bg-red-500/10 border-red-500/20 text-red-0"
+            }`}
+          >
+            <div
+              className={`w-2 h-2 rounded-full ${
+                botStatus.status === "connected"
+                  ? "bg-emerald-400 animate-pulse"
+                  : botStatus.status === "connecting"
+                    ? "bg-amber-400"
+                    : "bg-red-400"
+              }`}
+            />
             <span className="text-[10px] tracking-wide shrink-0">
-              Bot {botStatus.status === "connected" ? "Connecté" : botStatus.status === "connecting" ? "Liaison..." : "Déconnecté"}
+              Bot{" "}
+              {botStatus.status === "connected"
+                ? "Connecté"
+                : botStatus.status === "connecting"
+                  ? "Liaison..."
+                  : "Déconnecté"}
             </span>
 
             {botStatus.status !== "connected" && botStatus.status !== "connecting" && (
@@ -450,10 +416,8 @@ export default function StreamerDashboard() {
 
       {/* Main Grid View */}
       <main className="flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
         {/* LEFT COLUMN */}
         <section className="lg:col-span-7 flex flex-col gap-6" id="left-setup-panel">
-          
           {/* Tabs selector */}
           <div className="bg-white/[0.02] border border-white/10 backdrop-blur-md rounded-2xl p-1.5 flex gap-1 items-center overflow-x-auto select-none relative z-10 w-full scrollbar-none">
             <button
@@ -526,9 +490,7 @@ export default function StreamerDashboard() {
                 <div className="flex flex-col gap-5 animate-fade-in">
                   <div className="border-b border-slate-900 pb-3">
                     <h2 className="text-lg font-bold font-display text-white">{t.bot.title}</h2>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {t.bot.desc}
-                    </p>
+                    <p className="text-xs text-slate-400 mt-1">{t.bot.desc}</p>
                   </div>
 
                   {botStatus.status === "error" && (
@@ -563,7 +525,16 @@ export default function StreamerDashboard() {
                       className="bg-black/45 border border-white/10 rounded-xl px-4 py-3 text-sm text-[#e0e0e6] placeholder:text-white/20 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all duration-300"
                     />
                     <span className="text-[10px] text-white/30">
-                      {t.bot.tokenHelp} <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">{t.bot.devPortal}</a>.
+                      {t.bot.tokenHelp}{" "}
+                      <a
+                        href="https://discord.com/developers/applications"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-indigo-400 hover:underline"
+                      >
+                        {t.bot.devPortal}
+                      </a>
+                      .
                     </span>
                   </div>
 
@@ -578,9 +549,7 @@ export default function StreamerDashboard() {
                       onChange={(e) => setConfig({ ...config, channelId: e.target.value })}
                       className="bg-black/45 border border-white/10 rounded-xl px-4 py-3 text-sm text-[#e0e0e6] placeholder:text-white/20 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all duration-300"
                     />
-                    <span className="text-[10px] text-white/30">
-                      {t.bot.channelHelp}
-                    </span>
+                    <span className="text-[10px] text-white/30">{t.bot.channelHelp}</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -596,11 +565,11 @@ export default function StreamerDashboard() {
                           onChange={(e) => setConfig({ ...config, mediaMaxSizeMB: Number(e.target.value) })}
                           className="bg-black/45 w-full border border-white/10 rounded-xl pl-4 pr-12 py-3 text-sm text-[#e0e0e6] placeholder:text-white/20 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all duration-300"
                         />
-                        <span className="absolute top-1/2 right-4 -translate-y-1/2 text-xs font-mono text-white/30 select-none">MB</span>
+                        <span className="absolute top-1/2 right-4 -translate-y-1/2 text-xs font-mono text-white/30 select-none">
+                          MB
+                        </span>
                       </div>
-                      <span className="text-[10px] text-white/30">
-                        {t.bot.maxSizeHelp}
-                      </span>
+                      <span className="text-[10px] text-white/30">{t.bot.maxSizeHelp}</span>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
@@ -616,25 +585,41 @@ export default function StreamerDashboard() {
                           disabled={config.syncDurationWithMedia}
                           className="bg-black/45 w-full border border-white/10 rounded-xl pl-4 pr-12 py-3 text-sm text-[#e0e0e6] placeholder:text-white/20 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
-                        <span className="absolute top-1/2 right-4 -translate-y-1/2 text-xs font-mono text-white/30 select-none">ms</span>
+                        <span className="absolute top-1/2 right-4 -translate-y-1/2 text-xs font-mono text-white/30 select-none">
+                          ms
+                        </span>
                       </div>
-                      <span className="text-[10px] text-white/30">
-                        {t.bot.durationHelp}
-                      </span>
-                      
+                      <span className="text-[10px] text-white/30">{t.bot.durationHelp}</span>
+
                       <label className="mt-2 flex items-center gap-2 cursor-pointer group">
-                        <div className={`w-5 h-5 rounded overflow-hidden border flex items-center justify-center transition-all ${config.syncDurationWithMedia ? "bg-indigo-600 border-indigo-500" : "bg-black/45 border-white/10 group-hover:border-white/30"}`}>
-                          <input 
-                            type="checkbox" 
-                            className="hidden" 
-                            checked={config.syncDurationWithMedia || false} 
-                            onChange={(e) => setConfig({ ...config, syncDurationWithMedia: e.target.checked })} 
+                        <div
+                          className={`w-5 h-5 rounded overflow-hidden border flex items-center justify-center transition-all ${config.syncDurationWithMedia ? "bg-indigo-600 border-indigo-500" : "bg-black/45 border-white/10 group-hover:border-white/30"}`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="hidden"
+                            checked={config.syncDurationWithMedia || false}
+                            onChange={(e) => setConfig({ ...config, syncDurationWithMedia: e.target.checked })}
                           />
-                          {config.syncDurationWithMedia && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                          {config.syncDurationWithMedia && (
+                            <svg
+                              className="w-3.5 h-3.5 text-white"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={3}
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-xs font-bold text-white/80 select-none group-hover:text-white transition-colors">{t.bot.syncDuration}</span>
-                          <span className="text-[10px] text-white/40 block leading-tight">{t.bot.syncDurationHelp}</span>
+                          <span className="text-xs font-bold text-white/80 select-none group-hover:text-white transition-colors">
+                            {t.bot.syncDuration}
+                          </span>
+                          <span className="text-[10px] text-white/40 block leading-tight">
+                            {t.bot.syncDurationHelp}
+                          </span>
                         </div>
                       </label>
                     </div>
@@ -650,9 +635,7 @@ export default function StreamerDashboard() {
                         onChange={(e) => setConfig({ ...config, stopAlertShortcut: e.target.value })}
                         className="bg-black/45 w-full border border-white/10 rounded-xl px-4 py-3 text-sm text-[#e0e0e6] placeholder:text-white/20 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all duration-300"
                       />
-                      <span className="text-[10px] text-white/30">
-                        {t.bot.shortcutHelp}
-                      </span>
+                      <span className="text-[10px] text-white/30">{t.bot.shortcutHelp}</span>
                     </div>
 
                     <div className="flex flex-col gap-1.5 col-span-2">
@@ -666,21 +649,22 @@ export default function StreamerDashboard() {
                         onBlur={(e) => {
                           const raw = e.target.value;
                           if (!raw) return;
-                          const relevantDomains = ['youtube.com', 'instagram.com', 'tiktok.com', 'google.com'];
-                          const filtered = raw.split('\n').filter(line => {
-                            const t = line.trim();
-                            if (!t || t.startsWith('#')) return true;
-                            return relevantDomains.some(d => t.includes(d));
-                          }).join('\n');
+                          const relevantDomains = ["youtube.com", "instagram.com", "tiktok.com", "google.com"];
+                          const filtered = raw
+                            .split("\n")
+                            .filter((line) => {
+                              const t = line.trim();
+                              if (!t || t.startsWith("#")) return true;
+                              return relevantDomains.some((d) => t.includes(d));
+                            })
+                            .join("\n");
                           setConfig({ ...config, youtubeCookiesContent: filtered });
                         }}
                         className="bg-black/45 w-full border border-white/10 rounded-xl px-4 py-3 text-xs font-mono min-h-[140px] text-[#0f0] placeholder:text-white/20 focus:outline-none focus:border-indigo-500 transition-all duration-300"
                       />
-                      
+
                       <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-xl p-3 mt-1">
-                        <span className="text-[10px] text-indigo-200/70">
-                          {t.bot.cookiesHelp}
-                        </span>
+                        <span className="text-[10px] text-indigo-200/70">{t.bot.cookiesHelp}</span>
                       </div>
                     </div>
                   </div>
@@ -692,9 +676,7 @@ export default function StreamerDashboard() {
                 <div className="flex flex-col gap-5 animate-fade-in">
                   <div className="border-b border-white/10 pb-3">
                     <h2 className="text-lg font-bold font-display text-white">{t.display.title}</h2>
-                    <p className="text-xs text-white/40 mt-1">
-                      {t.display.desc}
-                    </p>
+                    <p className="text-xs text-white/40 mt-1">{t.display.desc}</p>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -706,7 +688,7 @@ export default function StreamerDashboard() {
                         { id: "neon", label: t.display.neonStyle, desc: t.display.neonDesc },
                         { id: "glitch", label: t.display.glitchStyle, desc: t.display.glitchDesc },
                         { id: "cyberpunk", label: t.display.cyberpunkStyle, desc: t.display.cyberpunkDesc },
-                        { id: "glass", label: t.display.glassStyle, desc: t.display.glassDesc }
+                        { id: "glass", label: t.display.glassStyle, desc: t.display.glassDesc },
                       ].map((style) => (
                         <button
                           key={style.id}
@@ -730,7 +712,7 @@ export default function StreamerDashboard() {
                         {t.display.customColor}
                       </label>
                       <div className="flex gap-2">
-                        <div 
+                        <div
                           className="w-11 h-11 rounded-xl shrink-0 border border-white/10 shadow-inner"
                           style={{ backgroundColor: config.neonColor }}
                         />
@@ -766,9 +748,7 @@ export default function StreamerDashboard() {
                 <div className="flex flex-col gap-6 animate-fade-in">
                   <div className="border-b border-white/10 pb-3">
                     <h2 className="text-lg font-bold font-display text-white">{t.filter.title}</h2>
-                    <p className="text-xs text-white/40 mt-1">
-                      {t.filter.desc}
-                    </p>
+                    <p className="text-xs text-white/40 mt-1">{t.filter.desc}</p>
                   </div>
 
                   {/* Discord AutoMod Native Info */}
@@ -777,7 +757,8 @@ export default function StreamerDashboard() {
                     <div>
                       <h3 className="text-sm font-bold text-[#5865F2] mb-1">{t.filter.autoModTitle}</h3>
                       <p className="text-xs text-[#5865F2]/70 leading-relaxed">
-                        {t.filter.autoModDesc1}<br/>
+                        {t.filter.autoModDesc1}
+                        <br />
                         <span className="text-white/60 mt-1 block">{t.filter.autoModDesc2}</span>
                       </p>
                     </div>
@@ -842,15 +823,19 @@ export default function StreamerDashboard() {
                         <button
                           onClick={() => setConfig({ ...config, bannedWordsAction: "block" })}
                           className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${
-                            config.bannedWordsAction === "block" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/80"
+                            config.bannedWordsAction === "block"
+                              ? "bg-white/10 text-white"
+                              : "text-white/40 hover:text-white/80"
                           }`}
                         >
-                          Bloquer l'alerte
+                          Bloquer l&apos;alerte
                         </button>
                         <button
                           onClick={() => setConfig({ ...config, bannedWordsAction: "censor" })}
                           className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${
-                            config.bannedWordsAction === "censor" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/80"
+                            config.bannedWordsAction === "censor"
+                              ? "bg-white/10 text-white"
+                              : "text-white/40 hover:text-white/80"
                           }`}
                         >
                           Censurer (* * *)
@@ -866,7 +851,9 @@ export default function StreamerDashboard() {
                         <Activity className="w-4 h-4 text-indigo-400" />
                         Contrôle Anti-Spam & Abus
                       </h3>
-                      <p className="text-[11px] text-white/40 mt-1">Limitez les abus concernant la fréquence ou le contenu des demandes.</p>
+                      <p className="text-[11px] text-white/40 mt-1">
+                        Limitez les abus concernant la fréquence ou le contenu des demandes.
+                      </p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -885,7 +872,9 @@ export default function StreamerDashboard() {
                           <Shield className="w-5 h-5 shrink-0 mt-0.5" />
                           <div>
                             <span className="font-bold block text-sm">Liens Externes</span>
-                            <span className="text-[10.5px] opacity-70 mt-1 block leading-relaxed">Bloque tout message contenant une URL (hormis l'URL du média lui-même).</span>
+                            <span className="text-[10.5px] opacity-70 mt-1 block leading-relaxed">
+                              Bloque tout message contenant une URL (hormis l&apos;URL du média lui-même).
+                            </span>
                           </div>
                         </button>
                       </div>
@@ -905,7 +894,9 @@ export default function StreamerDashboard() {
                           <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
                           <div>
                             <span className="font-bold block text-sm">Filtre Spoilers</span>
-                            <span className="text-[10.5px] opacity-70 mt-1 block leading-relaxed">Refuse automatiquement les pièces jointes marquées comme "spoiler" sur Discord.</span>
+                            <span className="text-[10.5px] opacity-70 mt-1 block leading-relaxed">
+                              Refuse automatiquement les pièces jointes marquées comme &quot;spoiler&quot; sur Discord.
+                            </span>
                           </div>
                         </button>
                       </div>
@@ -923,16 +914,18 @@ export default function StreamerDashboard() {
                           onChange={(e) => setConfig({ ...config, cooldownSeconds: Number(e.target.value) })}
                           className="bg-black/45 w-full border border-white/10 rounded-xl pl-4 pr-12 py-3 text-sm font-bold text-[#e0e0e6] focus:outline-none focus:border-indigo-500 transition-all font-mono"
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 text-xs font-bold">SEC</span>
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 text-xs font-bold">
+                          SEC
+                        </span>
                       </div>
                       <span className="text-[10.5px] text-white/40 mt-1">
-                        Temps qu'un même utilisateur doit attendre avant de pouvoir renvoyer une nouvelle alerte. À 0, le délai est désactivé.
+                        Temps qu&apos;un même utilisateur doit attendre avant de pouvoir renvoyer une nouvelle alerte. À
+                        0, le délai est désactivé.
                       </span>
                     </div>
                   </div>
                 </div>
               )}
-
             </div>
 
             {/* System Health Monitor */}
@@ -940,25 +933,27 @@ export default function StreamerDashboard() {
               <div className="flex flex-col gap-5 animate-fade-in">
                 <div className="border-b border-white/10 pb-3">
                   <h2 className="text-lg font-bold font-display text-white">{t.health.title}</h2>
-                  <p className="text-xs text-white/40 mt-1">
-                    {t.health.desc}
-                  </p>
+                  <p className="text-xs text-white/40 mt-1">{t.health.desc}</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Bot Status */}
-                  <div className={`p-4 rounded-xl border flex flex-col gap-2 ${botStatus.status === "connected" ? "bg-emerald-950/30 border-emerald-900/60" : "bg-rose-950/30 border-rose-900/60"}`}>
+                  <div
+                    className={`p-4 rounded-xl border flex flex-col gap-2 ${botStatus.status === "connected" ? "bg-emerald-950/30 border-emerald-900/60" : "bg-rose-950/30 border-rose-900/60"}`}
+                  >
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
                       <Bot className="w-4 h-4" /> {t.health.botStatus}
                     </h3>
-                    <p className={`text-xs font-mono ${botStatus.status === "connected" ? "text-emerald-400" : "text-rose-400"}`}>
+                    <p
+                      className={`text-xs font-mono ${botStatus.status === "connected" ? "text-emerald-400" : "text-rose-400"}`}
+                    >
                       {botStatus.status.toUpperCase()}
                     </p>
-                    {botStatus.errorMsg && (
-                      <p className="text-xs text-rose-300 break-all">{botStatus.errorMsg}</p>
-                    )}
+                    {botStatus.errorMsg && <p className="text-xs text-rose-300 break-all">{botStatus.errorMsg}</p>}
                     {botStatus.botUser && (
-                      <p className="text-xs text-white/70">{t.health.botUser}: {botStatus.botUser}</p>
+                      <p className="text-xs text-white/70">
+                        {t.health.botUser}: {botStatus.botUser}
+                      </p>
                     )}
                   </div>
 
@@ -984,10 +979,12 @@ export default function StreamerDashboard() {
                       {t.health.cpuUsage}: {botStatus.health?.system.cpu.toFixed(2)} (1m avg)
                     </p>
                     <p className="text-xs text-white/70">
-                      {t.health.memoryUsed}: {(botStatus.health?.system.memory.used / (1024 * 1024 * 1024)).toFixed(2)} GB
+                      {t.health.memoryUsed}: {(botStatus.health?.system.memory.used / (1024 * 1024 * 1024)).toFixed(2)}{" "}
+                      GB
                     </p>
                     <p className="text-xs text-white/70">
-                      {t.health.memoryTotal}: {(botStatus.health?.system.memory.total / (1024 * 1024 * 1024)).toFixed(2)} GB
+                      {t.health.memoryTotal}:{" "}
+                      {(botStatus.health?.system.memory.total / (1024 * 1024 * 1024)).toFixed(2)} GB
                     </p>
                   </div>
 
@@ -996,9 +993,7 @@ export default function StreamerDashboard() {
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
                       <VideoIcon className="w-4 h-4" /> {t.health.ytdlpStatus}
                     </h3>
-                    <p className="text-xs font-mono text-white/70">
-                      {botStatus.health?.ytdlp}
-                    </p>
+                    <p className="text-xs font-mono text-white/70">{botStatus.health?.ytdlp}</p>
                   </div>
                 </div>
               </div>
@@ -1007,39 +1002,38 @@ export default function StreamerDashboard() {
             {/* Bottom Actions Row to standard forms */}
             {activeTab !== "simulator" && activeTab !== "health" && (
               <div className="flex justify-end pt-6 border-t border-white/10 mt-6 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleSaveSettings()}
-                    disabled={saveLoading}
-                    className="px-6 py-3 cursor-pointer rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/[0.02] disabled:border-white/5 disabled:text-white/20 text-white text-sm font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all duration-200"
-                  >
-                    {saveLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        {t.bot.saveWorking}
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        {t.bot.save}
-                      </>
-                    )}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSaveSettings()}
+                  disabled={saveLoading}
+                  className="px-6 py-3 cursor-pointer rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/[0.02] disabled:border-white/5 disabled:text-white/20 text-white text-sm font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all duration-200"
+                >
+                  {saveLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {t.bot.saveWorking}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      {t.bot.save}
+                    </>
+                  )}
+                </button>
+              </div>
             )}
           </div>
         </section>
 
         {/* RIGHT COLUMN */}
         <section className="lg:col-span-5 flex flex-col gap-6" id="right-logs-panel">
-
           {/* Preview Panel */}
           <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl sm:rounded-3xl p-3 sm:p-6 flex flex-col gap-3.5 sm:gap-4 relative z-10">
             <h2 className="text-md font-bold font-display text-white flex items-center gap-2">
               <Tv className="w-4.5 h-4.5 text-indigo-400" />
-              Aperçu de l'overlay OBS
+              Aperçu de l&apos;overlay OBS
             </h2>
-            
+
             {/* Embedded Live overlay layer render */}
             <OBSOverlayView embedMode={true} onQueueChange={setPendingQueue} />
 
@@ -1047,11 +1041,11 @@ export default function StreamerDashboard() {
             {pendingQueue.length > 0 && (
               <div className="mt-2 border-t border-white/10 pt-4">
                 <h3 className="text-sm font-bold text-white mb-2 flex items-center justify-between">
-                  <span>File d'attente ({pendingQueue.length})</span>
+                  <span>File d&apos;attente ({pendingQueue.length})</span>
                 </h3>
                 <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
                   {pendingQueue.map((item, idx) => (
-                    <div 
+                    <div
                       key={item.id}
                       draggable
                       onDragStart={(e) => handleDragStart(e, idx)}
@@ -1064,7 +1058,7 @@ export default function StreamerDashboard() {
                         <div className="text-xs font-bold text-white truncate">{item.authorName}</div>
                         <div className="text-[10px] text-white/40 truncate">{item.text || "- Aucun texte -"}</div>
                       </div>
-                      <button 
+                      <button
                         onClick={(e) => cancelAlertFromQueue(item.id, e)}
                         className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 opacity-0 group-hover:opacity-100 transition shrink-0"
                       >
@@ -1087,32 +1081,84 @@ export default function StreamerDashboard() {
             </div>
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                 <div>
-                   <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">{t.logs.simName}</label>
-                   <input type="text" value={simName} onChange={(e) => setSimName(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors mt-1" />
-                 </div>
-                 <div>
-                   <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">{t.logs.simType}</label>
-                   <select value={simType} onChange={(e: any) => setSimType(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors mt-1 appearance-none">
-                     <option value="image">Image / Auto</option>
-                     <option value="video">Forcer Vidéo (MP4)</option>
-                     <option value="iframe">Forcer Embed (IFrame)</option>
-                     <option value="link">Forcer Lien</option>
-                   </select>
-                 </div>
+                <div>
+                  <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">
+                    {t.logs.simName}
+                  </label>
+                  <input
+                    type="text"
+                    value={simName}
+                    onChange={(e) => setSimName(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">
+                    {t.logs.simType}
+                  </label>
+                  <select
+                    value={simType}
+                    onChange={(e: any) => setSimType(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors mt-1 appearance-none"
+                  >
+                    <option value="image">Image / Auto</option>
+                    <option value="video">Forcer Vidéo (MP4)</option>
+                    <option value="iframe">Forcer Embed (IFrame)</option>
+                    <option value="link">Forcer Lien</option>
+                  </select>
+                </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">{t.logs.simText}</label>
-                <input type="text" value={simText} onChange={(e) => setSimText(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors mt-1" />
+                <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">
+                  {t.logs.simText}
+                </label>
+                <input
+                  type="text"
+                  value={simText}
+                  onChange={(e) => setSimText(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors mt-1"
+                />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">URL / Media Link</label>
-                <input type="text" placeholder="https://youtube.com/..." value={simMediaUrl} onChange={(e) => setSimMediaUrl(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-indigo-300 outline-none focus:border-indigo-500 transition-colors mt-1" />
+                <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">
+                  URL / Media Link
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://youtube.com/..."
+                  value={simMediaUrl}
+                  onChange={(e) => setSimMediaUrl(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-indigo-300 outline-none focus:border-indigo-500 transition-colors mt-1"
+                />
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <button onClick={() => setSimMediaUrl("https://youtube.com/shorts/OX6wSAsiedI?si=qeSpni-1XCmidrqK")} className="px-2 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded text-[10px] font-bold uppercase transition hover:bg-red-500/40">YouTube Shorts</button>
-                  <button onClick={() => setSimMediaUrl("https://www.youtube.com/watch?v=UZ6jGyK8F-I")} className="px-2 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded text-[10px] font-bold uppercase transition hover:bg-red-500/40">YouTube Video</button>
-                  <button onClick={() => setSimMediaUrl("https://www.tiktok.com/@pepe_fails/video/7620170003371003156?is_from_webapp=1&sender_device=pc")} className="px-2 py-1 bg-[#00f2fe]/20 text-[#00f2fe] border border-[#00f2fe]/30 rounded text-[10px] font-bold uppercase transition hover:bg-[#00f2fe]/40">TikTok</button>
-                  <button onClick={() => setSimMediaUrl("https://www.instagram.com/p/DYnCi2IhHHE")} className="px-2 py-1 bg-pink-500/20 text-pink-300 border border-pink-500/30 rounded text-[10px] font-bold uppercase transition hover:bg-pink-500/40">Instagram</button>
+                  <button
+                    onClick={() => setSimMediaUrl("https://youtube.com/shorts/OX6wSAsiedI?si=qeSpni-1XCmidrqK")}
+                    className="px-2 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded text-[10px] font-bold uppercase transition hover:bg-red-500/40"
+                  >
+                    YouTube Shorts
+                  </button>
+                  <button
+                    onClick={() => setSimMediaUrl("https://www.youtube.com/watch?v=UZ6jGyK8F-I")}
+                    className="px-2 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded text-[10px] font-bold uppercase transition hover:bg-red-500/40"
+                  >
+                    YouTube Video
+                  </button>
+                  <button
+                    onClick={() =>
+                      setSimMediaUrl(
+                        "https://www.tiktok.com/@pepe_fails/video/7620170003371003156?is_from_webapp=1&sender_device=pc"
+                      )
+                    }
+                    className="px-2 py-1 bg-[#00f2fe]/20 text-[#00f2fe] border border-[#00f2fe]/30 rounded text-[10px] font-bold uppercase transition hover:bg-[#00f2fe]/40"
+                  >
+                    TikTok
+                  </button>
+                  <button
+                    onClick={() => setSimMediaUrl("https://www.instagram.com/p/DYnCi2IhHHE")}
+                    className="px-2 py-1 bg-pink-500/20 text-pink-300 border border-pink-500/30 rounded text-[10px] font-bold uppercase transition hover:bg-pink-500/40"
+                  >
+                    Instagram
+                  </button>
                 </div>
               </div>
               <button
@@ -1129,9 +1175,7 @@ export default function StreamerDashboard() {
           <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 shadow-2xl rounded-2xl sm:rounded-3xl p-3 sm:p-6 flex flex-col gap-3.5 sm:gap-4 relative z-10">
             <div>
               <h2 className="text-md font-bold font-display text-white">{t.display.urlTitle}</h2>
-              <p className="text-[11px] text-white/40 mt-1">
-                {t.display.urlDesc}
-              </p>
+              <p className="text-[11px] text-white/40 mt-1">{t.display.urlDesc}</p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 bg-black/40 border border-white/10 p-1.5 rounded-xl">
@@ -1141,9 +1185,7 @@ export default function StreamerDashboard() {
               <button
                 onClick={copyOverlayUrlToClipboard}
                 className={`py-2 px-3.5 rounded-lg text-xs font-bold transition select-none cursor-pointer flex items-center justify-center gap-1.5 shrink-0 ${
-                  copyFeedback
-                    ? "bg-emerald-600 text-white"
-                    : "bg-indigo-600 text-white hover:bg-indigo-500"
+                  copyFeedback ? "bg-emerald-600 text-white" : "bg-indigo-600 text-white hover:bg-indigo-500"
                 }`}
               >
                 {copyFeedback ? (
@@ -1207,10 +1249,17 @@ export default function StreamerDashboard() {
                   </tr>
                 ) : (
                   logs.map((log) => (
-                    <tr key={log.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors duration-200">
+                    <tr
+                      key={log.id}
+                      className="border-b border-white/5 hover:bg-white/[0.02] transition-colors duration-200"
+                    >
                       {/* Time */}
                       <td className="py-3.5 px-4 font-mono text-[11px] text-white/30 whitespace-nowrap">
-                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        {new Date(log.timestamp).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          second: "2-digit",
+                        })}
                       </td>
                       {/* Author */}
                       <td className="py-3.5 px-4 font-semibold text-white/90">{log.author}</td>
@@ -1246,13 +1295,15 @@ export default function StreamerDashboard() {
                       </td>
                       {/* Status */}
                       <td className="py-3.5 px-4">
-                        <span className={`px-2 py-0.5 rounded-full inline-block text-[10px] font-extrabold font-mono tracking-wider ${
-                          log.status === "approved"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/25"
-                            : log.status === "censored"
-                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/25"
-                            : "bg-red-500/10 text-red-400 border border-red-500/25"
-                        }`}>
+                        <span
+                          className={`px-2 py-0.5 rounded-full inline-block text-[10px] font-extrabold font-mono tracking-wider ${
+                            log.status === "approved"
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/25"
+                              : log.status === "censored"
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/25"
+                                : "bg-red-500/10 text-red-400 border border-red-500/25"
+                          }`}
+                        >
                           {log.status.toUpperCase()}
                         </span>
                       </td>
@@ -1260,17 +1311,19 @@ export default function StreamerDashboard() {
                       <td className="py-3.5 px-4 text-white/40 italic font-medium">{log.reason}</td>
                       {/* Re-trigger action button */}
                       <td className="py-3.5 px-4 text-right">
-                        {(log.status === "approved" || log.status === "censored") ? (
+                        {log.status === "approved" || log.status === "censored" ? (
                           <button
-                            onClick={() => handleTriggerTest({
-                              authorName: log.author,
-                              text: log.text,
-                              type: log.type,
-                              mediaUrl: log.mediaUrl,
-                              alertStyle: config.alertStyle,
-                              neonColor: config.neonColor,
-                              duration: config.alertDuration,
-                            })}
+                            onClick={() =>
+                              handleTriggerTest({
+                                authorName: log.author,
+                                text: log.text,
+                                type: log.type,
+                                mediaUrl: log.mediaUrl,
+                                alertStyle: config.alertStyle,
+                                neonColor: config.neonColor,
+                                duration: config.alertDuration,
+                              })
+                            }
                             className="px-2.5 py-1 bg-indigo-600/10 hover:bg-indigo-600/25 text-indigo-300 border border-indigo-500/20 text-[10px] font-bold rounded-lg transition duration-150 cursor-pointer inline-flex items-center gap-1"
                             title="Re-diffuser l'alerte sur l'overlay"
                           >
@@ -1301,4 +1354,3 @@ export default function StreamerDashboard() {
     </div>
   );
 }
-
