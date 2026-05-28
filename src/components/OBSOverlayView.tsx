@@ -97,7 +97,6 @@ export default function OBSOverlayView() {
       setWsStatus("connected");
       console.log("[Overlay] Socket connected, requesting queue state");
       socket.emit("get_initial_state");
-      socket.emit("register_as_overlay");
     });
 
     // On reconnect, merge server queue with local state — deduplicate by ID
