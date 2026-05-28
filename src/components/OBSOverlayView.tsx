@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import { Tv, Bot, Flame, AlertTriangle, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { AlertPayload, Sparkle } from "../types";
+import { locales, Language } from "../locales";
 
 declare global {
   interface Window {
@@ -13,15 +14,16 @@ declare global {
 // Deterministic playback states — no arbitrary timeouts drive transitions.
 type PlaybackState = "waiting" | "preloading" | "ready" | "playing" | "finished" | "failed";
 
-export default function OBSOverlayView({
-  embedMode = false,
-  onQueueChange,
-}: {
-  embedMode?: boolean;
-  onQueueChange?: (queue: AlertPayload[]) => void;
-}) {
+export default function OBSOverlayView() {
   const [queue, setQueue] = useState<AlertPayload[]>([]);
+  const queueRef = useRef<AlertPayload[]>([]);
   const [activeAlert, setActiveAlert] = useState<AlertPayload | null>(null);
+  const [language, setLanguage] = useState<Language>("fr");
+
+  // Keep queueRef in sync with state for the playback loop
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
   const [wsStatus, setWsStatus] = useState<"connected" | "connecting" | "disconnected">("connecting");
   const [preloadedUrls, setPreloadedUrls] = useState<Record<string, boolean>>({});
   const [particles, setParticles] = useState<Sparkle[]>([]);
@@ -29,8 +31,6 @@ export default function OBSOverlayView({
   const [isPaused, setIsPaused] = useState(false);
   const [showControls, setShowControls] = useState(false);
   // How many real OBS overlay windows are connected (0 = embed is the sole player)
-  const [overlayCount, setOverlayCount] = useState(0);
-
   // Refs that don't cause rerenders — critical for OBS performance
   const playbackStateRef = useRef<PlaybackState>("waiting");
   const activeAlertRef = useRef<AlertPayload | null>(null);
@@ -51,13 +51,18 @@ export default function OBSOverlayView({
   const timeoutEndRef = useRef(0);
   const togglePauseRef = useRef<() => void>(() => {});
   const seekVideoRef = useRef<(s: number) => void>(() => {});
-  // Ref mirror so socket callbacks (stale closures) can read current overlayCount
-  const overlayCountRef = useRef(0);
-
   // Keep activeAlertRef in sync for use in async callbacks
   useEffect(() => {
     activeAlertRef.current = activeAlert;
   }, [activeAlert]);
+
+  // Load language setting once on mount
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((s) => { if (s?.language) setLanguage(s.language as Language); })
+      .catch(() => {});
+  }, []);
 
   // Load YouTube IFrame API once
   useEffect(() => {
@@ -92,8 +97,7 @@ export default function OBSOverlayView({
       setWsStatus("connected");
       console.log("[Overlay] Socket connected, requesting queue state");
       socket.emit("get_initial_state");
-      // OBS overlay registers itself so dashboard embeds enter passive mode
-      if (!embedMode) socket.emit("register_as_overlay");
+      socket.emit("register_as_overlay");
     });
 
     // On reconnect, merge server queue with local state — deduplicate by ID
@@ -137,17 +141,8 @@ export default function OBSOverlayView({
       setQueue(newQueue);
     });
 
-    socket.on("overlay_count", (count: number) => {
-      overlayCountRef.current = count;
-      setOverlayCount(count);
-    });
-
     socket.on("remove_queue_item", (itemId: string) => {
       setQueue((prev) => prev.filter((item) => item.id !== itemId));
-      // Passive embed: when the real overlay finishes an alert, cancel it here too
-      if (embedMode && overlayCountRef.current > 0 && activeAlertRef.current?.id === itemId) {
-        cancelCurrentAlertRef.current?.();
-      }
     });
 
     socket.on("clear_queue", () => {
@@ -162,7 +157,7 @@ export default function OBSOverlayView({
     return () => {
       socket.close();
     };
-  }, [embedMode]);
+  }, []);
 
   // Keyboard shortcuts: stop, pause/resume, seek
   useEffect(() => {
@@ -306,11 +301,11 @@ export default function OBSOverlayView({
 
   // Core playback loop — event-driven state machine
   const runNextAlert = useCallback(async () => {
-    if (queue.length === 0) return;
-    if (playbackStateRef.current !== "waiting") return;
-
+    // Atomic check-and-set to prevent race conditions during rapid queue updates or double-mounting
+    if (playbackStateRef.current !== "waiting" || queueRef.current.length === 0) return;
     playbackStateRef.current = "preloading";
-    const nextItem = { ...queue[0] };
+
+    const nextItem = { ...queueRef.current[0] };
     setQueue((prev) => prev.slice(1));
 
     // Silently drop link-type alerts for platforms that block iframe embedding
@@ -343,6 +338,7 @@ export default function OBSOverlayView({
 
     playbackStateRef.current = "ready";
     setActiveAlert(nextItem);
+    socketRef.current?.emit("alert_started", nextItem.id);
 
     // Small rAF delay to let React flush DOM before binding events
     await new Promise((r) => requestAnimationFrame(r));
@@ -420,11 +416,7 @@ export default function OBSOverlayView({
     setActiveAlert(null);
     setParticles([]);
 
-    // Passive embed: real overlay owns alert consumption — don't emit alert_played
-    const isPassive = embedMode && overlayCountRef.current > 0;
-    if (!isPassive && socketRef.current) {
-      socketRef.current.emit("alert_played", nextItem.id);
-    }
+    socketRef.current?.emit("alert_played", nextItem.id);
 
     if (activeVideoRef.current) {
       activeVideoRef.current.pause();
@@ -434,17 +426,13 @@ export default function OBSOverlayView({
     await new Promise((r) => setTimeout(r, 800));
 
     playbackStateRef.current = "waiting";
-  }, [queue, embedMode]);
+  }, []);
 
   useEffect(() => {
     if (playbackStateRef.current === "waiting" && queue.length > 0) {
       runNextAlert();
     }
   }, [queue, runNextAlert]);
-
-  useEffect(() => {
-    if (onQueueChange) onQueueChange(queue);
-  }, [queue, onQueueChange]);
 
   // Progress bar — rAF-driven, no setState during playback
   useEffect(() => {
@@ -496,27 +484,18 @@ export default function OBSOverlayView({
         onVideoLoadedMetadataRef.current?.(durationMs);
       }
 
-      // Muted autoplay strategy — works in OBS browser source
+      // OBS browser source: start muted then immediately unmute for autoplay
       vid.muted = true;
-      vid
-        .play()
-        .then(() => {
-          if (!embedMode) {
-            vid.muted = false; // restore audio in OBS full-overlay mode
-          }
-        })
-        .catch((err) => console.warn("[Video] autoplay failed:", err));
+      vid.muted = false;
     },
-    [embedMode]
+    []
   );
 
   const showControlsTemporarily = useCallback(() => {
     setShowControls(true);
     if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current);
-    if (!embedMode) {
-      controlsHideTimerRef.current = setTimeout(() => setShowControls(false), 3000);
-    }
-  }, [embedMode]);
+    controlsHideTimerRef.current = setTimeout(() => setShowControls(false), 3000);
+  }, []);
 
   const togglePause = useCallback(() => {
     if (!activeAlert) return;
@@ -596,26 +575,14 @@ export default function OBSOverlayView({
 
   return (
     <div
-      className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 ${
-        embedMode
-          ? "w-full h-full min-h-[280px] sm:min-h-[460px] bg-[#0a0a0f] border border-white/10 rounded-3xl p-1.5 sm:p-6"
-          : "w-screen h-screen bg-transparent p-0 m-0"
-      } ${!embedMode && activeAlert ? "pointer-events-auto" : !embedMode ? "pointer-events-none" : ""}`}
-      style={{ background: embedMode ? undefined : "transparent" }}
-      onMouseMove={activeAlert && !embedMode ? showControlsTemporarily : undefined}
+      className={`relative flex items-center justify-center overflow-hidden w-screen h-screen p-0 m-0 ${
+        activeAlert ? "pointer-events-auto" : "pointer-events-none"
+      }`}
+      style={{ background: "transparent" }}
+      onMouseMove={activeAlert ? showControlsTemporarily : undefined}
     >
-      {/* Atmospheric decorations */}
-      {embedMode && (
-        <>
-          <div className="absolute top-6 right-6 w-2 h-2 bg-indigo-400 rounded-full blur-[1px] opacity-65 animate-pulse"></div>
-          <div className="absolute bottom-12 left-20 w-1 h-1 bg-purple-400 rounded-full blur-[1px] opacity-45 animate-pulse"></div>
-          <div className="absolute top-1/4 left-6 w-1.5 h-1.5 bg-white rounded-full blur-[2px] opacity-35"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-indigo-600/10 blur-[80px] rounded-full pointer-events-none z-0"></div>
-        </>
-      )}
-
       {/* Reconnect status indicator */}
-      {wsStatus !== "connected" && !embedMode && (
+      {wsStatus !== "connected" && (
         <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-slate-950/90 text-amber-500 border border-amber-500/30 px-3 py-1.5 rounded-full text-xs font-mono select-none animate-pulse">
           <AlertTriangle className="w-4.5 h-4.5" />
           <span>OBS Link: Reconnecting WS...</span>
@@ -652,18 +619,9 @@ export default function OBSOverlayView({
 
       {/* Alert Container */}
       {(() => {
-        const isVertical =
-          activeAlert &&
-          (activeAlert.provider === "tiktok" ||
-            activeAlert.provider === "instagram" ||
-            activeAlert.mediaUrl.includes("shorts"));
         return (
           <div
-            className={`relative z-20 transition-all duration-700 select-none mx-auto ${
-              embedMode
-                ? `w-full ${isVertical ? "max-w-sm sm:max-w-md" : "max-w-xl sm:max-w-2xl"} p-1 sm:p-8`
-                : `w-[100vw] h-[100vh] p-0 flex flex-col overflow-hidden`
-            } ${
+            className={`relative z-20 transition-all duration-700 select-none mx-auto w-[100vw] h-[100vh] p-0 flex flex-col overflow-hidden ${
               activeAlert
                 ? "translate-y-0 scale-100 opacity-100 rotate-0 pointer-events-auto"
                 : "translate-y-16 scale-90 opacity-0 rotate-1 select-none pointer-events-none"
@@ -671,14 +629,14 @@ export default function OBSOverlayView({
           >
             {activeAlert && (
               <div
-                className={`relative flex flex-col text-white overflow-hidden transition-all duration-300 w-full ${!embedMode ? "h-full rounded-none border-none" : "rounded-2xl p-4 sm:p-6 gap-3 sm:gap-4"} ${
+                className={`relative flex flex-col text-white overflow-hidden transition-all duration-300 w-full h-full rounded-none border-none ${
                   activeAlert.alertStyle === "glass"
-                    ? `bg-white/[0.03] backdrop-blur-2xl shadow-2xl ${!embedMode ? "" : "border border-white/10"}`
+                    ? "bg-white/[0.03] backdrop-blur-2xl shadow-2xl"
                     : activeAlert.alertStyle === "glitch"
-                      ? `bg-stone-950 shadow-[4px_4px_0_#ef4444] animate-glitch crt-overlay ${!embedMode ? "" : "border-2 border-cyan-500"}`
+                      ? "bg-stone-950 shadow-[4px_4px_0_#ef4444] animate-glitch crt-overlay"
                       : activeAlert.alertStyle === "cyberpunk"
-                        ? `bg-zinc-950 shadow-[4px_4px_24px_rgba(234,179,8,0.15)] ${!embedMode ? "" : "border-l-4 border-yellow-400 border-t-2 border-r border-b border-zinc-900"} [clip-path:polygon(0_0,95%_0,100%_15px,100%_100%,5%_100%,0_85%)]`
-                        : `bg-slate-950/95 relative animate-neon-pulse ${!embedMode ? "" : "border-2"}`
+                        ? "bg-zinc-950 shadow-[4px_4px_24px_rgba(234,179,8,0.15)] [clip-path:polygon(0_0,95%_0,100%_15px,100%_100%,5%_100%,0_85%)]"
+                        : "bg-slate-950/95 relative animate-neon-pulse"
                 }`}
                 style={
                   {
@@ -693,10 +651,8 @@ export default function OBSOverlayView({
                   </div>
                 )}
 
-                <div
-                  className={`relative z-10 flex flex-col ${!embedMode ? "p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none" : ""}`}
-                >
-                  <div className={`flex items-center gap-3 ${!embedMode ? "mb-3" : ""}`}>
+                <div className="relative z-10 flex flex-col p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none">
+                  <div className="flex items-center gap-3 mb-3">
                     <div className="relative">
                       <img
                         src={activeAlert.authorAvatar}
@@ -712,7 +668,7 @@ export default function OBSOverlayView({
                     <div className="flex flex-col min-w-0">
                       <span className="text-indigo-400 text-[10px] sm:text-xs font-bold uppercase tracking-widest font-display flex items-center gap-1">
                         <Flame className="w-3.5 h-3.5 fill-indigo-400/20 text-indigo-400 shrink-0" />
-                        Nouveau média d&apos;abonnés
+                        {locales[language].overlay.newAlert}
                       </span>
                       <span
                         className={`text-lg sm:text-2xl font-black drop-shadow-md tracking-tight truncate ${
@@ -723,6 +679,11 @@ export default function OBSOverlayView({
                       >
                         {activeAlert.authorName}
                       </span>
+                      {activeAlert.title && (
+                        <span className="text-xs sm:text-sm text-white/70 font-medium truncate mt-0.5">
+                          {activeAlert.title}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -733,11 +694,11 @@ export default function OBSOverlayView({
                     if (!cleanedText) return null;
                     return (
                       <p
-                        className={`text-xs sm:text-lg text-slate-100 leading-relaxed break-words ${
+                        className={`text-xs sm:text-lg text-slate-100 leading-relaxed break-words drop-shadow-lg ${
                           activeAlert.alertStyle === "cyberpunk"
                             ? "font-mono text-[11px] sm:text-sm bg-zinc-900/80 p-2 sm:p-3 rounded border border-zinc-800"
                             : "font-sans font-medium"
-                        } ${!embedMode ? "drop-shadow-lg" : ""}`}
+                        }`}
                       >
                         {cleanedText}
                       </p>
@@ -752,22 +713,11 @@ export default function OBSOverlayView({
                     activeAlert.provider === "instagram" ||
                     activeAlert.mediaUrl.includes("shorts");
 
-                  const aspectClass = embedMode
-                    ? isVertical
-                      ? "aspect-[9/16] w-[auto] max-w-full h-auto max-h-[60vh] sm:max-h-[650px] mx-auto mt-2"
-                      : activeAlert.type !== "image" && activeAlert.type !== "link"
-                        ? "aspect-video w-full max-h-[75vh] mt-2"
-                        : "w-full min-h-[140px] sm:min-h-[220px] max-h-[350px] sm:max-h-[500px] mt-2"
-                    : "";
-
                   return (
-                    <div
-                      className={`${!embedMode ? "absolute inset-0 z-0 w-[100vw] h-[100vh] flex items-center justify-center overflow-hidden" : "relative rounded-xl mt-2 overflow-hidden bg-black flex items-center justify-center shrink-0 min-w-[280px] sm:min-w-[400px]"} ${aspectClass}`}
-                    >
+                    <div className="absolute inset-0 z-0 w-[100vw] h-[100vh] flex items-center justify-center overflow-hidden">
                       {activeAlert.type === "video" ? (
                         <>
-                          {/* Blurred ambient background */}
-                          {!embedMode && isVertical ? (
+                          {isVertical ? (
                             <video
                               src={activeAlert.mediaUrl}
                               className="absolute z-0 w-[120%] h-[120%] object-cover blur-[24px] opacity-50 pointer-events-none"
@@ -789,17 +739,17 @@ export default function OBSOverlayView({
                             />
                           )}
 
-                          {/* Primary video — OBS autoplay strategy */}
                           <video
                             ref={activeVideoRef}
                             src={activeAlert.mediaUrl}
                             className={
-                              !embedMode && isVertical
+                              isVertical
                                 ? "relative h-[90vh] max-w-full object-contain z-10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-auto"
-                                : `w-full h-full block relative z-10 object-contain pointer-events-auto ${embedMode ? "bg-black" : "bg-transparent drop-shadow-[0_0_2rem_rgba(0,0,0,0.8)]"}`
+                                : "w-full h-full block relative z-10 object-contain pointer-events-auto bg-transparent drop-shadow-[0_0_2rem_rgba(0,0,0,0.8)]"
                             }
+                            autoPlay
+                            muted
                             playsInline
-                            // Do NOT set muted here — handleCanPlay starts muted then unmutes
                             crossOrigin="anonymous"
                             onEnded={() => onVideoEndedRef.current?.()}
                             onError={(e) => {
@@ -845,9 +795,7 @@ export default function OBSOverlayView({
                       ) : activeAlert.type === "iframe" || activeAlert.type === "link" ? (
                         <div
                           className="w-full h-full relative z-10 flex flex-col pt-0"
-                          onMouseEnter={() => {
-                            extendCurrentTimeoutRef.current?.(3600000);
-                          }}
+                          onMouseEnter={() => extendCurrentTimeoutRef.current?.(3600000)}
                         >
                           {activeAlert.mediaUrl.includes("youtube.com/embed") ? (
                             <div ref={ytPlayerContainerRef} className="w-full h-full" />
@@ -859,7 +807,7 @@ export default function OBSOverlayView({
                                   : activeAlert.mediaUrl
                               }
                               title="Media Embed"
-                              className={`w-full h-full border-0 block absolute inset-0 z-0 bg-transparent ${embedMode ? "pointer-events-auto" : "pointer-events-none"}`}
+                              className="w-full h-full border-0 block absolute inset-0 z-0 bg-transparent pointer-events-none"
                               allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen"
                               allowFullScreen
                             />
@@ -875,7 +823,7 @@ export default function OBSOverlayView({
                           <img
                             src={activeAlert.mediaUrl}
                             alt="Discord Media"
-                            className={`w-full h-full block relative z-10 object-contain ${embedMode ? "bg-black" : "bg-transparent drop-shadow-[0_0_2rem_rgba(0,0,0,0.8)]"}`}
+                            className="w-full h-full block relative z-10 object-contain bg-transparent drop-shadow-[0_0_2rem_rgba(0,0,0,0.8)]"
                             referrerPolicy="no-referrer"
                           />
                         </>
@@ -892,7 +840,7 @@ export default function OBSOverlayView({
                 })()}
 
                 {/* Playback controls */}
-                {(showControls || embedMode) && (
+                {showControls && (
                   <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-1.5 bg-black/70 backdrop-blur-md rounded-xl border border-white/10 pointer-events-auto select-none">
                     <button
                       onClick={() => seekVideo(-5)}
@@ -938,27 +886,6 @@ export default function OBSOverlayView({
           </div>
         );
       })()}
-
-      {embedMode && queue.length > 0 && (
-        <div className="absolute bottom-3 left-4 text-[10px] font-mono text-slate-400 bg-slate-950/80 px-2.5 py-1 rounded">
-          Pending: {queue.length} alert(s)
-        </div>
-      )}
-      {embedMode && overlayCount > 0 && (
-        <div className="absolute top-2 right-2 z-50 flex items-center gap-1.5 bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full text-[10px] font-mono select-none pointer-events-none">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          OBS live
-        </div>
-      )}
-      {embedMode && !activeAlert && queue.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 text-slate-500">
-          <Tv className="w-10 h-10 mb-2 opacity-30 stroke-1" />
-          <span className="text-sm font-medium">Real-time preview: Overlay inactive</span>
-          <span className="text-xs text-slate-600 mt-1">
-            {overlayCount > 0 ? "OBS overlay connected — synced" : "Trigger a test simulation below"}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
