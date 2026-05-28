@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install and Build
+        run: |
+          npm install
+          npm run build
+
+      - name: Package Release Artifact
+        run: |
+          mkdir -p release_package
+          cp -r dist/ scripts/ package.json package-lock.json release_package/
+          zip -r discord-obs-overlay-release.zip release_package
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: discord-obs-overlay-release.zip

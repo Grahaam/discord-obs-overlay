@@ -1,0 +1,10 @@
+# Ignore artifacts
+dist
+node_modules
+.venv
+
+# Ignore cache
+media_cache
+
+# Ignore logs
+*.log
