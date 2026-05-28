@@ -5,14 +5,25 @@ set -e
 
 echo "[Setup] Running yt-dlp setup script..."
 
-PYTHON_VERSION="3.10"
-PYTHON_EXEC="python${PYTHON_VERSION}"
+# Find a suitable python executable (requires Python 3.10+)
+PYTHON_EXEC=""
+# We search from generic to specific to find any compatible version >= 3.10
+for cmd in python3 python3.12 python3.11 python3.10; do
+    if command -v $cmd &> /dev/null; then
+        # Check if the found version is actually >= 3.10
+        VERSION_OK=$($cmd -c 'import sys; print(1 if sys.version_info >= (3, 10) else 0)')
+        if [ "$VERSION_OK" = "1" ]; then
+            PYTHON_EXEC=$cmd
+            echo "[Setup] Found compatible Python executable: $PYTHON_EXEC"
+            break
+        fi
+    fi
+done
 
-# Check if Python 3.10+ is available
-if ! command -v ${PYTHON_EXEC} &> /dev/null
-then
-    echo "Error: Python ${PYTHON_VERSION} or higher is required but not found."
-    echo "Please install Python ${PYTHON_VERSION}+ and try again."
+# Check if a Python executable was found
+if [ -z "$PYTHON_EXEC" ]; then
+    echo "Error: Python 3.10+ is required but not found."
+    echo "Please install a compatible Python version (3.10 or newer) and try again."
     exit 1
 fi
 
@@ -23,17 +34,14 @@ if [ ! -d ".venv" ]; then
     echo "[Setup] Virtual environment created."
 fi
 
-# Activate virtual environment and install yt-dlp if not already installed
+# Activate virtual environment and install/update yt-dlp
 # Using a subshell to activate and run commands, so it doesn't affect the main shell
 ( 
     source .venv/bin/activate
-    if ! command -v yt-dlp &> /dev/null; then
-        echo "[Setup] Installing yt-dlp into virtual environment..."
-        pip install yt-dlp
-        echo "[Setup] yt-dlp installed."
-    else
-        echo "[Setup] yt-dlp already installed in virtual environment. Skipping installation."
-    fi
+    echo "[Setup] Upgrading pip and installing/updating yt-dlp..."
+    pip install --upgrade pip
+    pip install --upgrade yt-dlp
+    echo "[Setup] yt-dlp is up to date."
 )
 
 echo "[Setup] yt-dlp setup complete."
