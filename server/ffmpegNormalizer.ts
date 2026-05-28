@@ -1,6 +1,18 @@
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
+import { createRequire } from "module";
+
+const _require = createRequire(import.meta.url);
+// ffmpeg-static provides a bundled binary — prefer it over system ffmpeg
+const _ffmpegStatic: string | null = (() => {
+  try {
+    return _require("ffmpeg-static") as string;
+  } catch {
+    return null;
+  }
+})();
+const FFMPEG_BIN = _ffmpegStatic ?? "ffmpeg";
 
 const CACHE_DIR = path.join(process.cwd(), "media_cache");
 const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
@@ -50,7 +62,7 @@ export async function normalizeToMp4(inputPath: string, inputHash: string): Prom
       tempOutput,
     ];
 
-    const ffmpeg = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
+    const ffmpeg = spawn(FFMPEG_BIN, args, { stdio: ["ignore", "ignore", "pipe"] });
     let done = false;
 
     const timer = setTimeout(() => {
