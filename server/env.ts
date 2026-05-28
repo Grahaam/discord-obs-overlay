@@ -5,6 +5,7 @@ const envSchema = z.object({
   CHANNEL_ID: z.string().optional(),
   PORT: z.string().default("3000"),
   HOST: z.string().default("127.0.0.1"),
+  ADMIN_KEY: z.string().default("change_me"),
   NODE_ENV: z.enum(["development", "production"]).default("development"),
 });
 
