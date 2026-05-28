@@ -1,5 +1,6 @@
 import { getLinkPreview } from "link-preview-js";
-import youtubedl, { update as ytDlpUpdate } from "youtube-dl-exec";
+import youtubedl, { create as ytDlpCreate, update as ytDlpUpdateRaw } from "youtube-dl-exec";
+import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -7,7 +8,36 @@ import axios from "axios";
 import { normalizeToMp4 } from "./ffmpegNormalizer.js";
 import { SIZE_LIMITS } from "./mediaWorkerQueue.js";
 
-const ytDlp = youtubedl;
+function findBestYtDlpPath(): string | null {
+  const isWin = process.platform === "win32";
+  const venvBin = path.join(
+    process.cwd(),
+    ".venv",
+    isWin ? "Scripts" : "bin",
+    isWin ? "yt-dlp.exe" : "yt-dlp",
+  );
+  if (fs.existsSync(venvBin)) {
+    try {
+      execFileSync(venvBin, ["--version"], { stdio: "ignore" });
+      console.log(`[yt-dlp] Using venv binary: ${venvBin}`);
+      return venvBin;
+    } catch {}
+  }
+  try {
+    const cmd = isWin ? "where" : "which";
+    const found = execFileSync(cmd, ["yt-dlp"], { encoding: "utf8" }).trim().split("\n")[0].trim();
+    if (found) {
+      execFileSync(found, ["--version"], { stdio: "ignore" });
+      console.log(`[yt-dlp] Using system binary: ${found}`);
+      return found;
+    }
+  } catch {}
+  console.warn("[yt-dlp] Falling back to bundled binary (may fail on Python <3.10)");
+  return null;
+}
+
+const _ytDlpCustomPath = findBestYtDlpPath();
+const ytDlp = _ytDlpCustomPath ? ytDlpCreate(_ytDlpCustomPath) : youtubedl;
 
 function hashUrl(url: string): string {
   return crypto.createHash("md5").update(url).digest("hex");
@@ -319,7 +349,7 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
 export async function updateYtDlp(): Promise<void> {
   try {
     console.log("[yt-dlp] Checking for updates...");
-    await ytDlpUpdate();
+    await (_ytDlpCustomPath ? ytDlpUpdateRaw(_ytDlpCustomPath) : ytDlpUpdateRaw());
     console.log("[yt-dlp] Update check completed.");
   } catch (err: any) {
     console.warn(`[yt-dlp] Update failed: ${err.message}`);
@@ -380,7 +410,7 @@ export async function resolveMediaFromLink(url: string): Promise<{
   }
 
   if (isDownloadablePlatform(url)) {
-    console.warn(`[MediaParser] All extractors failed for ${url} — refusing iframe fallback`);
+    console.warn(`[MediaParser] All extractors failed for ${url} — media unavailable`);
     return {
       type: "link",
       mediaUrl: url,
