@@ -200,9 +200,7 @@ export default function StreamerDashboard() {
   const handleAddRoleId = () => {
     const clean = roleIdInput.trim();
     if (!clean || !/^\d+$/.test(clean)) { setRoleIdInput(""); return; }
-    // @ts-ignore - allowedRoleIds will be added to UIConfig by another agent
     if ((config.allowedRoleIds || []).includes(clean)) { setRoleIdInput(""); return; }
-    // @ts-ignore - allowedRoleIds will be added to UIConfig by another agent
     const newConfig = { ...config, allowedRoleIds: [...(config.allowedRoleIds || []), clean] };
     setConfig(newConfig);
     setRoleIdInput("");
@@ -210,7 +208,6 @@ export default function StreamerDashboard() {
   };
 
   const handleRemoveRoleId = (id: string) => {
-    // @ts-ignore - allowedRoleIds will be added to UIConfig by another agent
     const newConfig = { ...config, allowedRoleIds: (config.allowedRoleIds || []).filter((r) => r !== id) };
     setConfig(newConfig);
     handleSaveSettings(newConfig);

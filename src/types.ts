@@ -15,6 +15,7 @@ export interface UIConfig {
   blockNSFW?: boolean;
   language?: "fr" | "en" | "uwu-fr" | "uwu-en";
   alertSoundUrl?: string;
+  allowedRoleIds?: string[];
 }
 
 /** Canonical media type — shared by alerts and logs. "react-player" is not used. */

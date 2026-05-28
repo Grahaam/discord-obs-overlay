@@ -117,6 +117,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         blockNSFW: z.boolean(),
         language: z.enum(["fr", "en", "uwu-fr", "uwu-en"]),
         alertSoundUrl: z.string().optional(),
+        allowedRoleIds: z.array(z.string()).optional(),
       });
       const incoming = SettingsSchema.parse(req.body);
       const originalToken = settingsManager.settings.discordToken;
@@ -140,6 +141,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         blockNSFW: incoming.blockNSFW || false,
         language: incoming.language || "fr",
         alertSoundUrl: incoming.alertSoundUrl || "",
+        allowedRoleIds: incoming.allowedRoleIds || [],
       };
 
       settingsManager.saveSettings(updatedSettings);
