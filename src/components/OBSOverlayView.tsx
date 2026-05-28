@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
-import { Tv, Bot, Flame, AlertTriangle } from "lucide-react";
+import { Tv, Bot, Flame, AlertTriangle, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { AlertPayload, Sparkle } from "../types";
 
 declare global {
@@ -26,6 +26,8 @@ export default function OBSOverlayView({
   const [preloadedUrls, setPreloadedUrls] = useState<Record<string, boolean>>({});
   const [particles, setParticles] = useState<Sparkle[]>([]);
   const [currentDuration, setCurrentDuration] = useState(8000);
+  const [isPaused, setIsPaused] = useState(false);
+  const [showControls, setShowControls] = useState(false);
 
   // Refs that don't cause rerenders — critical for OBS performance
   const playbackStateRef = useRef<PlaybackState>("waiting");
@@ -41,6 +43,12 @@ export default function OBSOverlayView({
   const alertStartTimeRef = useRef<number>(0);
   const cancelCurrentAlertRef = useRef<(() => void) | null>(null);
   const extendCurrentTimeoutRef = useRef<((durationMs: number) => void) | null>(null);
+  const isPausedRef = useRef(false);
+  const pausedRemainingRef = useRef(0);
+  const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutEndRef = useRef(0);
+  const togglePauseRef = useRef<() => void>(() => {});
+  const seekVideoRef = useRef<(s: number) => void>(() => {});
 
   // Keep activeAlertRef in sync for use in async callbacks
   useEffect(() => {
@@ -133,22 +141,40 @@ export default function OBSOverlayView({
     };
   }, []);
 
-  // Keyboard shortcut to skip active alert
+  // Keyboard shortcuts: stop, pause/resume, seek
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!activeAlert) return;
-      const configKey = activeAlert.stopAlertShortcut || "Escape";
-      const matchesKey =
-        e.key.toLowerCase() === configKey.toLowerCase() ||
-        e.code.toLowerCase() === configKey.toLowerCase() ||
-        (configKey.toLowerCase() === "space" && e.key === " ") ||
-        (configKey.toLowerCase() === "escape" && e.key === "Escape");
+      const configKey = (activeAlert.stopAlertShortcut || "Escape").toLowerCase();
+      const isSpace = e.key === " " || e.code === "Space";
 
-      if (matchesKey) {
+      const matchesStop =
+        e.key.toLowerCase() === configKey ||
+        e.code.toLowerCase() === configKey ||
+        (configKey === "space" && isSpace) ||
+        (configKey === "escape" && e.key === "Escape");
+
+      if (matchesStop) {
         e.preventDefault();
         e.stopPropagation();
-        console.log("[Overlay] Alert skipped via keyboard:", configKey);
         cancelCurrentAlertRef.current?.();
+        return;
+      }
+
+      if (isSpace) {
+        e.preventDefault();
+        togglePauseRef.current();
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        seekVideoRef.current(-5);
+        return;
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        seekVideoRef.current(5);
+        return;
       }
     };
 
@@ -311,7 +337,9 @@ export default function OBSOverlayView({
     const extendTimeout = (newDurationMs: number) => {
       if (timeoutId) clearTimeout(timeoutId);
       setCurrentDuration(newDurationMs);
-      timeoutId = setTimeout(finishAlert, Math.max(newDurationMs, 2000));
+      const ms = Math.max(newDurationMs, 2000);
+      timeoutEndRef.current = Date.now() + ms;
+      timeoutId = setTimeout(finishAlert, ms);
     };
 
     cancelCurrentAlertRef.current = finishAlert;
@@ -326,8 +354,10 @@ export default function OBSOverlayView({
           setCurrentDuration(durationMs);
           extendCurrentTimeoutRef.current?.(durationMs);
         };
+        timeoutEndRef.current = Date.now() + 300000;
         timeoutId = setTimeout(finishAlert, 300000); // 5 min hard cap
       } else {
+        timeoutEndRef.current = Date.now() + defaultDuration;
         timeoutId = setTimeout(finishAlert, defaultDuration);
       }
       onVideoErrorRef.current = finishAlert;
@@ -335,16 +365,24 @@ export default function OBSOverlayView({
       if (nextItem.mediaUrl.includes("youtube.com/embed")) {
         onVideoEndedRef.current = finishAlert;
         onVideoErrorRef.current = finishAlert;
+        timeoutEndRef.current = Date.now() + 300000;
         timeoutId = setTimeout(finishAlert, 300000);
       } else {
+        timeoutEndRef.current = Date.now() + 240000;
         timeoutId = setTimeout(finishAlert, 240000);
       }
     } else {
+      timeoutEndRef.current = Date.now() + defaultDuration;
       timeoutId = setTimeout(finishAlert, defaultDuration);
     }
 
     await finishPromise;
     cancelCurrentAlertRef.current = null;
+
+    isPausedRef.current = false;
+    setIsPaused(false);
+    setShowControls(false);
+    if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current);
 
     setActiveAlert(null);
     setParticles([]);
@@ -379,6 +417,12 @@ export default function OBSOverlayView({
 
     const updateProgress = () => {
       if (!activeAlert || !progressBarRef.current) return;
+
+      // Freeze bar when paused (video type self-freezes via currentTime; timer-based needs explicit check)
+      if (isPausedRef.current && !(activeAlert.type === "video" && activeAlert.syncDurationWithMedia)) {
+        animationFrameId = requestAnimationFrame(updateProgress);
+        return;
+      }
 
       let progress = 0;
       if (activeAlert.type === "video" && activeVideoRef.current && activeAlert.syncDurationWithMedia) {
@@ -431,6 +475,90 @@ export default function OBSOverlayView({
     [embedMode]
   );
 
+  const showControlsTemporarily = useCallback(() => {
+    setShowControls(true);
+    if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current);
+    if (!embedMode) {
+      controlsHideTimerRef.current = setTimeout(() => setShowControls(false), 3000);
+    }
+  }, [embedMode]);
+
+  const togglePause = useCallback(() => {
+    if (!activeAlert) return;
+    const nowPaused = !isPausedRef.current;
+    isPausedRef.current = nowPaused;
+
+    if (nowPaused) {
+      pausedRemainingRef.current = Math.max(1000, timeoutEndRef.current - Date.now());
+      extendCurrentTimeoutRef.current?.(3600000);
+      if (activeVideoRef.current) {
+        activeVideoRef.current.pause();
+      } else if (ytPlayerRef.current) {
+        try {
+          ytPlayerRef.current.pauseVideo();
+        } catch {
+          /* ignore */
+        }
+      }
+    } else {
+      const remaining = pausedRemainingRef.current || 5000;
+      extendCurrentTimeoutRef.current?.(remaining);
+      alertStartTimeRef.current = Date.now() - (currentDuration - remaining);
+      if (activeVideoRef.current) {
+        activeVideoRef.current.play().catch(() => {});
+      } else if (ytPlayerRef.current) {
+        try {
+          ytPlayerRef.current.playVideo();
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    setIsPaused(nowPaused);
+  }, [activeAlert, currentDuration]);
+
+  const seekVideo = useCallback(
+    (seconds: number) => {
+      if (!activeAlert) return;
+      const video = activeVideoRef.current;
+      if (video && isFinite(video.duration)) {
+        video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
+      } else if (ytPlayerRef.current) {
+        try {
+          const cur = ytPlayerRef.current.getCurrentTime?.() || 0;
+          ytPlayerRef.current.seekTo?.(Math.max(0, cur + seconds), true);
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    [activeAlert]
+  );
+
+  // Keep refs in sync so keyboard handler (declared earlier) can call latest versions
+  useEffect(() => {
+    togglePauseRef.current = togglePause;
+    seekVideoRef.current = seekVideo;
+  }, [togglePause, seekVideo]);
+
+  const handleProgressBarClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!activeAlert) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const video = activeVideoRef.current;
+      if (video && isFinite(video.duration)) {
+        // Bar is full-to-empty (1→0), so ratio at click = remaining fraction → seek to (1-ratio) of duration
+        video.currentTime = video.duration * (1 - ratio);
+      } else {
+        const newRemaining = Math.max(500, ratio * currentDuration);
+        extendCurrentTimeoutRef.current?.(newRemaining);
+        alertStartTimeRef.current = Date.now() - (currentDuration - newRemaining);
+      }
+    },
+    [activeAlert, currentDuration]
+  );
+
   return (
     <div
       className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 ${
@@ -439,6 +567,7 @@ export default function OBSOverlayView({
           : "w-screen h-screen bg-transparent p-0 m-0"
       } ${!embedMode && activeAlert ? "pointer-events-auto" : !embedMode ? "pointer-events-none" : ""}`}
       style={{ background: embedMode ? undefined : "transparent" }}
+      onMouseMove={activeAlert && !embedMode ? showControlsTemporarily : undefined}
     >
       {/* Atmospheric decorations */}
       {embedMode && (
@@ -635,7 +764,6 @@ export default function OBSOverlayView({
                                 : `w-full h-full block relative z-10 object-contain pointer-events-auto ${embedMode ? "bg-black" : "bg-transparent drop-shadow-[0_0_2rem_rgba(0,0,0,0.8)]"}`
                             }
                             playsInline
-                            controls={!embedMode}
                             // Do NOT set muted here — handleCanPlay starts muted then unmutes
                             crossOrigin="anonymous"
                             onEnded={() => onVideoEndedRef.current?.()}
@@ -661,8 +789,21 @@ export default function OBSOverlayView({
                               }
                             }}
                             onPause={() => {
-                              // When user manually pauses in dashboard, pause the alert timer
+                              if (!isPausedRef.current) {
+                                pausedRemainingRef.current = Math.max(1000, timeoutEndRef.current - Date.now());
+                                isPausedRef.current = true;
+                                setIsPaused(true);
+                              }
                               extendCurrentTimeoutRef.current?.(3600000);
+                            }}
+                            onPlay={() => {
+                              if (isPausedRef.current) {
+                                const remaining = pausedRemainingRef.current || 5000;
+                                extendCurrentTimeoutRef.current?.(remaining);
+                                alertStartTimeRef.current = Date.now() - (currentDuration - remaining);
+                                isPausedRef.current = false;
+                                setIsPaused(false);
+                              }
                             }}
                           />
                         </>
@@ -715,11 +856,41 @@ export default function OBSOverlayView({
                   );
                 })()}
 
+                {/* Playback controls */}
+                {(showControls || embedMode) && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-1.5 bg-black/70 backdrop-blur-md rounded-xl border border-white/10 pointer-events-auto select-none">
+                    <button
+                      onClick={() => seekVideo(-5)}
+                      className="text-white/70 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
+                      title="-5s"
+                    >
+                      <SkipBack className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={togglePause}
+                      className="text-white hover:text-white transition-colors p-1.5 bg-white/10 hover:bg-white/25 rounded-lg"
+                      title={isPaused ? "Resume" : "Pause"}
+                    >
+                      {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => seekVideo(5)}
+                      className="text-white/70 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg"
+                      title="+5s"
+                    >
+                      <SkipForward className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Progress Bar */}
-                <div className="absolute bottom-0 left-0 w-full h-2 bg-slate-950/40 pointer-events-none overflow-hidden z-20">
+                <div
+                  className="absolute bottom-0 left-0 w-full h-2.5 bg-slate-950/40 overflow-hidden z-20 cursor-pointer group"
+                  onClick={handleProgressBarClick}
+                >
                   <div
                     ref={progressBarRef}
-                    className="h-full rounded-r-full"
+                    className="h-full rounded-r-full transition-none group-hover:brightness-125"
                     style={{
                       width: "100%",
                       backgroundColor: activeAlert.neonColor,
