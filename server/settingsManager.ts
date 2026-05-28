@@ -83,7 +83,6 @@ export class SettingsManager {
   public saveSettings(newSettings: Settings) {
     try {
       // 1. Separate sensitive from public
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { discordToken: _t, youtubeCookiesContent: _c, ...publicSettings } = newSettings;
 
       // 2. Save public things safely to settings.json

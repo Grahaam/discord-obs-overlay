@@ -35,30 +35,30 @@ Single-process Node app: Express + Socket.IO server (port 3000) bundled with a V
 
 ### Server (`server/`)
 
-| File | Role |
-|------|------|
-| `index.ts` | Entry: wires Express, Socket.IO, rate limiters, CSP, Vite middleware, graceful shutdown |
-| `routes.ts` | All REST endpoints (`/api/*`), SSRF-safe media proxy |
-| `discordBotManager.ts` | Discord.js client singleton; routes messages → `mediaWorkerQueue` → `alertManager` |
-| `mediaWorkerQueue.ts` | `p-queue` concurrency=2, cap=50 jobs, 5-min timeout per job |
-| `mediaParser.ts` | `resolveMediaFromLink()`: yt-dlp → Cobalt API fallback → iframe fallback; caches to `media_cache/` (2 GB, 24 h TTL) |
-| `ffmpegNormalizer.ts` | Post-download ffmpeg normalization to mp4 |
-| `alertManager.ts` | In-memory queue (cap 100), writes through to SQLite |
-| `db.ts` | better-sqlite3 WAL, two tables: `alerts` + `logs` (trimmed to 1000 rows) |
-| `settingsManager.ts` | Loads `settings.json` + `.env`; saves token to `.env`, cookies to `cookies.txt`, rest to `settings.json` |
-| `logManager.ts` | Bounded in-memory log ring, persisted via `db.ts` |
-| `bannedWords.ts` | Word-filter: block or censor mode |
-| `env.ts` | Zod-validated env vars |
+| File                   | Role                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `index.ts`             | Entry: wires Express, Socket.IO, rate limiters, CSP, Vite middleware, graceful shutdown                             |
+| `routes.ts`            | All REST endpoints (`/api/*`), SSRF-safe media proxy                                                                |
+| `discordBotManager.ts` | Discord.js client singleton; routes messages → `mediaWorkerQueue` → `alertManager`                                  |
+| `mediaWorkerQueue.ts`  | `p-queue` concurrency=2, cap=50 jobs, 5-min timeout per job                                                         |
+| `mediaParser.ts`       | `resolveMediaFromLink()`: yt-dlp → Cobalt API fallback → iframe fallback; caches to `media_cache/` (2 GB, 24 h TTL) |
+| `ffmpegNormalizer.ts`  | Post-download ffmpeg normalization to mp4                                                                           |
+| `alertManager.ts`      | In-memory queue (cap 100), writes through to SQLite                                                                 |
+| `db.ts`                | better-sqlite3 WAL, two tables: `alerts` + `logs` (trimmed to 1000 rows)                                            |
+| `settingsManager.ts`   | Loads `settings.json` + `.env`; saves token to `.env`, cookies to `cookies.txt`, rest to `settings.json`            |
+| `logManager.ts`        | Bounded in-memory log ring, persisted via `db.ts`                                                                   |
+| `bannedWords.ts`       | Word-filter: block or censor mode                                                                                   |
+| `env.ts`               | Zod-validated env vars                                                                                              |
 
 ### Frontend (`src/`)
 
 React 19 + Tailwind CSS v4 + Socket.IO client.
 
-| Component | Route | Purpose |
-|-----------|-------|---------|
+| Component           | Route           | Purpose                                                           |
+| ------------------- | --------------- | ----------------------------------------------------------------- |
 | `StreamerDashboard` | `/` (dashboard) | Config panel: Discord bot, alert settings, queue management, logs |
-| `OBSOverlayView` | `/overlay` | Full-screen transparent overlay for OBS browser source |
-| `TutorialOverlay` | — | First-run onboarding wizard |
+| `OBSOverlayView`    | `/overlay`      | Full-screen transparent overlay for OBS browser source            |
+| `TutorialOverlay`   | —               | First-run onboarding wizard                                       |
 
 `src/types.ts` defines shared types used by both frontend and server (`AlertPayload`, `UIConfig`, `LogEntry`, `BotStatus`).
 
