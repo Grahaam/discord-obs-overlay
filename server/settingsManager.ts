@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { logger } from "./logger.js";
 import dotenv from "dotenv";
 
 const SETTINGS_FILE = path.join(process.cwd(), "settings.json");
@@ -23,6 +24,8 @@ export interface Settings {
   blockLinks?: boolean;
   blockNSFW?: boolean;
   language: "fr" | "en" | "uwu-fr" | "uwu-en";
+  alertSoundUrl?: string;
+  allowedRoleIds?: string[];
 }
 
 export const defaultSettings: Settings = {
@@ -41,6 +44,8 @@ export const defaultSettings: Settings = {
   blockLinks: false,
   blockNSFW: false,
   language: "fr",
+  alertSoundUrl: "",
+  allowedRoleIds: [],
 };
 
 export class SettingsManager {
@@ -70,13 +75,13 @@ export class SettingsManager {
         this.settings.youtubeCookiesContent = fs.readFileSync(cookiesFile, "utf-8");
       }
 
-      console.log("[Settings] Loaded securely (tokens mapped from env).");
+      logger.info("Loaded securely (tokens mapped from env)");
 
       if (!fs.existsSync(SETTINGS_FILE)) {
         this.saveSettings(this.settings);
       }
     } catch (err) {
-      console.error("[Settings] Failed to load settings, using defaults.", err);
+      logger.error({ err }, "Failed to load settings, using defaults");
     }
   }
 
@@ -93,12 +98,12 @@ export class SettingsManager {
 
       this.settings = { ...newSettings };
 
-      console.log("[Settings] Saved successfully (secrets secured).");
+      logger.info("Saved successfully (secrets secured)");
 
       // 4. Sycn Cookies to cookies.txt natively
       this.syncCookiesFile();
     } catch (err) {
-      console.error("[Settings] Failed to save settings on disk.", err);
+      logger.error({ err }, "Failed to save settings on disk");
     }
   }
 
@@ -123,7 +128,7 @@ export class SettingsManager {
 
       fs.writeFileSync(ENV_FILE, envContent.trim() + "\n", "utf8");
     } catch (e) {
-      console.error("[Settings] Could not write to .env", e);
+      logger.error({ err: e }, "Could not write to .env");
     }
   }
 
@@ -146,7 +151,7 @@ export class SettingsManager {
 
       fs.writeFileSync(cookiesFile, finalContent, "utf-8");
     } catch (err) {
-      console.error("[Settings] Failed to sync cookies.txt.", err);
+      logger.error({ err }, "Failed to sync cookies.txt");
     }
   }
 }

@@ -14,6 +14,7 @@ export interface UIConfig {
   blockLinks?: boolean;
   blockNSFW?: boolean;
   language?: "fr" | "en" | "uwu-fr" | "uwu-en";
+  alertSoundUrl?: string;
 }
 
 /** Canonical media type — shared by alerts and logs. "react-player" is not used. */
@@ -26,6 +27,7 @@ export interface AlertPayload {
   text: string;
   mediaUrl: string;
   type: MediaType;
+  title?: string;
   provider?: string;
   /** Set when yt-dlp failed and the alert fell back to an iframe embed. */
   ytDlpError?: string;
@@ -34,6 +36,7 @@ export interface AlertPayload {
   neonColor: string;
   alertStyle: "neon" | "glitch" | "cyberpunk" | "glass";
   stopAlertShortcut?: string;
+  alertSoundUrl?: string;
   timestamp: number;
   isTest?: boolean;
 }
