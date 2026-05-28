@@ -14,6 +14,7 @@ import { updateYtDlp, cleanupOrphanedTempFiles } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
 import { initDb, loadPersistedAlerts, loadPersistedLogs } from "./db.js";
 import { logManager } from "./logManager.js";
+import { logger } from "./logger.js";
 
 dotenv.config();
 
@@ -35,7 +36,7 @@ async function runServer() {
 
   // Update yt-dlp on startup (non-blocking)
   updateYtDlp().catch((err) => {
-    console.error("[Server] yt-dlp update failed:", err);
+    logger.error({ err }, "yt-dlp update failed");
   });
 
   const app = express();
@@ -50,31 +51,34 @@ async function runServer() {
     legacyHeaders: false,
   });
 
-  // Read/polling endpoints — generous limit (dashboard polls every 4s = ~900/hour)
+  // Read/polling endpoints — generous limit (dashboard polls every 4s = ~900/hour, plus 2 docks = ~2700/hour)
   const readLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 2000,
+    max: 5000,
     standardHeaders: true,
     legacyHeaders: false,
   });
 
-  app.use("/api/logs", readLimiter);
-  app.use("/api/bot-status", readLimiter);
+  // app.use("/api/logs", readLimiter); // Removed rate limiting for logs
+  // app.use("/api/bot-status", readLimiter); // Removed rate limiting for status
   app.use("/api/settings", readLimiter);
   app.use("/api/media-cache", readLimiter);
   app.use("/api", writeLimiter);
 
   // Phase 4: CSP hardening — set via HTTP headers (more reliable in OBS than meta tags)
+  const isDev = env.NODE_ENV === "development";
   const CSP = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com",
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com ${isDev ? "*" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' data: blob: https:",
-    "connect-src 'self' ws: wss:",
+    `connect-src 'self' ws: wss: ${isDev ? "*" : ""}`,
     "frame-src https://www.youtube.com https://youtube.com https://player.vimeo.com",
-  ].join("; ");
+  ]
+    .filter(Boolean)
+    .join("; ");
 
   app.use((_req, res, next) => {
     res.setHeader("Content-Security-Policy", CSP);
@@ -93,6 +97,10 @@ async function runServer() {
 
   botManager.setIo(io);
 
+  logManager.onLogAdded = (log) => {
+    io.emit("new_log", log);
+  };
+
   // Phase 3: heartbeat — lets overlay detect server restarts and reconcile queue state
   const heartbeatInterval = setInterval(() => {
     io.emit("heartbeat", {
@@ -101,53 +109,46 @@ async function runServer() {
     });
   }, HEARTBEAT_INTERVAL_MS);
 
-  // Track which socket IDs are real OBS overlay windows (not dashboard embeds)
-  const overlayClients = new Set<string>();
+  // Single source of truth for what is currently playing
+  let currentlyPlaying: import("../src/types.js").AlertPayload | null = null;
 
   io.on("connection", (socket) => {
     if (env.NODE_ENV !== "production") {
-      console.log(`[Socket] Connect: ${socket.id} (total: ${io.engine.clientsCount})`);
+      logger.debug({ socketId: socket.id, total: io.engine.clientsCount }, "Socket connected");
     }
 
     socket.on("get_initial_state", () => {
       socket.emit("initial_state", alertManager.getAlerts());
+      socket.emit("now_playing", currentlyPlaying);
+    });
+
+    socket.on("alert_started", (alertId: string) => {
+      const alert = alertManager.getAlerts().find((a) => a.id === alertId)
+        ?? (currentlyPlaying?.id === alertId ? currentlyPlaying : null);
+      currentlyPlaying = alert ?? null;
+      io.emit("now_playing", currentlyPlaying);
     });
 
     socket.on("alert_played", (alertId: string) => {
-      console.log(`[Socket] Alert ${alertId} played`);
+      logger.info({ alertId }, "Alert played");
       alertManager.removeAlert(alertId);
+      if (currentlyPlaying?.id === alertId) {
+        currentlyPlaying = null;
+        io.emit("now_playing", null);
+      }
       io.emit("remove_queue_item", alertId);
     });
 
-    // OBS overlay windows register themselves so dashboard embeds know not to consume alerts
-    socket.on("register_as_overlay", () => {
-      overlayClients.add(socket.id);
-      io.emit("overlay_count", overlayClients.size);
-    });
-
-    socket.on("disconnect", () => {
-      if (overlayClients.has(socket.id)) {
-        overlayClients.delete(socket.id);
-        io.emit("overlay_count", overlayClients.size);
-      }
-    });
+    socket.on("disconnect", () => {});
   });
 
   if (settingsManager.settings.discordToken && settingsManager.settings.channelId) {
     botManager.connectBot(settingsManager.settings.discordToken, settingsManager.settings.channelId).catch((err) => {
-      console.error("[Discord] Bot connection error:", err);
+      logger.error({ err }, "Discord bot connection error");
     });
   }
 
   setupRoutes(app, io);
-
-  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    void _next;
-    console.error("[Server] Unhandled route error:", err);
-    if (!res.headersSent) {
-      res.status(500).json({ error: "Internal server error" });
-    }
-  });
 
   if (env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");
@@ -157,14 +158,25 @@ async function runServer() {
     });
   } else {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: { server: httpServer },
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
   }
 
+  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    void _next;
+    logger.error({ err }, "Unhandled route error");
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   httpServer.listen(PORT, env.HOST, () => {
-    console.log(`[Server] Stream OBS server active on ${env.HOST}:${PORT}`);
+    logger.info({ host: env.HOST, port: PORT }, "Stream Alert server active");
   });
 
   // Graceful shutdown
@@ -175,5 +187,5 @@ async function runServer() {
 }
 
 runServer().catch((err) => {
-  console.error("FATAL: Failed to initiate unified application container", err);
+  logger.fatal({ err }, "Failed to initiate unified application container");
 });
