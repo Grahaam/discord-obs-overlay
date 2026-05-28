@@ -61,7 +61,7 @@ export default function StreamerDashboard() {
     "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1280&auto=format&fit=crop"
   );
 
-  const t = locales[config.language as Language || "fr"];
+  const t = locales[(config.language as Language) ?? "fr"];
 
   const fetchSettingsAndLogs = async () => {
     try {
@@ -156,7 +156,10 @@ export default function StreamerDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(overrideConfig),
       });
-      if (!res.ok) throw new Error(`Failed to save: ${res.status}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error((errData as any).error || `Failed to save: ${res.status}`);
+      }
       const data = await res.json();
       if (data.success) setConfig(data.settings);
     } catch (err) {
@@ -196,7 +199,6 @@ export default function StreamerDashboard() {
   const handleClearLogs = async () => {
     try {
       await fetch("/api/logs/clear", { method: "POST" });
-      setLogs([]);
     } catch (err) {
       console.error(err);
     }
