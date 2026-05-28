@@ -309,10 +309,8 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
   // .tmp.mp4 — ends in .mp4 so yt-dlp doesn't append another extension after merging
   const tempFilepath = path.join(CACHE_DIR, `${hash}.tmp.mp4`);
 
-  // Hard cap at 50MB (per SIZE_LIMITS.video). The user-facing mediaMaxSizeMB setting
-  // is intentionally NOT applied here — it was designed for Discord attachments, not
-  // downloads. Applying it to yt-dlp was silently forcing low quality on long videos.
-  const maxMB = Math.round(SIZE_LIMITS.video / (1024 * 1024)); // 50MB
+  // 500MB cap for yt-dlp downloads (Discord attachment limit stays at SIZE_LIMITS.video = 50MB)
+  const maxMB = 500;
 
   const dlOptions: any = {
     noWarnings: true,
@@ -351,13 +349,16 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
       await withTimeout(ytDlp(url, dlOptions), YTDLP_TIMEOUT_MS, url);
     }
 
-    // Validate size before accepting
-    if (fs.existsSync(tempFilepath)) {
-      const stat = await fs.promises.stat(tempFilepath);
-      if (stat.size > SIZE_LIMITS.video) {
-        await fs.promises.unlink(tempFilepath).catch(() => {});
-        throw new Error(`File size ${(stat.size / 1024 / 1024).toFixed(0)}MB exceeds video limit`);
-      }
+    if (!fs.existsSync(tempFilepath)) {
+      // yt-dlp exited 0 but created no file — typically means --max-filesize was exceeded
+      throw new Error(`yt-dlp produced no output file (video likely exceeds ${maxMB}MB limit)`);
+    }
+
+    // Validate actual size before accepting
+    const stat = await fs.promises.stat(tempFilepath);
+    if (stat.size > maxMB * 1024 * 1024) {
+      await fs.promises.unlink(tempFilepath).catch(() => {});
+      throw new Error(`File size ${(stat.size / 1024 / 1024).toFixed(0)}MB exceeds ${maxMB}MB limit`);
     }
 
     await fs.promises.rename(tempFilepath, rawFilepath);
