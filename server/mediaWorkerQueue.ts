@@ -6,10 +6,10 @@ const mediaQueue = new PQueue({ concurrency: 2 });
 
 // Per-type file size limits in bytes
 export const SIZE_LIMITS = {
-  image: 10 * 1024 * 1024,  // 10MB
-  gif:   25 * 1024 * 1024,  // 25MB
-  video: 50 * 1024 * 1024,  // 50MB
-  audio: 15 * 1024 * 1024,  // 15MB
+  image: 10 * 1024 * 1024, // 10MB
+  gif: 25 * 1024 * 1024, // 25MB
+  video: 50 * 1024 * 1024, // 50MB
+  audio: 15 * 1024 * 1024, // 15MB
 };
 
 export function addJob<T>(id: string, fn: () => Promise<T | null>): Promise<T | null> {

@@ -78,6 +78,7 @@ export default function StreamerDashboard() {
   useEffect(() => {
     const hasSeen = localStorage.getItem("hasSeenTutorial");
     if (!hasSeen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowTutorial(true);
     }
   }, []);
@@ -165,6 +166,7 @@ export default function StreamerDashboard() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSettingsAndLogs();
 
     // Setup periodic metrics updates (without overwriting settings inputs)
@@ -979,8 +981,8 @@ export default function StreamerDashboard() {
                       {t.health.cpuUsage}: {botStatus.health?.system.cpu.toFixed(2)} (1m avg)
                     </p>
                     <p className="text-xs text-white/70">
-                      {t.health.memoryUsed}: {((botStatus.health?.system.memory.used ?? 0) / (1024 * 1024 * 1024)).toFixed(2)}{" "}
-                      GB
+                      {t.health.memoryUsed}:{" "}
+                      {((botStatus.health?.system.memory.used ?? 0) / (1024 * 1024 * 1024)).toFixed(2)} GB
                     </p>
                     <p className="text-xs text-white/70">
                       {t.health.memoryTotal}:{" "}

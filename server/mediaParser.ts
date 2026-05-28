@@ -4,7 +4,6 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import axios from "axios";
-import { settingsManager } from "./settingsManager.js";
 import { normalizeToMp4 } from "./ffmpegNormalizer.js";
 import { SIZE_LIMITS } from "./mediaWorkerQueue.js";
 
@@ -234,8 +233,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`[yt-dlp] Timeout (${ms / 1000}s): ${label}`)), ms);
     promise.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); }
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      }
     );
   });
 }
@@ -257,7 +262,8 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
     noWarnings: true,
     noCheckCertificates: true,
     // Prefer 1080p H264+AAC for OBS compatibility. Falls back progressively.
-    format: "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+    format:
+      "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     referer: "https://www.google.com/",
@@ -282,11 +288,7 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
       return { filename: finalFilename, info: {} };
     }
 
-    const info: any = await withTimeout(
-      ytDlp(url, { ...dlOptions, dumpSingleJson: true }),
-      YTDLP_TIMEOUT_MS,
-      url
-    );
+    const info: any = await withTimeout(ytDlp(url, { ...dlOptions, dumpSingleJson: true }), YTDLP_TIMEOUT_MS, url);
 
     if (!fs.existsSync(tempFilepath)) {
       await withTimeout(ytDlp(url, dlOptions), YTDLP_TIMEOUT_MS, url);
@@ -424,7 +426,7 @@ export async function resolveMediaFromLink(url: string): Promise<{
         return { type: "image", mediaUrl: preview.images[0], title: preview.title || "" };
       }
     }
-  } catch (err) {
+  } catch {
     console.warn("[MediaParser] link-preview-js retrieval timed out:", url);
   }
 

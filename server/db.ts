@@ -51,8 +51,11 @@ export function initDb(): void {
 
 export function persistAlert(alert: AlertPayload): void {
   withDb((d) => {
-    d.prepare("INSERT OR REPLACE INTO alerts (id, data, created_at) VALUES (?, ?, ?)")
-      .run(alert.id, JSON.stringify(alert), alert.timestamp);
+    d.prepare("INSERT OR REPLACE INTO alerts (id, data, created_at) VALUES (?, ?, ?)").run(
+      alert.id,
+      JSON.stringify(alert),
+      alert.timestamp
+    );
   }, "persistAlert");
 }
 
@@ -63,10 +66,12 @@ export function removePersistedAlert(id: string): void {
 }
 
 export function loadPersistedAlerts(): AlertPayload[] {
-  return withDb((d) => {
-    const rows = d.prepare("SELECT data FROM alerts ORDER BY created_at ASC").all() as { data: string }[];
-    return rows.map((r) => JSON.parse(r.data) as AlertPayload);
-  }, "loadPersistedAlerts") ?? [];
+  return (
+    withDb((d) => {
+      const rows = d.prepare("SELECT data FROM alerts ORDER BY created_at ASC").all() as { data: string }[];
+      return rows.map((r) => JSON.parse(r.data) as AlertPayload);
+    }, "loadPersistedAlerts") ?? []
+  );
 }
 
 export function clearPersistedAlerts(): void {
@@ -77,21 +82,28 @@ export function clearPersistedAlerts(): void {
 
 export function persistLog(log: LogEntry): void {
   withDb((d) => {
-    d.prepare("INSERT OR REPLACE INTO logs (id, data, created_at) VALUES (?, ?, ?)")
-      .run(log.id, JSON.stringify(log), log.timestamp);
+    d.prepare("INSERT OR REPLACE INTO logs (id, data, created_at) VALUES (?, ?, ?)").run(
+      log.id,
+      JSON.stringify(log),
+      log.timestamp
+    );
     if (++logInsertCount % LOG_TRIM_INTERVAL === 0) {
-      d.prepare("DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY created_at DESC LIMIT ?)")
-        .run(MAX_LOG_ROWS);
+      d.prepare("DELETE FROM logs WHERE id NOT IN (SELECT id FROM logs ORDER BY created_at DESC LIMIT ?)").run(
+        MAX_LOG_ROWS
+      );
     }
   }, "persistLog");
 }
 
 export function loadPersistedLogs(): LogEntry[] {
-  return withDb((d) => {
-    const rows = d.prepare("SELECT data FROM logs ORDER BY created_at DESC LIMIT ?")
-      .all(MAX_LOG_ROWS) as { data: string }[];
-    return rows.map((r) => JSON.parse(r.data) as LogEntry).reverse();
-  }, "loadPersistedLogs") ?? [];
+  return (
+    withDb((d) => {
+      const rows = d.prepare("SELECT data FROM logs ORDER BY created_at DESC LIMIT ?").all(MAX_LOG_ROWS) as {
+        data: string;
+      }[];
+      return rows.map((r) => JSON.parse(r.data) as LogEntry).reverse();
+    }, "loadPersistedLogs") ?? []
+  );
 }
 
 export function clearPersistedLogs(): void {

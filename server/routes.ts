@@ -358,7 +358,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       try {
         const decoded = Buffer.from(req.query.headers as string, "base64").toString("utf-8");
         headersFromUrl = JSON.parse(decoded);
-      } catch (e) {
+      } catch {
         console.warn("Failed to parse headers from proxy-media URL");
       }
     }

@@ -193,7 +193,11 @@ export default function OBSOverlayView({
   useEffect(() => {
     if (!activeAlert || !activeAlert.mediaUrl.includes("youtube.com/embed")) {
       if (ytPlayerRef.current) {
-        try { ytPlayerRef.current.destroy(); } catch { /* ignore */ }
+        try {
+          ytPlayerRef.current.destroy();
+        } catch {
+          /* ignore */
+        }
         ytPlayerRef.current = null;
       }
       return;
@@ -224,11 +228,15 @@ export default function OBSOverlayView({
           enablejsapi: 1,
         },
         events: {
-          onReady: (event: any) => { event.target.playVideo(); },
+          onReady: (event: any) => {
+            event.target.playVideo();
+          },
           onStateChange: (event: any) => {
             if (event.data === 0) onVideoEndedRef.current?.();
           },
-          onError: () => { onVideoErrorRef.current?.(); },
+          onError: () => {
+            onVideoErrorRef.current?.();
+          },
         },
       });
     };
@@ -237,7 +245,11 @@ export default function OBSOverlayView({
 
     return () => {
       if (ytPlayerRef.current) {
-        try { ytPlayerRef.current.destroy(); } catch { /* ignore */ }
+        try {
+          ytPlayerRef.current.destroy();
+        } catch {
+          /* ignore */
+        }
         ytPlayerRef.current = null;
       }
     };
@@ -279,7 +291,9 @@ export default function OBSOverlayView({
     playbackStateRef.current = "playing";
 
     let resolveFinish: (() => void) | null = null;
-    const finishPromise = new Promise<void>((resolve) => { resolveFinish = resolve; });
+    const finishPromise = new Promise<void>((resolve) => {
+      resolveFinish = resolve;
+    });
 
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -388,7 +402,9 @@ export default function OBSOverlayView({
       animationFrameId = requestAnimationFrame(updateProgress);
     }
 
-    return () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); };
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
   }, [activeAlert, currentDuration]);
 
   // OBS-safe autoplay: start muted, then unmute after play() resolves
@@ -403,7 +419,8 @@ export default function OBSOverlayView({
 
       // Muted autoplay strategy — works in OBS browser source
       vid.muted = true;
-      vid.play()
+      vid
+        .play()
         .then(() => {
           if (!embedMode) {
             vid.muted = false; // restore audio in OBS full-overlay mode
@@ -625,14 +642,10 @@ export default function OBSOverlayView({
                             onError={(e) => {
                               const err = e.currentTarget.error;
                               const rawUrl = activeAlert?.mediaUrl || "unknown";
-                              console.error(
-                                `[Video] Error code ${err?.code}: ${err?.message} — ${rawUrl}`
-                              );
+                              console.error(`[Video] Error code ${err?.code}: ${err?.message} — ${rawUrl}`);
                               if (activeAlert && !activeAlert.mediaUrl.includes("retry=1")) {
                                 const retryUrl =
-                                  activeAlert.mediaUrl +
-                                  (activeAlert.mediaUrl.includes("?") ? "&" : "?") +
-                                  "retry=1";
+                                  activeAlert.mediaUrl + (activeAlert.mediaUrl.includes("?") ? "&" : "?") + "retry=1";
                                 setTimeout(() => {
                                   setActiveAlert((prev) => (prev ? { ...prev, mediaUrl: retryUrl } : prev));
                                 }, 1000);

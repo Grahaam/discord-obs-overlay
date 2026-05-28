@@ -5,6 +5,7 @@ StreamAlerts Hub est une application pour les streamers permettant de récupére
 ## Prérequis
 
 Assurez-vous d'avoir installé les logiciels suivants sur votre machine :
+
 - **[Node.js](https://nodejs.org/fr/)** (version 18 ou supérieure recommandée)
 - Assurez-vous que la commande `npm` est disponible dans votre terminal.
 
@@ -23,11 +24,13 @@ Assurez-vous d'avoir installé les logiciels suivants sur votre machine :
 ## Lancement de l'application
 
 Pour démarrer le serveur, utilisez la commande suivante :
+
 ```bash
 npm start
 ```
 
 Pour le développement (avec rechargement automatique) :
+
 ```bash
 npm run dev
 ```
@@ -49,4 +52,5 @@ Lors de votre première connexion, la page d'accueil vous guidera à travers la 
 Vous pouvez utiliser le bouton de simulation dans le panneau de configuration pour envoyer une alerte de test sur l'overlay et vérifier le rendu sur OBS.
 
 ---
-*Fourni avec les sources.*
+
+_Fourni avec les sources._
