@@ -1,0 +1,41 @@
+{
+  "name": "discord-obs-overlay",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "postinstall": "./scripts/setup-yt-dlp.sh",
+    "dev": "PATH=\"$PWD/.venv/bin:$PATH\" tsx server/index.ts",
+    "build": "vite build && esbuild server/index.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "start": "PATH=\"$PWD/.venv/bin:$PATH\" node dist/server.cjs",
+    "stop": "pkill -f 'node dist/server.cjs'",
+    "clean": "rm -rf dist",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "axios": "^1.7.2",
+    "discord.js": "^14.26.4",
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "link-preview-js": "^4.0.3",
+    "lucide-react": "^0.546.0",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "youtube-dl-exec": "^3.1.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^6.0.2",
+    "autoprefixer": "^10.4.21",
+    "esbuild": "^0.28.0",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^8.0.14"
+  }
+}
