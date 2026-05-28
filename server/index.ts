@@ -73,7 +73,7 @@ async function runServer() {
     "img-src 'self' data: blob: https:",
     "media-src 'self' data: blob: https:",
     "connect-src 'self' ws: wss:",
-    "frame-src https://www.youtube.com https://player.vimeo.com",
+    "frame-src https://www.youtube.com https://youtube.com https://player.vimeo.com",
   ].join("; ");
 
   app.use((_req, res, next) => {
