@@ -10,7 +10,13 @@ declare global {
   }
 }
 
-export default function OBSOverlayView({ embedMode = false, onQueueChange }: { embedMode?: boolean, onQueueChange?: (queue: AlertPayload[]) => void }) {
+export default function OBSOverlayView({
+  embedMode = false,
+  onQueueChange,
+}: {
+  embedMode?: boolean;
+  onQueueChange?: (queue: AlertPayload[]) => void;
+}) {
   const [queue, setQueue] = useState<AlertPayload[]>([]);
   const [activeAlert, setActiveAlert] = useState<AlertPayload | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -76,7 +82,7 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
     socket.on("new_alert", (alert: AlertPayload) => {
       setQueue((prev) => {
         // Prevent duplicate alerts if they are already in the queue or being played
-        if (prev.some(item => item.id === alert.id)) return prev;
+        if (prev.some((item) => item.id === alert.id)) return prev;
         return [...prev, alert];
       });
     });
@@ -86,7 +92,7 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
     });
 
     socket.on("remove_queue_item", (itemId: string) => {
-      setQueue((prev) => prev.filter(item => item.id !== itemId));
+      setQueue((prev) => prev.filter((item) => item.id !== itemId));
     });
 
     socket.on("clear_queue", () => {
@@ -112,7 +118,7 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
 
       const configKey = activeAlert.stopAlertShortcut || "Escape";
 
-      const matchesKey = 
+      const matchesKey =
         e.key.toLowerCase() === configKey.toLowerCase() ||
         e.code.toLowerCase() === configKey.toLowerCase() ||
         (configKey.toLowerCase() === "space" && e.key === " ") ||
@@ -161,22 +167,28 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
         video.src = item.mediaUrl;
         video.preload = "auto";
         video.muted = true;
-        
+
         video.onloadedmetadata = (e) => {
           const target = e.target as HTMLVideoElement;
-          console.log(`[Video Preload Debug] onLoadedMetadata - ID: ${item.id}, videoWidth: ${target.videoWidth}, videoHeight: ${target.videoHeight}`);
+          console.log(
+            `[Video Preload Debug] onLoadedMetadata - ID: ${item.id}, videoWidth: ${target.videoWidth}, videoHeight: ${target.videoHeight}`
+          );
         };
 
         video.oncanplaythrough = (e) => {
           const target = e.target as HTMLVideoElement;
-          console.log(`[Video Preload Debug] onCanPlayThrough - ID: ${item.id}, videoWidth: ${target.videoWidth}, videoHeight: ${target.videoHeight}`);
+          console.log(
+            `[Video Preload Debug] onCanPlayThrough - ID: ${item.id}, videoWidth: ${target.videoWidth}, videoHeight: ${target.videoHeight}`
+          );
           setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
           console.log(`[Overlay] Cached Video: ${item.mediaUrl}`);
         };
         video.onerror = (e: any) => {
           const target = e.target as HTMLVideoElement;
           const err = target.error;
-          console.error(`[Video Preload Debug] onError URL: ${item.mediaUrl.substring(0, 100)}... Code: ${err?.code}, Message: ${err?.message}, networkState: ${target.networkState}`);
+          console.error(
+            `[Video Preload Debug] onError URL: ${item.mediaUrl.substring(0, 100)}... Code: ${err?.code}, Message: ${err?.message}, networkState: ${target.networkState}`
+          );
           // Fallback
           setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
         };
@@ -190,7 +202,10 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
       if (ytPlayerRef.current) {
         try {
           ytPlayerRef.current.destroy();
-        } catch (e) {}
+        } catch (e) {
+          // ignore
+          void e;
+        }
         ytPlayerRef.current = null;
       }
       return;
@@ -236,7 +251,7 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
           onError: (event: any) => {
             console.error("[YouTube API] Player error:", event.data);
             onVideoErrorRef.current?.();
-          }
+          },
         },
       });
     };
@@ -247,7 +262,10 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
       if (ytPlayerRef.current) {
         try {
           ytPlayerRef.current.destroy();
-        } catch (e) {}
+        } catch (e) {
+          // ignore error on destroy
+          void e;
+        }
         ytPlayerRef.current = null;
       }
     };
@@ -260,7 +278,7 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
     const runNextAlert = async () => {
       setIsPlaying(true);
       const nextItem = { ...queue[0] };
-      
+
       // Shift item representation
       setQueue((prev) => prev.slice(1));
       setCurrentDuration(nextItem.duration || 8000);
@@ -313,8 +331,8 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
 
       cancelCurrentAlertRef.current = finishAlert;
       extendCurrentTimeoutRef.current = extendTimeout;
-      
-      let defaultDuration = nextItem.duration || 8000;
+
+      const defaultDuration = nextItem.duration || 8000;
 
       if (nextItem.type === "video") {
         if (nextItem.syncDurationWithMedia) {
@@ -334,8 +352,8 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
           onVideoErrorRef.current = finishAlert;
           timeoutId = setTimeout(finishAlert, 300000); // 5 min max fallback
         } else {
-          // We can't detect when other iframes end reliably without cross-origin postMessage, 
-          // so we afford a long timeout (let's say 4 minutes) and rely on the streamer 
+          // We can't detect when other iframes end reliably without cross-origin postMessage,
+          // so we afford a long timeout (let's say 4 minutes) and rely on the streamer
           // to manually skip if it ends earlier.
           timeoutId = setTimeout(finishAlert, 240000);
         }
@@ -372,52 +390,49 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
     if (onQueueChange) onQueueChange(queue);
   }, [queue, onQueueChange]);
 
-  // Handle active styles inline colors
-  const activeGlowColor = activeAlert?.neonColor || "#6366f1";
-
   // Progress Bar Animation Sync
   useEffect(() => {
     let animationFrameId: number;
-    
+
     const updateProgress = () => {
       if (!activeAlert || !progressBarRef.current) return;
-      
+
       let progress = 0;
       if (activeAlert.type === "video" && activeVideoRef.current && activeAlert.syncDurationWithMedia) {
         const video = activeVideoRef.current;
         if (video.duration) {
-           progress = 1 - (video.currentTime / video.duration);
+          progress = 1 - video.currentTime / video.duration;
         } else {
-           progress = 1;
+          progress = 1;
         }
       } else {
-         const elapsed = Date.now() - alertStartTimeRef.current;
-         progress = 1 - (elapsed / currentDuration);
+        const elapsed = Date.now() - alertStartTimeRef.current;
+        progress = 1 - elapsed / currentDuration;
       }
-      
+
       progress = Math.max(0, Math.min(1, progress));
       progressBarRef.current.style.width = `${progress * 100}%`;
-      
+
       if (progress > 0) {
         animationFrameId = requestAnimationFrame(updateProgress);
       }
     };
-    
+
     if (activeAlert) {
       alertStartTimeRef.current = Date.now();
       animationFrameId = requestAnimationFrame(updateProgress);
     }
-    
+
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
   }, [activeAlert, currentDuration]);
 
   return (
-    <div 
+    <div
       className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 ${
-        embedMode 
-          ? "w-full h-full min-h-[280px] sm:min-h-[460px] bg-[#0a0a0f] border border-white/10 rounded-3xl p-1.5 sm:p-6" 
+        embedMode
+          ? "w-full h-full min-h-[280px] sm:min-h-[460px] bg-[#0a0a0f] border border-white/10 rounded-3xl p-1.5 sm:p-6"
           : "w-screen h-screen bg-transparent p-0 m-0"
       } ${!embedMode && activeAlert ? "pointer-events-auto" : !embedMode ? "pointer-events-none" : ""}`}
       style={{ background: embedMode ? undefined : "transparent" }}
@@ -447,18 +462,20 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
               <span
                 key={spark.id}
                 className="absolute sparkle-particle rounded-full pointer-events-none"
-                style={{
-                  left: "50%",
-                  bottom: "10%",
-                  width: spark.size,
-                  height: spark.size,
-                  backgroundColor: spark.bg,
-                  boxShadow: `0 0 8px ${spark.bg}`,
-                  "--dx": spark.dx,
-                  "--dy": spark.dy,
-                  "--p-delay": spark.delay,
-                  "--p-dur": spark.dur,
-                } as any}
+                style={
+                  {
+                    left: "50%",
+                    bottom: "10%",
+                    width: spark.size,
+                    height: spark.size,
+                    backgroundColor: spark.bg,
+                    boxShadow: `0 0 8px ${spark.bg}`,
+                    "--dx": spark.dx,
+                    "--dy": spark.dy,
+                    "--p-delay": spark.delay,
+                    "--p-dur": spark.dur,
+                  } as any
+                }
               />
             ))}
           </div>
@@ -467,252 +484,281 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
 
       {/* Alert Container */}
       {(() => {
-        const isVertical = activeAlert && (
-          activeAlert.provider === "tiktok" ||
-          activeAlert.provider === "instagram" ||
-          // YouTube Shorts cached as mp4 keep the original URL as a hint
-          activeAlert.mediaUrl.includes("shorts")
-        );
+        const isVertical =
+          activeAlert &&
+          (activeAlert.provider === "tiktok" ||
+            activeAlert.provider === "instagram" ||
+            // YouTube Shorts cached as mp4 keep the original URL as a hint
+            activeAlert.mediaUrl.includes("shorts"));
         return (
-      <div 
-        className={`relative z-20 transition-all duration-700 select-none mx-auto ${
-          embedMode 
-            ? `w-full ${isVertical ? "max-w-sm sm:max-w-md" : "max-w-xl sm:max-w-2xl"} p-1 sm:p-8` 
-            : `w-[100vw] h-[100vh] p-0 flex flex-col overflow-hidden`
-        } ${
-          activeAlert 
-            ? "translate-y-0 scale-100 opacity-100 rotate-0 pointer-events-auto" 
-            : "translate-y-16 scale-90 opacity-0 rotate-1 select-none pointer-events-none"
-        }`}
-      >
-        {activeAlert && (
           <div
-            className={`relative flex flex-col text-white overflow-hidden transition-all duration-300 w-full ${!embedMode ? "h-full rounded-none border-none" : "rounded-2xl p-4 sm:p-6 gap-3 sm:gap-4"} ${
-              activeAlert.alertStyle === "glass"
-                ? `bg-white/[0.03] backdrop-blur-2xl shadow-2xl ${!embedMode ? "" : "border border-white/10"}`
-                : activeAlert.alertStyle === "glitch"
-                ? `bg-stone-950 shadow-[4px_4px_0_#ef4444] animate-glitch crt-overlay ${!embedMode ? "" : "border-2 border-cyan-500"}`
-                : activeAlert.alertStyle === "cyberpunk"
-                ? `bg-zinc-950 shadow-[4px_4px_24px_rgba(234,179,8,0.15)] ${!embedMode ? "" : "border-l-4 border-yellow-400 border-t-2 border-r border-b border-zinc-900"} [clip-path:polygon(0_0,95%_0,100%_15px,100%_100%,5%_100%,0_85%)]`
-                : `bg-slate-950/95 relative animate-neon-pulse ${!embedMode ? "" : "border-2"}` // default neon style
+            className={`relative z-20 transition-all duration-700 select-none mx-auto ${
+              embedMode
+                ? `w-full ${isVertical ? "max-w-sm sm:max-w-md" : "max-w-xl sm:max-w-2xl"} p-1 sm:p-8`
+                : `w-[100vw] h-[100vh] p-0 flex flex-col overflow-hidden`
+            } ${
+              activeAlert
+                ? "translate-y-0 scale-100 opacity-100 rotate-0 pointer-events-auto"
+                : "translate-y-16 scale-90 opacity-0 rotate-1 select-none pointer-events-none"
             }`}
-            style={{
-              borderColor: activeAlert.alertStyle === "neon" ? activeAlert.neonColor : undefined,
-              "--glow-color": activeAlert.neonColor,
-            } as any}
           >
-            {/* Style Accent for Cyberpunk Style */}
-            {activeAlert.alertStyle === "cyberpunk" && (
-              <div className="absolute top-0 right-12 bg-yellow-400 text-zinc-950 font-mono text-[9px] px-2 py-0.5 tracking-wider font-extrabold uppercase">
-                ALERT // COM_GATEWAY_IN
+            {activeAlert && (
+              <div
+                className={`relative flex flex-col text-white overflow-hidden transition-all duration-300 w-full ${!embedMode ? "h-full rounded-none border-none" : "rounded-2xl p-4 sm:p-6 gap-3 sm:gap-4"} ${
+                  activeAlert.alertStyle === "glass"
+                    ? `bg-white/[0.03] backdrop-blur-2xl shadow-2xl ${!embedMode ? "" : "border border-white/10"}`
+                    : activeAlert.alertStyle === "glitch"
+                      ? `bg-stone-950 shadow-[4px_4px_0_#ef4444] animate-glitch crt-overlay ${!embedMode ? "" : "border-2 border-cyan-500"}`
+                      : activeAlert.alertStyle === "cyberpunk"
+                        ? `bg-zinc-950 shadow-[4px_4px_24px_rgba(234,179,8,0.15)] ${!embedMode ? "" : "border-l-4 border-yellow-400 border-t-2 border-r border-b border-zinc-900"} [clip-path:polygon(0_0,95%_0,100%_15px,100%_100%,5%_100%,0_85%)]`
+                        : `bg-slate-950/95 relative animate-neon-pulse ${!embedMode ? "" : "border-2"}` // default neon style
+                }`}
+                style={
+                  {
+                    borderColor: activeAlert.alertStyle === "neon" ? activeAlert.neonColor : undefined,
+                    "--glow-color": activeAlert.neonColor,
+                  } as any
+                }
+              >
+                {/* Style Accent for Cyberpunk Style */}
+                {activeAlert.alertStyle === "cyberpunk" && (
+                  <div className="absolute top-0 right-12 bg-yellow-400 text-zinc-950 font-mono text-[9px] px-2 py-0.5 tracking-wider font-extrabold uppercase">
+                    ALERT // COM_GATEWAY_IN
+                  </div>
+                )}
+
+                {/* Content Top Overlay for OBS mode */}
+                <div
+                  className={`relative z-10 flex flex-col ${!embedMode ? "p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none" : ""}`}
+                >
+                  {/* Header: User credentials */}
+                  <div className={`flex items-center gap-3 ${!embedMode ? "mb-3" : ""}`}>
+                    <div className="relative">
+                      <img
+                        src={activeAlert.authorAvatar}
+                        alt="Avatar"
+                        className="w-11 h-11 sm:w-14 sm:h-14 rounded-full border-2 object-cover shadow-lg"
+                        style={{ borderColor: activeAlert.neonColor }}
+                        referrerPolicy="no-referrer"
+                      />
+                      <span className="absolute -bottom-1 -right-1 bg-indigo-600 rounded-full p-1 text-white border border-slate-950">
+                        <Bot className="w-3 h-3" />
+                      </span>
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-indigo-400 text-[10px] sm:text-xs font-bold uppercase tracking-widest font-display flex items-center gap-1">
+                        <Flame className="w-3.5 h-3.5 fill-indigo-400/20 text-indigo-400 shrink-0" />
+                        Nouveau média d&apos;abonnés
+                      </span>
+                      <span
+                        className={`text-lg sm:text-2xl font-black drop-shadow-md tracking-tight truncate ${
+                          activeAlert.alertStyle === "cyberpunk"
+                            ? "font-mono font-bold text-yellow-400"
+                            : "font-sans font-extrabold"
+                        }`}
+                      >
+                        {activeAlert.authorName}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Message Alert text block */}
+                  {(() => {
+                    const cleanedText = activeAlert.text
+                      ? activeAlert.text.replace(/https?:\/\/[^\s]+/gi, "").trim()
+                      : "";
+                    if (!cleanedText) return null;
+                    return (
+                      <p
+                        className={`text-xs sm:text-lg text-slate-100 leading-relaxed break-words ${
+                          activeAlert.alertStyle === "cyberpunk"
+                            ? "font-mono text-[11px] sm:text-sm bg-zinc-900/80 p-2 sm:p-3 rounded border border-zinc-800"
+                            : "font-sans font-medium"
+                        } ${!embedMode ? "drop-shadow-lg" : ""}`}
+                      >
+                        {cleanedText}
+                      </p>
+                    );
+                  })()}
+                </div>
+
+                {/* Media Canvas layout frame */}
+                {(() => {
+                  const isVertical =
+                    activeAlert.provider === "tiktok" ||
+                    activeAlert.provider === "instagram" ||
+                    activeAlert.mediaUrl.includes("shorts");
+
+                  const aspectClass = embedMode
+                    ? isVertical
+                      ? "aspect-[9/16] w-[auto] max-w-full h-auto max-h-[60vh] sm:max-h-[650px] mx-auto mt-2"
+                      : activeAlert.type !== "image" && activeAlert.type !== "link"
+                        ? "aspect-video w-full max-h-[75vh] mt-2"
+                        : "w-full min-h-[140px] sm:min-h-[220px] max-h-[350px] sm:max-h-[500px] mt-2"
+                    : ""; // OBS mode strictly absolute full size
+
+                  return (
+                    <div
+                      className={`${!embedMode ? "absolute inset-0 z-0 w-[100vw] h-[100vh] flex items-center justify-center overflow-hidden" : "relative rounded-xl mt-2 overflow-hidden bg-black flex items-center justify-center shrink-0 min-w-[280px] sm:min-w-[400px]"} ${aspectClass}`}
+                    >
+                      {activeAlert.type === "video" ? (
+                        <>
+                          {/* Blurred ambient background — video element for vertical, blurred video for widescreen */}
+                          {!embedMode && isVertical ? (
+                            <video
+                              src={activeAlert.mediaUrl}
+                              className="absolute z-0 w-[120%] h-[120%] object-cover blur-[24px] opacity-50 pointer-events-none"
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              crossOrigin="anonymous"
+                            />
+                          ) : (
+                            <video
+                              src={activeAlert.mediaUrl}
+                              className="absolute inset-0 w-full h-full object-cover scale-110 blur-[40px] opacity-60 pointer-events-none"
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              crossOrigin="anonymous"
+                            />
+                          )}
+                          <video
+                            ref={activeVideoRef}
+                            src={activeAlert.mediaUrl}
+                            className={
+                              !embedMode && isVertical
+                                ? "relative h-[90vh] max-w-full object-contain z-10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-auto"
+                                : `w-full h-full block relative z-10 object-contain pointer-events-auto ${embedMode ? "bg-black" : "bg-transparent drop-shadow-[0_0_2rem_rgba(0,0,0,0.8)]"}`
+                            }
+                            playsInline
+                            controls={!embedMode}
+                            muted={embedMode}
+                            autoPlay
+                            crossOrigin="anonymous"
+                            onEnded={() => onVideoEndedRef.current?.()}
+                            onError={(e) => {
+                              const err = e.currentTarget.error;
+                              const rawUrl = activeAlert?.mediaUrl || "unknown";
+                              console.error(
+                                `[Media Cache] Video Error: ${err?.message || "Unknown error"} (Code: ${err?.code}) for URL: ${rawUrl}`
+                              );
+
+                              // Single retry logic for cached files or proxy media
+                              if (activeAlert && !activeAlert.mediaUrl.includes("retry=1")) {
+                                console.log("[Media Cache] Attempting single retry for video...");
+                                const retryUrl =
+                                  activeAlert.mediaUrl + (activeAlert.mediaUrl.includes("?") ? "&" : "?") + "retry=1";
+                                setTimeout(() => {
+                                  setActiveAlert((prev) => (prev ? { ...prev, mediaUrl: retryUrl } : prev));
+                                }, 1000);
+                              } else {
+                                console.error("[Media Cache] Video failed after retry. Skipping.");
+                                onVideoErrorRef.current?.();
+                              }
+                            }}
+                            onPlay={(e) => {
+                              if (activeAlert?.type === "video" && onVideoLoadedMetadataRef.current) {
+                                const videoDurationMs = e.currentTarget.duration * 1000;
+                                if (videoDurationMs && isFinite(videoDurationMs)) {
+                                  onVideoLoadedMetadataRef.current(videoDurationMs);
+                                }
+                              }
+                            }}
+                            onPause={() => {
+                              if (cancelCurrentAlertRef.current && extendCurrentTimeoutRef.current) {
+                                // clear the timeout when paused so they can interact as long as they want
+                                extendCurrentTimeoutRef.current(3600000);
+                              }
+                            }}
+                            onLoadedMetadata={(e) => {
+                              const videoDurationMs = e.currentTarget.duration * 1000;
+                              console.log(
+                                `[Video Debug] onLoadedMetadata - videoWidth: ${e.currentTarget.videoWidth}, videoHeight: ${e.currentTarget.videoHeight}, duration: ${videoDurationMs}`
+                              );
+                              if (videoDurationMs && !isNaN(videoDurationMs) && isFinite(videoDurationMs)) {
+                                onVideoLoadedMetadataRef.current?.(videoDurationMs);
+                              }
+                            }}
+                            onCanPlay={(e) => {
+                              const videoDurationMs = e.currentTarget.duration * 1000;
+                              console.log(
+                                `[Video Debug] onCanPlay - videoWidth: ${e.currentTarget.videoWidth}, videoHeight: ${e.currentTarget.videoHeight}, readyState: ${e.currentTarget.readyState}, duration: ${videoDurationMs}`
+                              );
+                              if (videoDurationMs && !isNaN(videoDurationMs) && isFinite(videoDurationMs)) {
+                                onVideoLoadedMetadataRef.current?.(videoDurationMs);
+                              }
+                              e.currentTarget.play().catch((err) => console.error("CanPlay auto play catch:", err));
+                            }}
+                          />
+                        </>
+                      ) : activeAlert.type === "iframe" || activeAlert.type === "link" ? (
+                        <div
+                          className="w-full h-full relative z-10 flex flex-col pt-0"
+                          onMouseEnter={() => {
+                            if (extendCurrentTimeoutRef.current) extendCurrentTimeoutRef.current(3600000);
+                          }}
+                        >
+                          {activeAlert.mediaUrl.includes("youtube.com/embed") ? (
+                            <div ref={ytPlayerContainerRef} className="w-full h-full" />
+                          ) : (
+                            <iframe
+                              src={
+                                activeAlert.mediaUrl.includes("twitch.tv")
+                                  ? `${activeAlert.mediaUrl}&parent=${window.location.hostname}&autoplay=true`
+                                  : activeAlert.mediaUrl
+                              }
+                              title="Media Embed"
+                              className={`w-full h-full border-0 block absolute inset-0 z-0 bg-transparent ${embedMode ? "pointer-events-auto" : "pointer-events-none"}`}
+                              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen"
+                              allowFullScreen
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <img
+                            src={activeAlert.mediaUrl}
+                            className="absolute inset-0 w-full h-full object-cover scale-110 blur-[40px] opacity-60 pointer-events-none"
+                            alt=""
+                          />
+                          <img
+                            src={activeAlert.mediaUrl}
+                            alt="Discord Media"
+                            className={`w-full h-full block relative z-10 object-contain ${embedMode ? "bg-black" : "bg-transparent drop-shadow-[0_0_2rem_rgba(0,0,0,0.8)]"}`}
+                            referrerPolicy="no-referrer"
+                          />
+                        </>
+                      )}
+                      {/* Spinning background glow accent for standard neon styles */}
+                      {activeAlert.alertStyle === "neon" && (
+                        <div
+                          className="absolute inset-0 opacity-15 filter blur-2xl animate-pulse pointer-events-none z-0"
+                          style={{ backgroundColor: activeAlert.neonColor }}
+                        />
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Progress Bar */}
+                <div className="absolute bottom-0 left-0 w-full h-2 bg-slate-950/40 pointer-events-none overflow-hidden z-20">
+                  <div
+                    ref={progressBarRef}
+                    className="h-full rounded-r-full"
+                    style={{
+                      width: "100%",
+                      backgroundColor: activeAlert.neonColor,
+                      boxShadow: `0 0 10px ${activeAlert.neonColor}`,
+                    }}
+                  />
+                </div>
               </div>
             )}
-
-            {/* Content Top Overlay for OBS mode */}
-            <div className={`relative z-10 flex flex-col ${!embedMode ? "p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-none" : ""}`}>
-              {/* Header: User credentials */}
-              <div className={`flex items-center gap-3 ${!embedMode ? "mb-3" : ""}`}>
-                <div className="relative">
-                  <img
-                    src={activeAlert.authorAvatar}
-                    alt="Avatar"
-                    className="w-11 h-11 sm:w-14 sm:h-14 rounded-full border-2 object-cover shadow-lg"
-                    style={{ borderColor: activeAlert.neonColor }}
-                    referrerPolicy="no-referrer"
-                  />
-                  <span className="absolute -bottom-1 -right-1 bg-indigo-600 rounded-full p-1 text-white border border-slate-950">
-                    <Bot className="w-3 h-3" />
-                  </span>
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-indigo-400 text-[10px] sm:text-xs font-bold uppercase tracking-widest font-display flex items-center gap-1">
-                    <Flame className="w-3.5 h-3.5 fill-indigo-400/20 text-indigo-400 shrink-0" />
-                    Nouveau média d'abonnés
-                  </span>
-                  <span className={`text-lg sm:text-2xl font-black drop-shadow-md tracking-tight truncate ${
-                    activeAlert.alertStyle === "cyberpunk" ? "font-mono font-bold text-yellow-400" : "font-sans font-extrabold"
-                  }`}>
-                    {activeAlert.authorName}
-                  </span>
-                </div>
-              </div>
-
-              {/* Message Alert text block */}
-              {(() => {
-                const cleanedText = activeAlert.text ? activeAlert.text.replace(/https?:\/\/[^\s]+/gi, '').trim() : "";
-                if (!cleanedText) return null;
-                return (
-                  <p className={`text-xs sm:text-lg text-slate-100 leading-relaxed break-words ${
-                    activeAlert.alertStyle === "cyberpunk" ? "font-mono text-[11px] sm:text-sm bg-zinc-900/80 p-2 sm:p-3 rounded border border-zinc-800" : "font-sans font-medium"
-                  } ${!embedMode ? "drop-shadow-lg" : ""}`}>
-                    {cleanedText}
-                  </p>
-                );
-              })()}
-            </div>
-
-            {/* Media Canvas layout frame */}
-            {(() => {
-              const isVertical =
-                activeAlert.provider === "tiktok" ||
-                activeAlert.provider === "instagram" ||
-                activeAlert.mediaUrl.includes("shorts");
-
-              const aspectClass = embedMode 
-                ? (isVertical 
-                  ? "aspect-[9/16] w-[auto] max-w-full h-auto max-h-[60vh] sm:max-h-[650px] mx-auto mt-2" 
-                  : (activeAlert.type !== "image" && activeAlert.type !== "link" 
-                      ? "aspect-video w-full max-h-[75vh] mt-2" 
-                      : "w-full min-h-[140px] sm:min-h-[220px] max-h-[350px] sm:max-h-[500px] mt-2"))
-                : ""; // OBS mode strictly absolute full size
-
-              return (
-              <div className={`${!embedMode ? "absolute inset-0 z-0 w-[100vw] h-[100vh] flex items-center justify-center overflow-hidden" : "relative rounded-xl mt-2 overflow-hidden bg-black flex items-center justify-center shrink-0 min-w-[280px] sm:min-w-[400px]"} ${aspectClass}`}>
-                {activeAlert.type === "video" ? (
-                <>
-                  {/* Blurred ambient background — video element for vertical, blurred video for widescreen */}
-                  {!embedMode && isVertical ? (
-                    <video
-                      src={activeAlert.mediaUrl}
-                      className="absolute z-0 w-[120%] h-[120%] object-cover blur-[24px] opacity-50 pointer-events-none"
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      crossOrigin="anonymous"
-                    />
-                  ) : (
-                    <video
-                      src={activeAlert.mediaUrl}
-                      className="absolute inset-0 w-full h-full object-cover scale-110 blur-[40px] opacity-60 pointer-events-none"
-                      autoPlay
-                      muted
-                      loop
-                      playsInline
-                      crossOrigin="anonymous"
-                    />
-                  )}
-                  <video
-                    ref={activeVideoRef}
-                    src={activeAlert.mediaUrl}
-                    className={!embedMode && isVertical ? "relative h-[90vh] max-w-full object-contain z-10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] pointer-events-auto" : `w-full h-full block relative z-10 object-contain pointer-events-auto ${embedMode ? "bg-black" : "bg-transparent drop-shadow-[0_0_2rem_rgba(0,0,0,0.8)]"}`}
-                    playsInline
-                    controls={!embedMode}
-                    muted={embedMode}
-                    autoPlay
-                    crossOrigin="anonymous"
-                    onEnded={() => onVideoEndedRef.current?.()}
-                    onError={(e) => {
-                      const err = e.currentTarget.error;
-                      const rawUrl = activeAlert?.mediaUrl || 'unknown';
-                      console.error(`[Media Cache] Video Error: ${err?.message || 'Unknown error'} (Code: ${err?.code}) for URL: ${rawUrl}`);
-                      
-                      // Single retry logic for cached files or proxy media
-                      if (activeAlert && !activeAlert.mediaUrl.includes("retry=1")) {
-                        console.log("[Media Cache] Attempting single retry for video...");
-                        const retryUrl = activeAlert.mediaUrl + (activeAlert.mediaUrl.includes('?') ? '&' : '?') + 'retry=1';
-                        setTimeout(() => {
-                           setActiveAlert(prev => prev ? { ...prev, mediaUrl: retryUrl } : prev);
-                        }, 1000);
-                      } else {
-                        console.error("[Media Cache] Video failed after retry. Skipping.");
-                        onVideoErrorRef.current?.();
-                      }
-                    }}
-                    onPlay={(e) => {
-                      if (activeAlert?.type === "video" && onVideoLoadedMetadataRef.current) {
-                         const videoDurationMs = e.currentTarget.duration * 1000;
-                         if (videoDurationMs && isFinite(videoDurationMs)) {
-                           onVideoLoadedMetadataRef.current(videoDurationMs);
-                         }
-                      }
-                    }}
-                    onPause={() => {
-                      if (cancelCurrentAlertRef.current && extendCurrentTimeoutRef.current) {
-                        // clear the timeout when paused so they can interact as long as they want
-                        extendCurrentTimeoutRef.current(3600000); 
-                      }
-                    }}
-                    onLoadedMetadata={(e) => {
-                      const videoDurationMs = e.currentTarget.duration * 1000;
-                      console.log(`[Video Debug] onLoadedMetadata - videoWidth: ${e.currentTarget.videoWidth}, videoHeight: ${e.currentTarget.videoHeight}, duration: ${videoDurationMs}`);
-                      if (videoDurationMs && !isNaN(videoDurationMs) && isFinite(videoDurationMs)) {
-                        onVideoLoadedMetadataRef.current?.(videoDurationMs);
-                      }
-                    }}
-                    onCanPlay={(e) => {
-                      const videoDurationMs = e.currentTarget.duration * 1000;
-                      console.log(`[Video Debug] onCanPlay - videoWidth: ${e.currentTarget.videoWidth}, videoHeight: ${e.currentTarget.videoHeight}, readyState: ${e.currentTarget.readyState}, duration: ${videoDurationMs}`);
-                      if (videoDurationMs && !isNaN(videoDurationMs) && isFinite(videoDurationMs)) {
-                        onVideoLoadedMetadataRef.current?.(videoDurationMs);
-                      }
-                      e.currentTarget.play().catch(err => console.error("CanPlay auto play catch:", err));
-                    }}
-                  />
-                </>
-              ) : activeAlert.type === "iframe" || activeAlert.type === "link" ? (
-                <div 
-                  className="w-full h-full relative z-10 flex flex-col pt-0"
-                  onMouseEnter={() => {
-                    if (extendCurrentTimeoutRef.current) extendCurrentTimeoutRef.current(3600000);
-                  }}
-                >
-                  {activeAlert.mediaUrl.includes("youtube.com/embed") ? (
-                    <div ref={ytPlayerContainerRef} className="w-full h-full" />
-                  ) : (
-                    <iframe
-                      src={activeAlert.mediaUrl.includes("twitch.tv") 
-                            ? `${activeAlert.mediaUrl}&parent=${window.location.hostname}&autoplay=true` 
-                            : activeAlert.mediaUrl}
-                      title="Media Embed"
-                      className={`w-full h-full border-0 block absolute inset-0 z-0 bg-transparent ${embedMode ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                      allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share; fullscreen"
-                      allowFullScreen
-                    />
-                  )}
-                </div>
-              ) : (
-                <>
-                  <img
-                    src={activeAlert.mediaUrl}
-                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-[40px] opacity-60 pointer-events-none"
-                    alt=""
-                  />
-                  <img
-                    src={activeAlert.mediaUrl}
-                    alt="Discord Media"
-                    className={`w-full h-full block relative z-10 object-contain ${embedMode ? "bg-black" : "bg-transparent drop-shadow-[0_0_2rem_rgba(0,0,0,0.8)]"}`}
-                    referrerPolicy="no-referrer"
-                  />
-                </>
-              )}
-              {/* Spinning background glow accent for standard neon styles */}
-              {activeAlert.alertStyle === "neon" && (
-                <div 
-                  className="absolute inset-0 opacity-15 filter blur-2xl animate-pulse pointer-events-none z-0"
-                  style={{ backgroundColor: activeAlert.neonColor }}
-                />
-              )}
-            </div>
-            );
-            })()}
-
-            {/* Progress Bar */}
-            <div className="absolute bottom-0 left-0 w-full h-2 bg-slate-950/40 pointer-events-none overflow-hidden z-20">
-              <div
-                ref={progressBarRef}
-                className="h-full rounded-r-full"
-                style={{
-                  width: "100%",
-                  backgroundColor: activeAlert.neonColor,
-                  boxShadow: `0 0 10px ${activeAlert.neonColor}`
-                }}
-              />
-            </div>
           </div>
-        )}
-      </div>
-      );
+        );
       })()}
 
       {/* Simple debug background label for the web dashboard preview */}
@@ -731,4 +777,3 @@ export default function OBSOverlayView({ embedMode = false, onQueueChange }: { e
     </div>
   );
 }
-

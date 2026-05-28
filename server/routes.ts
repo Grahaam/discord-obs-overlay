@@ -118,18 +118,18 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
       settingsManager.saveSettings(updatedSettings);
 
-      if (
-        updatedSettings.discordToken !== originalToken ||
-        updatedSettings.channelId !== originalChannel
-      ) {
+      if (updatedSettings.discordToken !== originalToken || updatedSettings.channelId !== originalChannel) {
         console.log("[Server] Token or Channel ID altered: re-initialising Discord worker...");
         botManager.connectBot(updatedSettings.discordToken, updatedSettings.channelId).catch(() => {});
       }
 
-      res.json({ success: true, settings: {
-        ...updatedSettings,
-        discordToken: updatedSettings.discordToken ? "••••••••••••••••••••" : "",
-      }});
+      res.json({
+        success: true,
+        settings: {
+          ...updatedSettings,
+          discordToken: updatedSettings.discordToken ? "••••••••••••••••••••" : "",
+        },
+      });
     } catch (err: any) {
       if (err instanceof z.ZodError) {
         res.status(400).json({ error: "Validation failed", details: (err as z.ZodError).issues });
@@ -154,7 +154,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
   app.get("/api/bot-status", async (req, res) => {
     const cacheStats = getCacheStats();
     const ytDlpVersion = await getYtDlpVersion();
-    
+
     // System stats
     const cpuUsage = os.loadavg()[0]; // 1 min load average
     const totalMem = os.totalmem();
@@ -175,10 +175,10 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
           memory: {
             used: usedMem,
             total: totalMem,
-          }
+          },
         },
         ytdlp: ytDlpVersion,
-      }
+      },
     });
   });
 
@@ -196,14 +196,16 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       // Clear any potentially cached failures or old versions
       if (fs.existsSync(possibleCachedFile)) {
         console.log(`[Retry] Clearing cached file for ${url}: ${possibleCachedFile}`);
-        await fs.promises.unlink(possibleCachedFile).catch(err => console.warn(`[Retry] Failed to delete cached file: ${err.message}`));
+        await fs.promises
+          .unlink(possibleCachedFile)
+          .catch((err) => console.warn(`[Retry] Failed to delete cached file: ${err.message}`));
       }
-      
+
       const resolved = await resolveMediaFromLink(url);
-      
+
       // If it was a log retry, we might want to update the log status if it was an error
       if (logId) {
-        const log = logManager.logs.find(l => l.id === logId);
+        const log = logManager.logs.find((l) => l.id === logId);
         if (log) {
           log.status = resolved.type === "video" || resolved.type === "image" ? "approved" : "link";
           log.reason = "Manual retry successful";
@@ -232,7 +234,8 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     const { authorName, text, type, mediaUrl, alertStyle, neonColor, duration } = req.body;
 
     let finalType = type || "image";
-    let finalMediaUrl = mediaUrl || "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1280&auto=format&fit=crop";
+    let finalMediaUrl =
+      mediaUrl || "https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=1280&auto=format&fit=crop";
     let finalProvider: string | undefined;
 
     if (finalMediaUrl.startsWith("http://") || finalMediaUrl.startsWith("https://")) {
@@ -301,13 +304,13 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     const filename = req.params.filename;
     // ensure no directory traversal
     if (filename.includes("..") || filename.includes("/")) {
-       return res.status(400).send("Invalid filename");
+      return res.status(400).send("Invalid filename");
     }
     const filepath = path.join(process.cwd(), "media_cache", filename);
     if (!fs.existsSync(filepath)) {
       return res.status(404).send("File not found");
     }
-    
+
     const stat = fs.statSync(filepath);
     const fileSize = stat.size;
     const range = req.headers.range;
@@ -322,7 +325,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-      const chunksize = (end - start) + 1;
+      const chunksize = end - start + 1;
       const file = fs.createReadStream(filepath, { start, end });
       const head = {
         "Content-Range": `bytes ${start}-${end}/${fileSize}`,
@@ -352,7 +355,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     let headersFromUrl: any = {};
     if (req.query.headers) {
       try {
-        const decoded = Buffer.from(req.query.headers as string, 'base64').toString('utf-8');
+        const decoded = Buffer.from(req.query.headers as string, "base64").toString("utf-8");
         headersFromUrl = JSON.parse(decoded);
       } catch (e) {
         console.warn("Failed to parse headers from proxy-media URL");
@@ -361,12 +364,17 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
     const options: any = {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-        "Referer": targetUrl.includes("tiktok") ? "https://www.tiktok.com/" : targetUrl.includes("instagram") ? "https://www.instagram.com/" : undefined,
-        "Accept": "*/*",
-        "Connection": "keep-alive",
-        ...headersFromUrl
-      }
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+        Referer: targetUrl.includes("tiktok")
+          ? "https://www.tiktok.com/"
+          : targetUrl.includes("instagram")
+            ? "https://www.instagram.com/"
+            : undefined,
+        Accept: "*/*",
+        Connection: "keep-alive",
+        ...headersFromUrl,
+      },
     };
 
     if (req.headers.range) {
@@ -375,9 +383,9 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
     const logFile = path.resolve(process.cwd(), "proxy-debug.log");
     const log = (msg: string) => {
-       console.log(msg);
-       // Use async write — appendFileSync blocks the event loop on every proxied request
-       fs.appendFile(logFile, `[${new Date().toISOString()}] ${msg}\n`, () => {});
+      console.log(msg);
+      // Use async write — appendFileSync blocks the event loop on every proxied request
+      fs.appendFile(logFile, `[${new Date().toISOString()}] ${msg}\n`, () => {});
     };
 
     log(`[Proxy Media] Requesting: ${targetUrl}`);
@@ -387,19 +395,19 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       if ([301, 302, 303, 307, 308].includes(proxyRes.statusCode)) {
         let redirectUrl = proxyRes.headers.location;
         if (redirectUrl) {
-           if (!redirectUrl.startsWith('http')) {
-              redirectUrl = new URL(redirectUrl, targetUrl).toString();
-           }
-           let newRedirectQuery = `?url=${encodeURIComponent(redirectUrl)}`;
-           if (req.query.headers) {
-             newRedirectQuery += `&headers=${req.query.headers}`;
-           }
-           res.writeHead(proxyRes.statusCode, {
-             ...proxyRes.headers,
-             "Location": `/api/proxy-media${newRedirectQuery}`,
-             "Access-Control-Allow-Origin": "*",
-           });
-           return res.end();
+          if (!redirectUrl.startsWith("http")) {
+            redirectUrl = new URL(redirectUrl, targetUrl).toString();
+          }
+          let newRedirectQuery = `?url=${encodeURIComponent(redirectUrl)}`;
+          if (req.query.headers) {
+            newRedirectQuery += `&headers=${req.query.headers}`;
+          }
+          res.writeHead(proxyRes.statusCode, {
+            ...proxyRes.headers,
+            Location: `/api/proxy-media${newRedirectQuery}`,
+            "Access-Control-Allow-Origin": "*",
+          });
+          return res.end();
         }
       }
 
@@ -414,7 +422,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         ...headers,
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-        "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Range"
+        "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Range",
       });
       proxyRes.pipe(res);
     });

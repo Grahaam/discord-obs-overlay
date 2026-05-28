@@ -1,7 +1,7 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
-import './index.css';
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./index.css";
 
 // Suppress noisy-but-harmless Vite HMR / Socket.io connection noise so it
 // doesn't pollute the browser console or trigger the Vite error overlay.
@@ -17,11 +17,10 @@ if (typeof window !== "undefined") {
 
   const globalExceptionHandler = (event: ErrorEvent | PromiseRejectionEvent) => {
     try {
-      const msg = "message" in event
-        ? event.message
-        : (event.reason && (event.reason.message || String(event.reason))) || "";
+      const msg =
+        "message" in event ? event.message : (event.reason && (event.reason.message || String(event.reason))) || "";
       const lower = String(msg).toLowerCase();
-      if (BENIGN_PATTERNS.some(p => lower.includes(p))) {
+      if (BENIGN_PATTERNS.some((p) => lower.includes(p))) {
         event.preventDefault();
         event.stopPropagation();
       }
@@ -34,11 +33,11 @@ if (typeof window !== "undefined") {
   window.addEventListener("unhandledrejection", globalExceptionHandler, true);
 }
 
-const root = document.getElementById('root');
+const root = document.getElementById("root");
 if (!root) throw new Error("Root element #root not found in index.html");
 
 createRoot(root).render(
   <StrictMode>
     <App />
-  </StrictMode>,
+  </StrictMode>
 );
