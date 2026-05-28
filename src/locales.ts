@@ -36,6 +36,7 @@ export const locales = {
         "Nécessaires pour contourner les restrictions d'accès (ex: Instagram, TikTok). Utilisez l'extension 'Get cookies.txt LOCALLY' dans votre navigateur pour exporter vos cookies au format Netscape et collez-les ici.",
       save: "Enregistrer les modifications",
       saveWorking: "Sauvegarde en cours...",
+      reconnect: "Reconnecter",
     },
     display: {
       title: "Apparence des alertes",
@@ -105,6 +106,9 @@ export const locales = {
       memoryTotal: "Mémoire Totale",
       ytdlpStatus: "Statut yt-dlp",
     },
+    overlay: {
+      newAlert: "Nouveau média d'abonnés",
+    },
   },
   en: {
     dashboardTitle: "Dashboard",
@@ -142,6 +146,7 @@ export const locales = {
         "Required for platforms that block anonymous access. Use a browser extension like 'Get cookies.txt LOCALLY' to extract your cookies in Netscape format and paste them here.",
       save: "Save changes",
       saveWorking: "Saving configuration...",
+      reconnect: "Reconnect",
     },
     display: {
       title: "Alert Appearance",
@@ -210,6 +215,9 @@ export const locales = {
       memoryTotal: "Total Memory",
       ytdlpStatus: "yt-dlp Status",
     },
+    overlay: {
+      newAlert: "New subscriber media",
+    },
   },
   "uwu-en": {
     dashboardTitle: "Dashbowd UwU",
@@ -245,6 +253,7 @@ export const locales = {
       cookiesHelp: "Standawd cookie text content to bypass connection bwockages fow sum netwowks.",
       save: "Save Configuwations~",
       saveWorking: "Saving to memowy... *sweats*",
+      reconnect: "Weconnect Bawt",
     },
     display: {
       title: "Aesthetic Stywes & Visuaws >///<",
@@ -314,6 +323,9 @@ export const locales = {
       memoryTotal: "Totaw Memowy",
       ytdlpStatus: "yt-dlp Status",
     },
+    overlay: {
+      newAlert: "New subscwibew media UwU~",
+    },
   },
   "uwu-fr": {
     dashboardTitle: "Panneau de contwôwe UwU",
@@ -351,6 +363,7 @@ export const locales = {
         "Cewa pewmet awwa pwatefowme de téwéchawgew des médias comme si ewwe était connectée à votwe compte.",
       save: "Sauvewgwawdew wes configuwations~",
       saveWorking: "Inscwiption en mémoiwe... *sweats*",
+      reconnect: "Weconnect Bawt",
     },
     display: {
       title: "Aesthetic Stywes & Visuaws >///<",
@@ -419,6 +432,9 @@ export const locales = {
       memoryUsed: "Mémoiwe Utilisée",
       memoryTotal: "Mémoiwe Totale",
       ytdlpStatus: "Statut yt-dlp",
+    },
+    overlay: {
+      newAlert: "Nouveau média d'abonnés UwU~",
     },
   },
 };
