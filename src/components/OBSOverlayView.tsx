@@ -28,6 +28,8 @@ export default function OBSOverlayView({
   const [currentDuration, setCurrentDuration] = useState(8000);
   const [isPaused, setIsPaused] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  // How many real OBS overlay windows are connected (0 = embed is the sole player)
+  const [overlayCount, setOverlayCount] = useState(0);
 
   // Refs that don't cause rerenders — critical for OBS performance
   const playbackStateRef = useRef<PlaybackState>("waiting");
@@ -49,6 +51,8 @@ export default function OBSOverlayView({
   const timeoutEndRef = useRef(0);
   const togglePauseRef = useRef<() => void>(() => {});
   const seekVideoRef = useRef<(s: number) => void>(() => {});
+  // Ref mirror so socket callbacks (stale closures) can read current overlayCount
+  const overlayCountRef = useRef(0);
 
   // Keep activeAlertRef in sync for use in async callbacks
   useEffect(() => {
@@ -88,6 +92,8 @@ export default function OBSOverlayView({
       setWsStatus("connected");
       console.log("[Overlay] Socket connected, requesting queue state");
       socket.emit("get_initial_state");
+      // OBS overlay registers itself so dashboard embeds enter passive mode
+      if (!embedMode) socket.emit("register_as_overlay");
     });
 
     // On reconnect, merge server queue with local state — deduplicate by ID
@@ -131,8 +137,17 @@ export default function OBSOverlayView({
       setQueue(newQueue);
     });
 
+    socket.on("overlay_count", (count: number) => {
+      overlayCountRef.current = count;
+      setOverlayCount(count);
+    });
+
     socket.on("remove_queue_item", (itemId: string) => {
       setQueue((prev) => prev.filter((item) => item.id !== itemId));
+      // Passive embed: when the real overlay finishes an alert, cancel it here too
+      if (embedMode && overlayCountRef.current > 0 && activeAlertRef.current?.id === itemId) {
+        cancelCurrentAlertRef.current?.();
+      }
     });
 
     socket.on("clear_queue", () => {
@@ -147,7 +162,7 @@ export default function OBSOverlayView({
     return () => {
       socket.close();
     };
-  }, []);
+  }, [embedMode]);
 
   // Keyboard shortcuts: stop, pause/resume, seek
   useEffect(() => {
@@ -405,7 +420,9 @@ export default function OBSOverlayView({
     setActiveAlert(null);
     setParticles([]);
 
-    if (socketRef.current) {
+    // Passive embed: real overlay owns alert consumption — don't emit alert_played
+    const isPassive = embedMode && overlayCountRef.current > 0;
+    if (!isPassive && socketRef.current) {
       socketRef.current.emit("alert_played", nextItem.id);
     }
 
@@ -417,7 +434,7 @@ export default function OBSOverlayView({
     await new Promise((r) => setTimeout(r, 800));
 
     playbackStateRef.current = "waiting";
-  }, [queue]);
+  }, [queue, embedMode]);
 
   useEffect(() => {
     if (playbackStateRef.current === "waiting" && queue.length > 0) {
@@ -927,11 +944,19 @@ export default function OBSOverlayView({
           Pending: {queue.length} alert(s)
         </div>
       )}
+      {embedMode && overlayCount > 0 && (
+        <div className="absolute top-2 right-2 z-50 flex items-center gap-1.5 bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full text-[10px] font-mono select-none pointer-events-none">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          OBS live
+        </div>
+      )}
       {embedMode && !activeAlert && queue.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 text-slate-500">
           <Tv className="w-10 h-10 mb-2 opacity-30 stroke-1" />
           <span className="text-sm font-medium">Real-time preview: Overlay inactive</span>
-          <span className="text-xs text-slate-600 mt-1">Trigger a test simulation below</span>
+          <span className="text-xs text-slate-600 mt-1">
+            {overlayCount > 0 ? "OBS overlay connected — synced" : "Trigger a test simulation below"}
+          </span>
         </div>
       )}
     </div>
