@@ -1,13 +1,14 @@
 import OBSOverlayView from "./components/OBSOverlayView";
 import StreamerDashboard from "./components/StreamerDashboard";
+import OBSQueueDock from "./components/OBSQueueDock";
+import OBSStatusDock from "./components/OBSStatusDock";
 
 export default function App() {
-  // Evaluated once at mount — never changes, no need for state or an effect.
-  const isOverlayPath = window.location.pathname.replace(/\/$/, "") === "/overlay";
+  const path = window.location.pathname.replace(/\/$/, "");
 
-  if (isOverlayPath) {
-    return <OBSOverlayView />;
-  }
+  if (path === "/overlay") return <OBSOverlayView />;
+  if (path === "/dock") return <OBSQueueDock />;
+  if (path === "/status") return <OBSStatusDock />;
 
   return <StreamerDashboard />;
 }

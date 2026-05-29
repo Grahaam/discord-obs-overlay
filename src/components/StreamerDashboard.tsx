@@ -26,11 +26,11 @@ import SimulatorTab from "./tabs/SimulatorTab";
 import HealthTab from "./tabs/HealthTab";
 
 export default function StreamerDashboard() {
-  const [activeTab, setActiveTab] = useState<
-    "credentials" | "styling" | "moderation" | "simulator" | "health"
-  >("credentials");
+  const [activeTab, setActiveTab] = useState<"credentials" | "styling" | "moderation" | "simulator" | "health">(
+    "credentials"
+  );
   const [saveLoading, setSaveLoading] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("hasSeenTutorial"));
   const [pendingQueue, setPendingQueue] = useState<AlertPayload[]>([]);
   const [nowPlaying, setNowPlaying] = useState<AlertPayload | null>(null);
   const [config, setConfig] = useState<UIConfig>({
@@ -89,9 +89,8 @@ export default function StreamerDashboard() {
   };
 
   useEffect(() => {
-    const hasSeen = localStorage.getItem("hasSeenTutorial");
-    if (!hasSeen) setShowTutorial(true);
-    fetchSettingsAndLogs();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSettingsAndLogs(); // async initial fetch — setState called inside is intentional
     const interval = setInterval(fetchBotStatus, 10_000);
     return () => clearInterval(interval);
   }, []);
@@ -105,11 +104,9 @@ export default function StreamerDashboard() {
     socket.on("initial_state", (q: AlertPayload[]) => setPendingQueue(q));
     socket.on("force_queue_update", (q: AlertPayload[]) => setPendingQueue(q));
     socket.on("new_alert", (alert: AlertPayload) =>
-      setPendingQueue((prev) => prev.some((i) => i.id === alert.id) ? prev : [...prev, alert])
+      setPendingQueue((prev) => (prev.some((i) => i.id === alert.id) ? prev : [...prev, alert]))
     );
-    socket.on("remove_queue_item", (id: string) =>
-      setPendingQueue((prev) => prev.filter((i) => i.id !== id))
-    );
+    socket.on("remove_queue_item", (id: string) => setPendingQueue((prev) => prev.filter((i) => i.id !== id)));
     socket.on("clear_queue", () => setPendingQueue([]));
     socket.on("now_playing", (alert: AlertPayload | null) => setNowPlaying(alert));
     socket.on("new_log", (log: LogEntry) => {
@@ -128,7 +125,9 @@ export default function StreamerDashboard() {
     });
     socket.on("logs_cleared", () => setLogs([]));
 
-    return () => { socket.disconnect(); };
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -142,7 +141,11 @@ export default function StreamerDashboard() {
         (configKey.toLowerCase() === "escape" && e.key === "Escape");
       if (matchesKey) {
         e.preventDefault();
-        try { await fetch("/api/skip-alert", { method: "POST" }); } catch (err) { console.error(err); }
+        try {
+          await fetch("/api/skip-alert", { method: "POST" });
+        } catch (err) {
+          console.error(err);
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown, true);
@@ -184,7 +187,10 @@ export default function StreamerDashboard() {
   const handleAddBannedWord = () => {
     if (!bannedWordInput?.trim()) return;
     const cleanWord = bannedWordInput.trim().toLowerCase();
-    if (config.bannedWords.includes(cleanWord)) { setBannedWordInput(""); return; }
+    if (config.bannedWords.includes(cleanWord)) {
+      setBannedWordInput("");
+      return;
+    }
     const newConfig = { ...config, bannedWords: [...config.bannedWords, cleanWord] };
     setConfig(newConfig);
     setBannedWordInput("");
@@ -199,8 +205,14 @@ export default function StreamerDashboard() {
 
   const handleAddRoleId = () => {
     const clean = roleIdInput.trim();
-    if (!clean || !/^\d+$/.test(clean)) { setRoleIdInput(""); return; }
-    if ((config.allowedRoleIds || []).includes(clean)) { setRoleIdInput(""); return; }
+    if (!clean || !/^\d+$/.test(clean)) {
+      setRoleIdInput("");
+      return;
+    }
+    if ((config.allowedRoleIds || []).includes(clean)) {
+      setRoleIdInput("");
+      return;
+    }
     const newConfig = { ...config, allowedRoleIds: [...(config.allowedRoleIds || []), clean] };
     setConfig(newConfig);
     setRoleIdInput("");
@@ -255,7 +267,10 @@ export default function StreamerDashboard() {
     <div className="min-h-screen bg-[#050508] text-[#e0e0e6] flex flex-col font-sans selection:bg-indigo-600 selection:text-white relative overflow-x-hidden">
       {showTutorial && (
         <TutorialOverlay
-          onComplete={() => { localStorage.setItem("hasSeenTutorial", "true"); setShowTutorial(false); }}
+          onComplete={() => {
+            localStorage.setItem("hasSeenTutorial", "true");
+            setShowTutorial(false);
+          }}
           setActiveTab={setActiveTab}
         />
       )}
@@ -300,26 +315,30 @@ export default function StreamerDashboard() {
           </select>
 
           {/* Bot status pill */}
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${
-            botStatus.status === "connected"
-              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-              : botStatus.status === "connecting"
-              ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
-              : "bg-red-500/10 border-red-500/20 text-red-400"
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+          <div
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${
               botStatus.status === "connected"
-                ? "bg-emerald-400 animate-pulse"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                 : botStatus.status === "connecting"
-                ? "bg-amber-400 animate-pulse"
-                : "bg-red-400"
-            }`} />
+                  ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
+                  : "bg-red-500/10 border-red-500/20 text-red-400"
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                botStatus.status === "connected"
+                  ? "bg-emerald-400 animate-pulse"
+                  : botStatus.status === "connecting"
+                    ? "bg-amber-400 animate-pulse"
+                    : "bg-red-400"
+              }`}
+            />
             <span className="hidden sm:inline">
               {botStatus.status === "connected"
-                ? (botStatus.botUser || "Connecté")
+                ? botStatus.botUser || "Connecté"
                 : botStatus.status === "connecting"
-                ? "Liaison..."
-                : "Déconnecté"}
+                  ? "Liaison..."
+                  : "Déconnecté"}
             </span>
             {botStatus.status !== "connected" && botStatus.status !== "connecting" && (
               <button
@@ -336,10 +355,8 @@ export default function StreamerDashboard() {
 
       {/* ── Main Grid ── */}
       <main className="relative z-10 flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5">
-
         {/* ── LEFT COLUMN ── */}
         <section className="lg:col-span-7 flex flex-col gap-4">
-
           {/* Tab bar */}
           <div className="bg-white/[0.025] border border-white/[0.07] backdrop-blur-md rounded-2xl p-1.5 flex gap-1 items-center overflow-x-auto select-none scrollbar-none">
             {tabs.map(({ id, icon, label }) => (
@@ -421,10 +438,15 @@ export default function StreamerDashboard() {
               disabled={saveLoading}
               className="group relative w-full overflow-hidden bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-3 rounded-2xl text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:shadow-[0_0_28px_rgba(99,102,241,0.5)]"
             >
-              {saveLoading
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> {t.bot.saveWorking}</>
-                : <><CheckCircle2 className="w-4 h-4 opacity-80" /> {t.bot.save}</>
-              }
+              {saveLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> {t.bot.saveWorking}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 opacity-80" /> {t.bot.save}
+                </>
+              )}
               <span className="absolute inset-0 bg-white/[0.04] opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-2xl" />
             </button>
           )}
@@ -432,7 +454,6 @@ export default function StreamerDashboard() {
 
         {/* ── RIGHT COLUMN ── */}
         <section className="lg:col-span-5 flex flex-col gap-4">
-
           {/* Preview panel */}
           <div className="bg-white/[0.025] border border-white/[0.07] rounded-3xl overflow-hidden">
             <div className="px-4 py-3 border-b border-white/[0.07] flex items-center gap-2.5">
@@ -470,9 +491,7 @@ export default function StreamerDashboard() {
                     <GripVertical className="w-3 h-3 text-white/20 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <span className="font-semibold text-white/90 truncate block">{item.authorName}</span>
-                      {item.text && (
-                        <span className="text-white/35 text-[10px] truncate block">{item.text}</span>
-                      )}
+                      {item.text && <span className="text-white/35 text-[10px] truncate block">{item.text}</span>}
                     </div>
                     <button
                       onClick={() =>
@@ -502,9 +521,13 @@ export default function StreamerDashboard() {
             }`}
           >
             {copyFeedback ? (
-              <><CheckCircle2 className="w-4 h-4" /> URL copiée !</>
+              <>
+                <CheckCircle2 className="w-4 h-4" /> URL copiée !
+              </>
             ) : (
-              <><Copy className="w-4 h-4" /> Copier l&apos;URL OBS</>
+              <>
+                <Copy className="w-4 h-4" /> Copier l&apos;URL OBS
+              </>
             )}
           </button>
 
@@ -521,14 +544,12 @@ export default function StreamerDashboard() {
             </div>
             <div className="flex-1 overflow-y-auto space-y-px min-h-[120px] max-h-56">
               {logs.length === 0 && (
-                <div className="flex items-center justify-center h-full text-white/20 text-xs">
-                  Aucun log récent
-                </div>
+                <div className="flex items-center justify-center h-full text-white/20 text-xs">Aucun log récent</div>
               )}
               {logs.map((log, i) => (
                 <div
                   key={log.id ?? i}
-                  className="text-[10px] font-mono text-white/45 border-b border-white/[0.04] pb-px pt-px flex gap-2 leading-relaxed"
+                  className="text-[10px] font-mono text-white/45 border-b border-white/[0.04] pb-px pt-px flex gap-2 leading-relaxed items-center"
                 >
                   <span className="text-white/20 shrink-0 tabular-nums">
                     {new Date(log.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -536,7 +557,22 @@ export default function StreamerDashboard() {
                   {log.author && (
                     <span className="text-indigo-400/60 shrink-0 truncate max-w-[80px]">{log.author}</span>
                   )}
-                  <span className="truncate">{log.reason}</span>
+                  <span className="truncate flex-1">{log.reason}</span>
+                  {log.mediaUrl && (
+                    <button
+                      onClick={() =>
+                        fetch("/api/replay-alert", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ logId: log.id }),
+                        }).catch(() => {})
+                      }
+                      className="text-indigo-400 hover:text-indigo-300 text-[10px] font-mono px-1.5 py-0.5 rounded border border-indigo-900/40 hover:border-indigo-700 transition shrink-0"
+                      title={t.logs.replay}
+                    >
+                      ↺
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

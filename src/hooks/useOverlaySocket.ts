@@ -15,15 +15,10 @@ interface UseOverlaySocketReturn {
   socketRef: React.MutableRefObject<Socket | null>;
 }
 
-export function useOverlaySocket({
-  onSkip,
-  activeAlertRef,
-}: UseOverlaySocketOptions): UseOverlaySocketReturn {
+export function useOverlaySocket({ onSkip, activeAlertRef }: UseOverlaySocketOptions): UseOverlaySocketReturn {
   const [queue, setQueue] = useState<AlertPayload[]>([]);
   const queueRef = useRef<AlertPayload[]>([]);
-  const [wsStatus, setWsStatus] = useState<"connected" | "connecting" | "disconnected">(
-    "connecting"
-  );
+  const [wsStatus, setWsStatus] = useState<"connected" | "connecting" | "disconnected">("connecting");
   const socketRef = useRef<Socket | null>(null);
   const onSkipRef = useRef(onSkip);
 

@@ -80,7 +80,8 @@ export const locales = {
       cooldown: "Délai imposé (Cooldown)",
       cooldownDesc: "Temps minimum d'attente requis entre deux demandes d'un même utilisateur.",
       roleFilter: "Rôles autorisés (IDs Discord)",
-      roleFilterHelp: "Seuls les membres ayant l'un de ces rôles peuvent envoyer des alertes. Laissez vide pour autoriser tout le monde.",
+      roleFilterHelp:
+        "Seuls les membres ayant l'un de ces rôles peuvent envoyer des alertes. Laissez vide pour autoriser tout le monde.",
       roleFilterPh: "Ex: 123456789012345678",
     },
     logs: {
@@ -96,6 +97,7 @@ export const locales = {
       blocked: "Bloqué",
       censored: "Censuré",
       empty: "Aucune activité récente.",
+      replay: "Rejouer",
     },
     health: {
       title: "Moniteur de Santé du Système",
@@ -195,7 +197,8 @@ export const locales = {
       cooldown: "Request Cooldown",
       cooldownDesc: "Minimum time required between two requests submitted by the same user.",
       roleFilter: "Allowed Roles (Discord IDs)",
-      roleFilterHelp: "Only members with at least one of these roles can trigger alerts. Leave empty to allow everyone.",
+      roleFilterHelp:
+        "Only members with at least one of these roles can trigger alerts. Leave empty to allow everyone.",
       roleFilterPh: "e.g. 123456789012345678",
     },
     logs: {
@@ -211,6 +214,7 @@ export const locales = {
       blocked: "Blocked",
       censored: "Censored",
       empty: "The activity log is currently empty.",
+      replay: "Replay",
     },
     health: {
       title: "System Health Monitor",
@@ -309,7 +313,8 @@ export const locales = {
       cooldown: "Coowdown~",
       cooldownDesc: "Minimum time between two wequests fwom the same usew. *yawn*",
       roleFilter: "Awwowed Woles (Discowd IDs) UwU",
-      roleFilterHelp: "Onwy membews wiff at weast one of these woles can twiggew awewts. Weave empty to awwow evewyone~ nyaa",
+      roleFilterHelp:
+        "Onwy membews wiff at weast one of these woles can twiggew awewts. Weave empty to awwow evewyone~ nyaa",
       roleFilterPh: "eg. 123456789012345678",
     },
     logs: {
@@ -325,6 +330,7 @@ export const locales = {
       blocked: "Bwocked",
       censored: "Censowed",
       empty: "The activity wog is cuwwentwy empty. *owphan noises*",
+      replay: "Wepway UwU",
     },
     health: {
       title: "System Hewlth Monitow",
@@ -425,7 +431,8 @@ export const locales = {
       cooldown: "Déwai (Coowdown)~",
       cooldownDesc: "Minimum time entwew deux demandes de wa même pewsonne. *yawn*",
       roleFilter: "Wôwes Autorisés (IDs Discowd) UwU",
-      roleFilterHelp: "Seuwement wes membwes avec w'un de ces wôwes peuvent envoyew des awewtes. Waisser vide pouw autorisew tout we monde~ nyaa",
+      roleFilterHelp:
+        "Seuwement wes membwes avec w'un de ces wôwes peuvent envoyew des awewtes. Waisser vide pouw autorisew tout we monde~ nyaa",
       roleFilterPh: "Ex: 123456789012345678",
     },
     logs: {
@@ -441,6 +448,7 @@ export const locales = {
       blocked: "Bwoqué",
       censored: "Censuwé",
       empty: "We jouwnaw d'activité est actwewement vide. *owphan noises*",
+      replay: "Wejouer UwU",
     },
     health: {
       title: "Monitew de Santé du Systwème",

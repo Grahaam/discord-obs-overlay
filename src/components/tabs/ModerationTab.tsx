@@ -1,9 +1,30 @@
 import { TabProps } from "./types";
-import { Shield, ShieldAlert, Activity, X } from "lucide-react";
+import { Shield, ShieldAlert, X } from "lucide-react";
 
 export default function ModerationTab(props: TabProps) {
-  const { config, setConfig, bannedWordInput, setBannedWordInput, handleAddBannedWord, handleRemoveBannedWord, t, roleIdInput, setRoleIdInput, handleAddRoleId, handleRemoveRoleId } = props;
-  if (config === undefined || setConfig === undefined || bannedWordInput === undefined || setBannedWordInput === undefined || handleAddBannedWord === undefined || handleRemoveBannedWord === undefined || t === undefined) return null;
+  const {
+    config,
+    setConfig,
+    bannedWordInput,
+    setBannedWordInput,
+    handleAddBannedWord,
+    handleRemoveBannedWord,
+    t,
+    roleIdInput,
+    setRoleIdInput,
+    handleAddRoleId,
+    handleRemoveRoleId,
+  } = props;
+  if (
+    config === undefined ||
+    setConfig === undefined ||
+    bannedWordInput === undefined ||
+    setBannedWordInput === undefined ||
+    handleAddBannedWord === undefined ||
+    handleRemoveBannedWord === undefined ||
+    t === undefined
+  )
+    return null;
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       <div className="border-b border-white/10 pb-3">
@@ -80,19 +101,15 @@ export default function ModerationTab(props: TabProps) {
             <button
               onClick={() => setConfig({ ...config, bannedWordsAction: "block" })}
               className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${
-                config.bannedWordsAction === "block"
-                  ? "bg-white/10 text-white"
-                  : "text-white/40 hover:text-white/80"
+                config.bannedWordsAction === "block" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/80"
               }`}
             >
-              Bloquer l'alerte
+              Bloquer l&apos;alerte
             </button>
             <button
               onClick={() => setConfig({ ...config, bannedWordsAction: "censor" })}
               className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${
-                config.bannedWordsAction === "censor"
-                  ? "bg-white/10 text-white"
-                  : "text-white/40 hover:text-white/80"
+                config.bannedWordsAction === "censor" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/80"
               }`}
             >
               Censurer (* * *)
@@ -120,8 +137,8 @@ export default function ModerationTab(props: TabProps) {
               +
             </button>
           </div>
-          {/* @ts-ignore - allowedRoleIds will be added to UIConfig by another agent */}
-          {(config?.allowedRoleIds || []).map((id) => (
+          {/* allowedRoleIds not yet in UIConfig type — cast intentional */}
+          {((config as any)?.allowedRoleIds || []).map((id: string) => (
             <span
               key={id}
               className="inline-flex items-center gap-2 bg-indigo-950/40 text-indigo-300 border border-indigo-900/50 px-3 py-1.5 rounded-lg text-xs font-mono w-fit"

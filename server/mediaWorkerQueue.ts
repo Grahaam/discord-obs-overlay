@@ -1,4 +1,5 @@
 import PQueue from "p-queue";
+import { logger } from "./logger.js";
 
 const MAX_QUEUE_SIZE = 50;
 
@@ -14,18 +15,18 @@ export const SIZE_LIMITS = {
 
 export function addJob<T>(id: string, fn: () => Promise<T | null>): Promise<T | null> {
   if (mediaQueue.size >= MAX_QUEUE_SIZE) {
-    console.warn(`[MediaWorker] Queue full (${MAX_QUEUE_SIZE}), dropping job: ${id}`);
+    logger.warn({ id, size: mediaQueue.size }, "Media worker queue full, dropping job");
     return Promise.resolve(null);
   }
   return mediaQueue.add(
     async () => {
       try {
-        console.log(`[MediaWorker] Starting: ${id}`);
+        logger.info({ id }, "Media job starting");
         const result = await fn();
-        console.log(`[MediaWorker] Done: ${id}`);
+        logger.info({ id }, "Media job completed");
         return result ?? null;
       } catch (err) {
-        console.error(`[MediaWorker] Job ${id} failed:`, err);
+        logger.error({ err, id }, "Media job failed");
         return null;
       }
     },

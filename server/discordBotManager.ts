@@ -95,16 +95,16 @@ export class DiscordBotManager {
           }
 
           addJob(`discord-msg-${message.id}`, async () => {
-          try {
-          let resolvedType: "image" | "video" | "iframe" | "link" = "image";
-          let mediaUrl = "";
-          let mediaTitle: string | undefined;
-          let mediaDuration: number | undefined;
-          let mediaProvider: string | undefined;
-          let mediaYtDlpError: string | undefined;
+            try {
+              let resolvedType: "image" | "video" | "iframe" | "link" = "image";
+              let mediaUrl = "";
+              let mediaTitle: string | undefined;
+              let mediaDuration: number | undefined;
+              let mediaProvider: string | undefined;
+              let mediaYtDlpError: string | undefined;
 
-          const attachment = message.attachments.first();
-          if (attachment) {
+              const attachment = message.attachments.first();
+              if (attachment) {
                 const sizeMB = attachment.size / (1024 * 1024);
                 if (sizeMB > settingsManager.settings.mediaMaxSizeMB) {
                   logger.warn(
@@ -172,7 +172,7 @@ export class DiscordBotManager {
                 mediaUrl = resolved.mediaUrl;
                 mediaProvider = resolved.provider;
                 mediaYtDlpError = resolved.ytDlpError;
-                const mediaTitle = resolved.title;
+                mediaTitle = resolved.title;
                 if (resolved.duration) {
                   mediaDuration = resolved.duration;
                 }
@@ -193,7 +193,7 @@ export class DiscordBotManager {
               }
 
               let finalText = textCheck.processed;
-              const urlRegex = /(https?:\/\/[^\s]+)/gi;
+              const urlRegex = /(https?:\/\/[^\s]+?)(?=[.,;:!?)]*(?:\s|$))/gi;
               const matches = finalText.match(urlRegex) || [];
 
               // Strip the primary media link if there is no attachment (meaning the link IS the media)

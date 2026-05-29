@@ -5,7 +5,7 @@ export interface TabProps {
   config?: UIConfig;
   setConfig?: React.Dispatch<React.SetStateAction<UIConfig>>;
   botStatus?: BotStatus;
-  t?: typeof locales["fr"];
+  t?: (typeof locales)["fr"];
   handleManualBotReconnect?: () => Promise<void>;
   bannedWordInput?: string;
   setBannedWordInput?: React.Dispatch<React.SetStateAction<string>>;
