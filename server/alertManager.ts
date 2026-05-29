@@ -1,5 +1,6 @@
 import { AlertPayload } from "../src/types.js";
 import { persistAlert, removePersistedAlert, clearPersistedAlerts } from "./db.js";
+import { logger } from "./logger.js";
 
 const MAX_ALERT_QUEUE_SIZE = 100;
 
@@ -27,6 +28,16 @@ class AlertManager {
     removePersistedAlert(id);
   }
 
+  public reorderQueue(orderedIds: string[]): void {
+    const map = new Map(this.queue.map((a) => [a.id, a]));
+    const reordered = orderedIds.map((id) => map.get(id)).filter((a): a is AlertPayload => a !== undefined);
+    const seen = new Set(orderedIds);
+    for (const a of this.queue) {
+      if (!seen.has(a.id)) reordered.push(a);
+    }
+    this.queue = reordered;
+  }
+
   public clearQueue(): void {
     this.queue = [];
     clearPersistedAlerts();
@@ -35,7 +46,7 @@ class AlertManager {
   /** Called once on startup to restore queue from SQLite. */
   public restoreFromDb(alerts: AlertPayload[]): void {
     this.queue = alerts.slice(0, MAX_ALERT_QUEUE_SIZE);
-    console.log(`[AlertManager] Restored ${this.queue.length} alert(s) from DB`);
+    logger.info({ count: this.queue.length }, "Restored alert(s) from DB");
   }
 }
 

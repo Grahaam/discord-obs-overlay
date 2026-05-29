@@ -253,6 +253,37 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     }
   });
 
+  app.post("/api/replay-alert", async (req, res) => {
+    const { logId } = req.body;
+    if (!logId) return res.status(400).json({ error: "logId required" });
+
+    const log = logManager.logs.find((l) => l.id === logId);
+    if (!log) return res.status(404).json({ error: "Log not found" });
+
+    if (!log.mediaUrl) return res.status(400).json({ error: "Log has no mediaUrl to replay" });
+
+    const replayPayload = {
+      id: crypto.randomUUID(),
+      authorName: log.author,
+      authorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=128&q=80",
+      text: log.text,
+      mediaUrl: log.mediaUrl,
+      type: log.type,
+      duration: settingsManager.settings.alertDuration,
+      syncDurationWithMedia: settingsManager.settings.syncDurationWithMedia,
+      neonColor: settingsManager.settings.neonColor,
+      alertStyle: settingsManager.settings.alertStyle,
+      stopAlertShortcut: settingsManager.settings.stopAlertShortcut || "Escape",
+      alertSoundUrl: settingsManager.settings.alertSoundUrl || "",
+      timestamp: Date.now(),
+      isTest: true as const,
+    };
+
+    alertManager.addAlert(replayPayload);
+    io.emit("new_alert", replayPayload);
+    res.json({ success: true });
+  });
+
   app.post("/api/bot-reconnect", async (req, res) => {
     try {
       await botManager.connectBot(settingsManager.settings.discordToken, settingsManager.settings.channelId);
@@ -286,7 +317,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     }
 
     const testPayload = {
-      id: "test_" + Math.random().toString(36).substring(2, 11),
+      id: crypto.randomUUID(),
       authorName: authorName || "Viewer_Random_99",
       authorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=128&q=80",
       text: text || "Regardez ce clip que je viens de faire sur le stream !",
@@ -321,10 +352,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
   });
 
   app.post("/api/queue/force-update", (req, res) => {
-    // This is a bit complex as we'd need to sync alertManager with this new queue
-    // For now, let's just emit it as before, but alertManager might get out of sync
-    // if the user manually reorders/edits the queue in the dashboard.
-    io.emit("force_queue_update", req.body.queue);
+    const queue: { id: string }[] = req.body.queue;
+    if (!Array.isArray(queue)) return res.status(400).json({ error: "queue must be an array" });
+    const orderedIds = queue.map((item) => item.id);
+    alertManager.reorderQueue(orderedIds);
+    io.emit("force_queue_update", alertManager.getAlerts());
     res.json({ success: true });
   });
 
