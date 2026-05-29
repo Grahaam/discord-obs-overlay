@@ -142,7 +142,9 @@ export async function cleanupCache() {
   }
 }
 
-setInterval(cleanupCache, 60 * 60 * 1000);
+export function startMediaParser(): void {
+  setInterval(cleanupCache, 60 * 60 * 1000);
+}
 
 export function parseMediaUrl(url: string): {
   type: "image" | "video" | "iframe" | "link";
