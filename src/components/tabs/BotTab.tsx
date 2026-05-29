@@ -1,5 +1,5 @@
 import { TabProps } from "./types";
-import { Bot, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export default function BotTab(props: TabProps) {
   const { config, setConfig, botStatus, t } = props;
@@ -32,9 +32,7 @@ export default function BotTab(props: TabProps) {
       )}
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono">
-          {t.bot.token}
-        </label>
+        <label className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono">{t.bot.token}</label>
         <input
           type="password"
           placeholder={t.bot.tokenPlaceholder}
@@ -57,9 +55,7 @@ export default function BotTab(props: TabProps) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono">
-          {t.bot.channel}
-        </label>
+        <label className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono">{t.bot.channel}</label>
         <input
           type="text"
           placeholder={t.bot.channelPlaceholder}
@@ -72,9 +68,7 @@ export default function BotTab(props: TabProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono">
-            {t.bot.maxSize}
-          </label>
+          <label className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono">{t.bot.maxSize}</label>
           <div className="relative">
             <input
               type="number"
@@ -135,9 +129,7 @@ export default function BotTab(props: TabProps) {
               <span className="text-xs font-bold text-white/80 select-none group-hover:text-white transition-colors">
                 {t.bot.syncDuration}
               </span>
-              <span className="text-[10px] text-white/40 block leading-tight">
-                {t.bot.syncDurationHelp}
-              </span>
+              <span className="text-[10px] text-white/40 block leading-tight">{t.bot.syncDurationHelp}</span>
             </div>
           </label>
         </div>
@@ -171,9 +163,7 @@ export default function BotTab(props: TabProps) {
         </div>
 
         <div className="flex flex-col gap-1.5 col-span-2">
-          <label className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono">
-            {t.bot.cookies}
-          </label>
+          <label className="text-xs font-bold text-white/50 uppercase tracking-widest font-mono">{t.bot.cookies}</label>
           <textarea
             placeholder="# Netscape HTTP Cookie File&#10;..."
             value={config.youtubeCookiesContent || ""}

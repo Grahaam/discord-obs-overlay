@@ -25,7 +25,8 @@ export function usePlaybackStateMachine(props: UsePlaybackStateMachineProps) {
   const { queue, setQueue, queueRef, socketRef } = props;
 
   const [activeAlert, setActiveAlert] = useState<AlertPayload | null>(null);
-  const [preloadedUrls, setPreloadedUrls] = useState<Record<string, boolean>>({});
+  // Ref (not state) — dedup only, no re-render needed when this changes
+  const preloadedUrlsRef = useRef<Set<string>>(new Set());
   const [particles, setParticles] = useState<Sparkle[]>([]);
   const [currentDuration, setCurrentDuration] = useState(8000);
   const [isPaused, setIsPaused] = useState(false);
@@ -34,7 +35,9 @@ export function usePlaybackStateMachine(props: UsePlaybackStateMachineProps) {
     try {
       const saved = localStorage.getItem("overlay_volume");
       if (saved !== null) return Math.max(0, Math.min(1, parseFloat(saved)));
-    } catch {}
+    } catch (_e) {
+      /* localStorage may be blocked in OBS browser source */
+    }
     return 1;
   });
 
@@ -52,6 +55,7 @@ export function usePlaybackStateMachine(props: UsePlaybackStateMachineProps) {
   const cancelCurrentAlertRef = useRef<(() => void) | null>(null);
   const extendCurrentTimeoutRef = useRef<((durationMs: number) => void) | null>(null);
   const isPausedRef = useRef(false);
+  const isBufferingRef = useRef(false); // true while browser is stalling to buffer (not a user pause)
   const pausedRemainingRef = useRef(0);
   const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutEndRef = useRef(0);
@@ -122,13 +126,23 @@ export function usePlaybackStateMachine(props: UsePlaybackStateMachineProps) {
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [activeAlert]);
 
-  // Phase 2: preload next items in queue using hidden elements
+  // Phase 2: preload next items in queue using hidden elements.
+  // Uses a ref (not state) so dedup tracking never triggers re-renders.
+  // Prunes stale URLs when the queue changes to prevent unbounded growth.
   useEffect(() => {
+    const preloaded = preloadedUrlsRef.current;
+    const queueUrls = new Set(queue.slice(0, 2).map((i) => i.mediaUrl));
+
+    // Prune entries for alerts no longer in the upcoming window
+    for (const url of preloaded) {
+      if (!queueUrls.has(url)) preloaded.delete(url);
+    }
+
     queue.slice(0, 2).forEach((item) => {
-      if (preloadedUrls[item.mediaUrl]) return;
+      if (preloaded.has(item.mediaUrl)) return;
 
       if (item.type === "iframe" || item.type === "link") {
-        setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
+        preloaded.add(item.mediaUrl);
         return;
       }
 
@@ -136,8 +150,8 @@ export function usePlaybackStateMachine(props: UsePlaybackStateMachineProps) {
         const img = new Image();
         img.referrerPolicy = "no-referrer";
         img.src = item.mediaUrl;
-        img.onload = () => setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
-        img.onerror = () => setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
+        img.onload = () => preloaded.add(item.mediaUrl);
+        img.onerror = () => preloaded.add(item.mediaUrl);
         return;
       }
 
@@ -149,11 +163,10 @@ export function usePlaybackStateMachine(props: UsePlaybackStateMachineProps) {
       video.muted = true;
       video.playsInline = true;
 
-      const markReady = () => setPreloadedUrls((prev) => ({ ...prev, [item.mediaUrl]: true }));
-      video.oncanplaythrough = markReady;
-      video.onerror = markReady; // don't stall on broken media
+      video.oncanplaythrough = () => preloaded.add(item.mediaUrl);
+      video.onerror = () => preloaded.add(item.mediaUrl); // don't stall on broken media
     });
-  }, [queue, preloadedUrls]);
+  }, [queue]);
 
   // YouTube Player — init/destroy with active alert lifecycle
   useEffect(() => {
@@ -196,7 +209,11 @@ export function usePlaybackStateMachine(props: UsePlaybackStateMachineProps) {
         events: {
           onReady: (event: any) => {
             event.target.playVideo();
-            try { event.target.setVolume(volume * 100); } catch {}
+            try {
+              event.target.setVolume(volume * 100);
+            } catch (_e) {
+              /* YT Player API not always ready */
+            }
           },
           onStateChange: (event: any) => {
             if (event.data === 0) onVideoEndedRef.current?.();
@@ -270,8 +287,10 @@ export function usePlaybackStateMachine(props: UsePlaybackStateMachineProps) {
     if (nextItem.alertSoundUrl) {
       try {
         const audio = new Audio(nextItem.alertSoundUrl);
-        audio.play().catch(() => {});
-      } catch {}
+        audio.play().catch(() => {}); // autoplay may be blocked by browser policy
+      } catch (_e) {
+        /* Audio constructor may throw on invalid URLs */
+      }
     }
 
     playbackStateRef.current = "playing";
@@ -514,7 +533,6 @@ export function usePlaybackStateMachine(props: UsePlaybackStateMachineProps) {
     setIsPaused,
     showControls,
     currentDuration,
-    preloadedUrls,
     volume,
     setVolume,
     progressBarRef,
@@ -527,6 +545,7 @@ export function usePlaybackStateMachine(props: UsePlaybackStateMachineProps) {
     onVideoLoadedMetadataRef,
     extendCurrentTimeoutRef,
     isPausedRef,
+    isBufferingRef,
     pausedRemainingRef,
     timeoutEndRef,
     alertStartTimeRef,

@@ -1,7 +1,8 @@
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+// StrictMode intentionally omitted — double-invocation of effects in dev mode
+// would break the WebSocket lifecycle and video playback timing on the overlay route.
 
 // Suppress noisy-but-harmless Vite HMR / Socket.io connection noise so it
 // doesn't pollute the browser console or trigger the Vite error overlay.
@@ -13,6 +14,10 @@ if (typeof window !== "undefined") {
     "[vite] server connection lost",
     "websocket closed without opened handshake",
     "socket.io connect_error",
+    "ns_error_websocket_connection_refused",
+    "websocket closed without opened",
+    "connection refused",
+    "failed to fetch",
   ];
 
   const globalExceptionHandler = (event: ErrorEvent | PromiseRejectionEvent) => {
@@ -34,10 +39,9 @@ if (typeof window !== "undefined") {
 }
 
 const root = document.getElementById("root");
-if (!root) throw new Error("Root element #root not found in index.html");
-
-createRoot(root).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+if (!root) {
+  console.error("FATAL: Root element #root not found in index.html");
+} else {
+  console.log("[App] Mounting React root...");
+  createRoot(root).render(<App />);
+}

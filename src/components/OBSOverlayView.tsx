@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Tv, Bot, Flame, AlertTriangle, Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { Bot, Flame, AlertTriangle, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { AlertPayload } from "../types";
 import { locales, Language } from "../locales";
 import { useOverlaySocket } from "../hooks/useOverlaySocket";
@@ -50,6 +50,7 @@ export default function OBSOverlayView() {
     onVideoLoadedMetadataRef,
     extendCurrentTimeoutRef,
     isPausedRef,
+    isBufferingRef,
     pausedRemainingRef,
     timeoutEndRef,
     alertStartTimeRef,
@@ -280,7 +281,17 @@ export default function OBSOverlayView() {
                                 onVideoLoadedMetadataRef.current?.(durationMs);
                               }
                             }}
+                            onWaiting={() => {
+                              // Browser is stalling to buffer — not a user-initiated pause
+                              isBufferingRef.current = true;
+                            }}
+                            onPlaying={() => {
+                              // Buffering resolved; if the user paused during buffering, stay paused
+                              isBufferingRef.current = false;
+                            }}
                             onPause={() => {
+                              // Ignore browser-internal pause events fired during buffering stalls
+                              if (isBufferingRef.current) return;
                               if (!isPausedRef.current) {
                                 pausedRemainingRef.current = Math.max(1000, timeoutEndRef.current - Date.now());
                                 isPausedRef.current = true;
@@ -289,7 +300,7 @@ export default function OBSOverlayView() {
                               extendCurrentTimeoutRef.current?.(3600000);
                             }}
                             onPlay={() => {
-                              if (isPausedRef.current) {
+                              if (isPausedRef.current && !isBufferingRef.current) {
                                 const remaining = pausedRemainingRef.current || 5000;
                                 extendCurrentTimeoutRef.current?.(remaining);
                                 alertStartTimeRef.current = Date.now() - (currentDuration - remaining);
@@ -381,9 +392,17 @@ export default function OBSOverlayView() {
                         setVolume(v);
                         if (activeVideoRef.current) activeVideoRef.current.volume = v;
                         if (ytPlayerRef.current) {
-                          try { ytPlayerRef.current.setVolume(v * 100); } catch {}
+                          try {
+                            ytPlayerRef.current.setVolume(v * 100);
+                          } catch (_e) {
+                            /* YT Player API not always ready */
+                          }
                         }
-                        try { localStorage.setItem("overlay_volume", String(v)); } catch {}
+                        try {
+                          localStorage.setItem("overlay_volume", String(v));
+                        } catch (_e) {
+                          /* localStorage may be blocked */
+                        }
                       }}
                       className="w-20 h-1 accent-white cursor-pointer"
                       title="Volume"

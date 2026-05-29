@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
 import { createRequire } from "module";
+import { logger } from "./logger.js";
 
 const _require = createRequire(import.meta.url);
 // ffmpeg-static provides a bundled binary — prefer it over system ffmpeg
@@ -69,7 +70,7 @@ export async function normalizeToMp4(inputPath: string, inputHash: string): Prom
       done = true;
       ffmpeg.kill(9);
       fs.promises.unlink(tempOutput).catch(() => {});
-      console.error(`[FFmpeg] Timeout normalizing: ${path.basename(inputPath)}`);
+      logger.error({ file: path.basename(inputPath) }, "FFmpeg normalization timeout");
       resolve(null);
     }, FFMPEG_TIMEOUT_MS);
 
@@ -81,16 +82,16 @@ export async function normalizeToMp4(inputPath: string, inputHash: string): Prom
       if (code === 0) {
         try {
           await fs.promises.rename(tempOutput, outputPath);
-          console.log(`[FFmpeg] Normalized → ${outputFilename}`);
+          logger.info({ outputFilename }, "FFmpeg normalization completed");
           resolve(outputFilename);
         } catch (err) {
-          console.error("[FFmpeg] Rename failed:", err);
+          logger.error({ err }, "FFmpeg rename failed");
           fs.promises.unlink(tempOutput).catch(() => {});
           resolve(null);
         }
       } else {
         fs.promises.unlink(tempOutput).catch(() => {});
-        console.warn(`[FFmpeg] Exit code ${code} for: ${path.basename(inputPath)} — using original`);
+        logger.warn({ code, file: path.basename(inputPath) }, "FFmpeg exit code non-zero");
         resolve(null);
       }
     });
@@ -101,9 +102,9 @@ export async function normalizeToMp4(inputPath: string, inputHash: string): Prom
       done = true;
       fs.promises.unlink(tempOutput).catch(() => {});
       if (err.code === "ENOENT") {
-        console.warn("[FFmpeg] ffmpeg not found in PATH — skipping normalization");
+        logger.warn("FFmpeg not found — skipping normalization");
       } else {
-        console.error("[FFmpeg] Spawn error:", err.message);
+        logger.error({ err: err.message }, "FFmpeg spawn error");
       }
       resolve(null);
     });
