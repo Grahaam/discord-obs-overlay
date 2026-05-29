@@ -238,13 +238,12 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
       // If it was a log retry, we might want to update the log status if it was an error
       if (logId) {
-        const log = logManager.logs.find((l) => l.id === logId);
-        if (log) {
-          log.status = "approved";
-          log.reason = "Manual retry successful";
-          log.mediaUrl = resolved.mediaUrl;
-          log.type = resolved.type;
-        }
+        logManager.updateLog(logId, {
+          status: "approved",
+          reason: "Manual retry successful",
+          mediaUrl: resolved.mediaUrl,
+          type: resolved.type,
+        });
       }
 
       res.json({ success: true, resolved });

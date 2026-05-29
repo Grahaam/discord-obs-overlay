@@ -2,6 +2,7 @@ import path from "path";
 import { createRequire } from "module";
 import { AlertPayload } from "../src/types.js";
 import { LogEntry } from "./logManager.js";
+import { logger } from "./logger.js";
 
 const _require = createRequire(import.meta.url);
 const DB_PATH = path.join(process.cwd(), "overlay.db");
@@ -17,7 +18,7 @@ function withDb<T>(fn: (d: any) => T, caller: string): T | undefined {
   try {
     return fn(db);
   } catch (err: any) {
-    console.error(`[DB] ${caller} failed:`, err.message);
+    logger.error({ err: err.message, caller }, "Database operation failed");
     return undefined;
   }
 }
@@ -42,9 +43,9 @@ export function initDb(): void {
         );
       `);
     }, "initDb");
-    console.log(`[DB] SQLite ready at ${DB_PATH}`);
+    logger.info({ path: DB_PATH }, "SQLite ready");
   } catch (err: any) {
-    console.warn(`[DB] SQLite unavailable (${err.message}) — persistence disabled`);
+    logger.warn({ err: err.message }, "SQLite unavailable — persistence disabled");
     db = null;
   }
 }
@@ -110,4 +111,14 @@ export function clearPersistedLogs(): void {
   withDb((d) => {
     d.prepare("DELETE FROM logs").run();
   }, "clearPersistedLogs");
+}
+
+export function updateLogInDb(log: LogEntry): void {
+  withDb((d) => {
+    d.prepare("INSERT OR REPLACE INTO logs (id, data, created_at) VALUES (?, ?, ?)").run(
+      log.id,
+      JSON.stringify(log),
+      log.timestamp
+    );
+  }, "updateLogInDb");
 }
