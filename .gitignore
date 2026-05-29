@@ -9,6 +9,9 @@ coverage/
 settings.json
 cookies.txt
 data/
+overlay.db
+overlay.db-shm
+overlay.db-wal
 media_cache/
 proxy-debug.log
 logs.json
