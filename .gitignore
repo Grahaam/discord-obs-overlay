@@ -1,23 +1,57 @@
+# Dependencies
 node_modules/
+.venv/
+
+# Build output
 build/
 dist/
 coverage/
+
+# OS
 .DS_Store
+
+# Logs & runtime data
 *.log
-.env*
-!.env.example
-settings.json
-cookies.txt
-data/
-overlay.db
-overlay.db-shm
-overlay.db-wal
-media_cache/
-proxy-debug.log
 logs.json
 metadata.json
+proxy-debug.log
+
+# Environment & secrets
+.env*
+!.env.example
+cookies.txt
+
+# App data (user-local, not shared)
+settings.json
+data/
+overlay.db
+overlay.db-wal
+overlay.db-shm
+media_cache/
+
+# Test artifacts
+test-results/
 bin_test/
+
+# Loose test scripts (root-level only; tests/ dir is tracked)
 test-*.ts
 test_*.ts
 testdl.ts
-.venv/
+
+# IDE & AI tool configs (machine-local)
+.vscode/
+.cursor/
+.codex/
+.gemini/
+.zed/
+.claude/
+.mcp.json
+.vsync.json
+opencode.json
+config/
+
+# Generated AI tool output inside docs
+docs/superpowers/
+
+# Screenshots / generated assets
+dashboard.png
