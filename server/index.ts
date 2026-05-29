@@ -59,8 +59,8 @@ async function runServer() {
     legacyHeaders: false,
   });
 
-  // app.use("/api/logs", readLimiter); // Removed rate limiting for logs
-  // app.use("/api/bot-status", readLimiter); // Removed rate limiting for status
+  app.use("/api/logs", readLimiter);
+  app.use("/api/bot-status", readLimiter);
   app.use("/api/settings", readLimiter);
   app.use("/api/media-cache", readLimiter);
   app.use("/api", writeLimiter);
