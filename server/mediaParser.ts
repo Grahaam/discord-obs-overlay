@@ -310,8 +310,8 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
   // .tmp.mp4 — ends in .mp4 so yt-dlp doesn't append another extension after merging
   const tempFilepath = path.join(CACHE_DIR, `${hash}.tmp.mp4`);
 
-  // 500MB cap for yt-dlp downloads (Discord attachment limit stays at SIZE_LIMITS.video = 50MB)
-  const maxMB = 5000;
+  // 500 MB cap for yt-dlp downloads (Discord attachment limit stays at SIZE_LIMITS.video = 50MB)
+  const maxMB = 500;
 
   const dlOptions: any = {
     noWarnings: true,
@@ -344,11 +344,7 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
       return { filename: finalFilename, info: { title: "Cached Video" } };
     }
 
-    const info: any = await withTimeout(
-      ytDlp(url, { ...dlOptions, printJson: true }),
-      YTDLP_TIMEOUT_MS,
-      url
-    );
+    const info: any = await withTimeout(ytDlp(url, { ...dlOptions, printJson: true }), YTDLP_TIMEOUT_MS, url);
     logger.info({ infoTitle: info?.title }, "yt-dlp download complete");
 
     if (!fs.existsSync(tempFilepath)) {
