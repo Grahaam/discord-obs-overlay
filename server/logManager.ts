@@ -49,6 +49,17 @@ export class LogManager {
     import("./db.js").then(({ clearPersistedLogs }) => clearPersistedLogs()).catch(() => {});
   }
 
+  public updateLog(
+    id: string,
+    patch: Partial<Pick<LogEntry, "status" | "reason" | "mediaUrl" | "type">>
+  ): boolean {
+    const log = this.logs.find((l) => l.id === id);
+    if (!log) return false;
+    Object.assign(log, patch);
+    import("./db.js").then(({ updateLogInDb }) => updateLogInDb(log)).catch(() => {});
+    return true;
+  }
+
   /** Called once on startup to restore recent logs from SQLite. */
   public restoreFromDb(logs: LogEntry[]): void {
     this.logs = logs.slice(0, MAX_LOG_ENTRIES);
