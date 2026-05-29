@@ -78,8 +78,10 @@ export class DiscordBotManager {
             }
             if (this.io) {
               this.io.emit("skip_alert");
+              await interaction.reply({ content: "⏭️ Alert skipped.", ephemeral: true });
+            } else {
+              await interaction.reply({ content: "❌ Overlay not connected.", ephemeral: true });
             }
-            await interaction.reply({ content: "⏭️ Alert skipped.", ephemeral: true });
             return;
           }
 
@@ -89,12 +91,16 @@ export class DiscordBotManager {
               await interaction.reply({ content: "📭 Queue is empty.", ephemeral: true });
               return;
             }
+            const lines = alerts.map((a, i) => `${i + 1}. **${a.title || a.authorName}** — ${a.type}`);
+            let desc = "";
+            for (const line of lines) {
+              if (desc.length + line.length + 1 > 4000) { desc += `\n…and more`; break; }
+              desc += (desc ? "\n" : "") + line;
+            }
             const embed = new EmbedBuilder()
               .setTitle(`Alert Queue (${alerts.length} item${alerts.length === 1 ? "" : "s"})`)
               .setColor(0x6366f1)
-              .setDescription(
-                alerts.map((a, i) => `${i + 1}. **${a.title || a.authorName}** — ${a.type}`).join("\n")
-              );
+              .setDescription(desc);
             await interaction.reply({ embeds: [embed], ephemeral: true });
           }
         } catch (err) {
