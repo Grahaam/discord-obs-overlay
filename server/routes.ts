@@ -12,7 +12,7 @@ import { logger } from "./logger.js";
 import { settingsManager } from "./settingsManager.js";
 import { logManager } from "./logManager.js";
 import { botManager } from "./discordBotManager.js";
-import { resolveMediaFromLink } from "./mediaParser.js";
+import { resolveMediaFromLink, _ytDlpCustomPath } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
 
 // Helper to get yt-dlp version
@@ -23,8 +23,9 @@ function getYtDlpVersion(): Promise<string> {
   if (_ytDlpVersionCache && Date.now() < _ytDlpVersionExpiry) {
     return Promise.resolve(_ytDlpVersionCache);
   }
+  const ytDlpBin = _ytDlpCustomPath ?? "yt-dlp";
   return new Promise((resolve) => {
-    exec("yt-dlp --version", (error, stdout) => {
+    exec(`"${ytDlpBin}" --version`, (error, stdout) => {
       const version = error ? "Not installed / Error" : stdout.trim();
       _ytDlpVersionCache = version;
       _ytDlpVersionExpiry = Date.now() + 5 * 60_000;

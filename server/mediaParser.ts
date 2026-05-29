@@ -46,7 +46,7 @@ function findBestYtDlpPath(): string | null {
   return null;
 }
 
-const _ytDlpCustomPath = findBestYtDlpPath();
+export const _ytDlpCustomPath = findBestYtDlpPath();
 const ytDlp = _ytDlpCustomPath ? ytDlpCreate(_ytDlpCustomPath) : youtubedl;
 
 const _ffmpegBin: string | null = (() => {
@@ -310,8 +310,8 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
   // .tmp.mp4 — ends in .mp4 so yt-dlp doesn't append another extension after merging
   const tempFilepath = path.join(CACHE_DIR, `${hash}.tmp.mp4`);
 
-  // 500 MB cap for yt-dlp downloads (Discord attachment limit stays at SIZE_LIMITS.video = 50MB)
-  const maxMB = 500;
+  // 5000 MB cap for yt-dlp downloads (Discord attachment limit stays at SIZE_LIMITS.video = 50MB)
+  const maxMB = 5000;
 
   const dlOptions: any = {
     noWarnings: true,
