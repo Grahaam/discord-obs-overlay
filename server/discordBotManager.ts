@@ -1,4 +1,14 @@
-import { Client, GatewayIntentBits, Message } from "discord.js";
+import {
+  Client,
+  GatewayIntentBits,
+  Message,
+  Interaction,
+  PermissionFlagsBits,
+  EmbedBuilder,
+  REST,
+  Routes,
+  SlashCommandBuilder,
+} from "discord.js";
 import { Server as SocketServer } from "socket.io";
 import { settingsManager } from "./settingsManager.js";
 import { logManager } from "./logManager.js";
@@ -15,6 +25,7 @@ export class DiscordBotManager {
   public errorMsg: string = "";
   public botUser: string = "";
   private lastUserRequestTimes: Record<string, number> = {};
+  private guildId: string = "";
 
   public setIo(io: SocketServer) {
     this.io = io;
@@ -38,17 +49,60 @@ export class DiscordBotManager {
         intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
       });
 
-      this.client.once("clientReady", () => {
+      this.client.once("clientReady", async (readyClient) => {
         this.status = "connected";
-        this.botUser = this.client?.user?.tag || "Unknown Bot";
+        this.botUser = readyClient.user.tag;
         this.errorMsg = "";
         logger.info({ botUser: this.botUser }, "Discord bot connected");
+        await this.registerSlashCommands(readyClient.user.id, token, channelId);
       });
 
       this.client.on("error", (err: Error) => {
         logger.error({ err }, "Discord WebSocket exception");
         this.status = "error";
         this.errorMsg = err.message || "Discord WebSocket exception";
+      });
+
+      this.client.on("interactionCreate", async (interaction: Interaction) => {
+        if (!interaction.isChatInputCommand()) return;
+
+        try {
+          if (interaction.commandName === "skip") {
+            const hasPermission = interaction.memberPermissions?.has(PermissionFlagsBits.ManageMessages);
+            if (!hasPermission) {
+              await interaction.reply({
+                content: "❌ You need Manage Messages permission to skip alerts.",
+                ephemeral: true,
+              });
+              return;
+            }
+            if (this.io) {
+              this.io.emit("skip_alert");
+            }
+            await interaction.reply({ content: "⏭️ Alert skipped.", ephemeral: true });
+            return;
+          }
+
+          if (interaction.commandName === "queue") {
+            const alerts = alertManager.getAlerts();
+            if (alerts.length === 0) {
+              await interaction.reply({ content: "📭 Queue is empty.", ephemeral: true });
+              return;
+            }
+            const embed = new EmbedBuilder()
+              .setTitle(`Alert Queue (${alerts.length} item${alerts.length === 1 ? "" : "s"})`)
+              .setColor(0x6366f1)
+              .setDescription(
+                alerts.map((a, i) => `${i + 1}. **${a.title || a.authorName}** — ${a.type}`).join("\n")
+              );
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+          }
+        } catch (err) {
+          logger.error({ err }, "Exception in interactionCreate handler");
+          if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: "❌ Internal error.", ephemeral: true }).catch(() => {});
+          }
+        }
       });
 
       this.client.on("messageCreate", async (message: Message) => {
@@ -158,7 +212,6 @@ export class DiscordBotManager {
                   return;
                 }
               } else {
-                // Strip trailing punctuation that Discord includes in message text but isn't part of the URL
                 const urlRegex = /(https?:\/\/[^\s]+?)(?=[.,;:!?)]*(?:\s|$))/gi;
                 const matches = message.content.match(urlRegex);
                 if (!matches || matches.length === 0) {
@@ -196,16 +249,12 @@ export class DiscordBotManager {
               const urlRegex = /(https?:\/\/[^\s]+?)(?=[.,;:!?)]*(?:\s|$))/gi;
               const matches = finalText.match(urlRegex) || [];
 
-              // Strip the primary media link if there is no attachment (meaning the link IS the media)
               if (matches.length > 0 && message.attachments.size === 0) {
-                // We assume the first link matched was used for media extraction
                 finalText = finalText.replace(matches[0]!, "").trim();
               }
 
               if (settingsManager.settings.blockLinks) {
-                // Check remaining links after primary is stripped
                 const remainingMatches = finalText.match(urlRegex) || [];
-
                 if (remainingMatches.length > 0) {
                   logger.warn({ author: message.author.username }, "Blocked message due to extra links");
                   logManager.addLog({
@@ -221,10 +270,8 @@ export class DiscordBotManager {
               }
 
               if (settingsManager.settings.blockNSFW) {
-                // Very rudimentary check for Discord's spoiler/nsfw flag or common text signals.
                 const hasSpoilerAttachment = message.attachments.some((a) => a.spoiler);
                 const hasNSFWText = finalText.toLowerCase().includes("nsfw");
-
                 if (hasSpoilerAttachment || hasNSFWText) {
                   logger.warn({ author: message.author.username }, "Blocked message due to NSFW detection");
                   logManager.addLog({
@@ -307,6 +354,30 @@ export class DiscordBotManager {
     }
   }
 
+  private async registerSlashCommands(clientId: string, token: string, channelId: string) {
+    try {
+      const channel = await this.client?.channels.fetch(channelId);
+      if (!channel || channel.isDMBased()) {
+        logger.warn({ channelId }, "Cannot register slash commands: channel not found or not guild-based");
+        return;
+      }
+
+      const guildChannel = channel as import("discord.js").GuildChannel;
+      this.guildId = guildChannel.guild.id;
+
+      const commands = [
+        new SlashCommandBuilder().setName("skip").setDescription("Skip the currently playing alert").toJSON(),
+        new SlashCommandBuilder().setName("queue").setDescription("Show the current alert queue").toJSON(),
+      ];
+
+      const rest = new REST({ version: "10" }).setToken(token);
+      await rest.put(Routes.applicationGuildCommands(clientId, this.guildId), { body: commands });
+      logger.info({ guildId: this.guildId }, "Slash commands registered");
+    } catch (err) {
+      logger.error({ err }, "Failed to register slash commands — bot still works for messages");
+    }
+  }
+
   public async shutdown() {
     if (this.client) {
       try {
@@ -318,6 +389,7 @@ export class DiscordBotManager {
     }
     this.status = "disconnected";
     this.botUser = "";
+    this.guildId = "";
   }
 }
 
