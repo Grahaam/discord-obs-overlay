@@ -10,7 +10,7 @@ import { env } from "./env.js";
 import { settingsManager } from "./settingsManager.js";
 import { botManager } from "./discordBotManager.js";
 import { setupRoutes } from "./routes.js";
-import { updateYtDlp, cleanupOrphanedTempFiles } from "./mediaParser.js";
+import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
 import { initDb, loadPersistedAlerts, loadPersistedLogs } from "./db.js";
 import { logManager } from "./logManager.js";
@@ -26,6 +26,7 @@ async function runServer() {
 
   // Phase 1: cleanup orphaned downloads from previous run
   cleanupOrphanedTempFiles();
+  startMediaParser();
 
   // Phase 3: initialize SQLite persistence and restore state
   initDb();
