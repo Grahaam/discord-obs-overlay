@@ -311,6 +311,11 @@ export class DiscordBotManager {
                 alertStyle: settingsManager.settings.alertStyle,
                 stopAlertShortcut: settingsManager.settings.stopAlertShortcut || "Escape",
                 alertSoundUrl: settingsManager.settings.alertSoundUrl || "",
+                alertFont: settingsManager.settings.alertFont || "sans",
+                alertPosition: settingsManager.settings.alertPosition || "bottom-left",
+                alertScale: settingsManager.settings.alertScale ?? 1,
+                alertBgOpacity: settingsManager.settings.alertBgOpacity ?? 0.9,
+                alertAnimation: settingsManager.settings.alertAnimation || "slide-up",
                 timestamp: Date.now(),
               };
 
