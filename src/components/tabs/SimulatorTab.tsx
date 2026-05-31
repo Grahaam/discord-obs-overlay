@@ -1,5 +1,42 @@
+import { useState } from "react";
 import { TabProps } from "./types";
-import { Send } from "lucide-react";
+import { Send, Radio, CheckCircle2 } from "lucide-react";
+import { MediaType } from "../../types";
+
+const PRESETS: { label: string; url: string; type: MediaType; color: string; textColor: string; borderColor: string }[] = [
+  {
+    label: "YT Shorts",
+    url: "https://youtube.com/shorts/OX6wSAsiedI?si=qeSpni-1XCmidrqK",
+    type: "video",
+    color: "bg-red-500/10 hover:bg-red-500/20",
+    textColor: "text-red-300",
+    borderColor: "border-red-500/25",
+  },
+  {
+    label: "YouTube",
+    url: "https://www.youtube.com/watch?v=UZ6jGyK8F-I",
+    type: "video",
+    color: "bg-red-500/10 hover:bg-red-500/20",
+    textColor: "text-red-300",
+    borderColor: "border-red-500/25",
+  },
+  {
+    label: "TikTok",
+    url: "https://www.tiktok.com/@pepe_fails/video/7620170003371003156?is_from_webapp=1&sender_device=pc",
+    type: "video",
+    color: "bg-[#00f2fe]/5 hover:bg-[#00f2fe]/10",
+    textColor: "text-[#00d4e0]",
+    borderColor: "border-[#00f2fe]/20",
+  },
+  {
+    label: "Instagram",
+    url: "https://www.instagram.com/p/DYnCi2IhHHE",
+    type: "image",
+    color: "bg-pink-500/10 hover:bg-pink-500/20",
+    textColor: "text-pink-300",
+    borderColor: "border-pink-500/25",
+  },
+];
 
 export default function SimulatorTab(props: TabProps) {
   const {
@@ -27,104 +64,142 @@ export default function SimulatorTab(props: TabProps) {
     t === undefined
   )
     return null;
+
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [urlError, setUrlError] = useState(false);
+
+  const inputBase =
+    "w-full bg-[#08080f] border border-white/[0.07] rounded-lg px-3 py-2.5 text-xs font-mono text-white/80 placeholder:text-white/15 focus:outline-none focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/10 transition-all";
+
+  const handleSend = async () => {
+    if (!simMediaUrl.trim()) {
+      setUrlError(true);
+      setTimeout(() => setUrlError(false), 2000);
+      return;
+    }
+    setSending(true);
+    setUrlError(false);
+    try {
+      await handleTriggerTest();
+      setSent(true);
+      setTimeout(() => setSent(false), 2500);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-6 animate-fade-in">
-      <div className="border-b border-white/10 pb-2 mb-2">
-        <h2 className="text-md font-bold font-display text-white flex items-center gap-2">
-          <Send className="w-4 h-4 text-indigo-400" />
-          {t.logs.simTitle}
-        </h2>
+    <div className="flex flex-col gap-5 animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center gap-3 pb-3 border-b border-white/[0.06]">
+        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+          <Radio className="w-4 h-4 text-indigo-400" />
+        </div>
+        <div>
+          <h2 className="text-sm font-bold font-mono text-white tracking-wider uppercase">{t.logs.simTitle}</h2>
+          <p className="text-[10px] text-white/30 mt-0.5 font-mono">Inject a test alert directly into the queue</p>
+        </div>
       </div>
-      <div className="flex flex-col gap-3">
+
+      {/* Fields */}
+      <div className="flex flex-col gap-3.5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">
-              {t.logs.simName}
-            </label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.logs.simName}</label>
             <input
               type="text"
               value={simName}
               onChange={(e) => setSimName(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors mt-1"
+              className={inputBase}
             />
           </div>
-          <div>
-            <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">
-              {t.logs.simType}
-            </label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.logs.simType}</label>
             <select
               value={simType}
               onChange={(e: any) => setSimType(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors mt-1 appearance-none"
+              className={`${inputBase} appearance-none cursor-pointer`}
             >
-              <option value="image">Image / Auto</option>
-              <option value="video">Forcer Vidéo (MP4)</option>
-              <option value="iframe">Forcer Embed (IFrame)</option>
-              <option value="link">Forcer Lien</option>
+              <option value="image">{t.logs.simTypeAuto}</option>
+              <option value="video">{t.logs.simTypeVideo}</option>
+              <option value="iframe">{t.logs.simTypeIframe}</option>
+              <option value="link">{t.logs.simTypeLink}</option>
             </select>
           </div>
         </div>
-        <div>
-          <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">
-            {t.logs.simText}
-          </label>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.logs.simText}</label>
           <input
             type="text"
             value={simText}
             onChange={(e) => setSimText(e.target.value)}
-            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-indigo-500 transition-colors mt-1"
+            className={inputBase}
           />
         </div>
-        <div>
-          <label className="text-[10px] font-bold text-white/50 uppercase font-mono tracking-wider">
-            URL / Media Link
-          </label>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">URL / Media Link</label>
           <input
             type="text"
             placeholder="https://youtube.com/..."
             value={simMediaUrl}
-            onChange={(e) => setSimMediaUrl(e.target.value)}
-            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-indigo-300 outline-none focus:border-indigo-500 transition-colors mt-1"
+            onChange={(e) => {
+              setSimMediaUrl(e.target.value);
+              if (urlError) setUrlError(false);
+            }}
+            className={`${inputBase} focus:text-indigo-200 ${
+              urlError
+                ? "border-rose-500/50 text-rose-300 focus:border-rose-500/60"
+                : "text-indigo-300/80"
+            }`}
           />
-          <div className="flex flex-wrap gap-2 mt-2">
-            <button
-              onClick={() => setSimMediaUrl("https://youtube.com/shorts/OX6wSAsiedI?si=qeSpni-1XCmidrqK")}
-              className="px-2 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded text-[10px] font-bold uppercase transition hover:bg-red-500/40"
-            >
-              YouTube Shorts
-            </button>
-            <button
-              onClick={() => setSimMediaUrl("https://www.youtube.com/watch?v=UZ6jGyK8F-I")}
-              className="px-2 py-1 bg-red-500/20 text-red-300 border border-red-500/30 rounded text-[10px] font-bold uppercase transition hover:bg-red-500/40"
-            >
-              YouTube Video
-            </button>
-            <button
-              onClick={() =>
-                setSimMediaUrl(
-                  "https://www.tiktok.com/@pepe_fails/video/7620170003371003156?is_from_webapp=1&sender_device=pc"
-                )
-              }
-              className="px-2 py-1 bg-[#00f2fe]/20 text-[#00f2fe] border border-[#00f2fe]/30 rounded text-[10px] font-bold uppercase transition hover:bg-[#00f2fe]/40"
-            >
-              TikTok
-            </button>
-            <button
-              onClick={() => setSimMediaUrl("https://www.instagram.com/p/DYnCi2IhHHE")}
-              className="px-2 py-1 bg-pink-500/20 text-pink-300 border border-pink-500/30 rounded text-[10px] font-bold uppercase transition hover:bg-pink-500/40"
-            >
-              Instagram
-            </button>
+          {urlError && (
+            <span className="text-[10px] font-mono text-rose-400">{t.logs.simUrlRequired}</span>
+          )}
+
+          {/* Platform presets */}
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {PRESETS.map((p) => (
+              <button
+                key={p.label}
+                onClick={() => {
+                  setSimMediaUrl(p.url);
+                  setSimType(p.type);
+                  if (urlError) setUrlError(false);
+                }}
+                className={`px-2.5 py-1 rounded-md border text-[10px] font-mono font-bold uppercase tracking-wide transition-all ${p.color} ${p.textColor} ${p.borderColor}`}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
         </div>
-        <button
-          onClick={() => handleTriggerTest()}
-          className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 mt-2"
-        >
-          <Send className="w-4 h-4" />
-          {t.logs.sendSim}
-        </button>
       </div>
+
+      {/* Broadcast button */}
+      <button
+        onClick={handleSend}
+        disabled={sending}
+        className={`relative group w-full overflow-hidden border font-bold py-3 rounded-xl text-xs font-mono uppercase tracking-widest transition-all flex items-center justify-center gap-2.5 mt-1 disabled:opacity-60 disabled:cursor-not-allowed ${
+          sent
+            ? "bg-emerald-600/20 border-emerald-500/40 text-emerald-200"
+            : "bg-indigo-600/20 hover:bg-indigo-600/30 border-indigo-500/40 hover:border-indigo-500/60 text-indigo-200"
+        }`}
+      >
+        {sent ? (
+          <>
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            {t.logs.simSent}
+          </>
+        ) : (
+          <>
+            <Send className="w-3.5 h-3.5" />
+            {t.logs.sendSim}
+          </>
+        )}
+      </button>
     </div>
   );
 }
