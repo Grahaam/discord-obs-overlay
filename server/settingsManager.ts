@@ -19,13 +19,20 @@ export interface Settings {
   stopAlertShortcut: string;
   youtubeCookiesContent?: string;
 
-  // Moderation Extras
+  // Moderation
   cooldownSeconds?: number;
   blockLinks?: boolean;
   blockNSFW?: boolean;
   language: "fr" | "en" | "uwu-fr" | "uwu-en";
   alertSoundUrl?: string;
   allowedRoleIds?: string[];
+
+  // Visual customization
+  alertFont?: "sans" | "mono" | "serif" | "display" | "rounded";
+  alertPosition?: "top-left" | "top-center" | "top-right" | "center-left" | "center" | "center-right" | "bottom-left" | "bottom-center" | "bottom-right";
+  alertScale?: number;
+  alertBgOpacity?: number;
+  alertAnimation?: "slide-up" | "fade" | "zoom" | "bounce";
 }
 
 export const defaultSettings: Settings = {
@@ -46,6 +53,11 @@ export const defaultSettings: Settings = {
   language: "fr",
   alertSoundUrl: "",
   allowedRoleIds: [],
+  alertFont: "sans",
+  alertPosition: "bottom-left",
+  alertScale: 1,
+  alertBgOpacity: 0.9,
+  alertAnimation: "slide-up",
 };
 
 export class SettingsManager {
