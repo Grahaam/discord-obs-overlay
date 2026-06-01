@@ -381,6 +381,7 @@ export class DiscordBotManager {
 
               logManager.addLog({
                 author: alertPayload.authorName,
+                authorAvatar: alertPayload.authorAvatar,
                 text: alertPayload.text,
                 type: alertPayload.type,
                 mediaUrl: alertPayload.mediaUrl,

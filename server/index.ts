@@ -160,6 +160,15 @@ async function runServer() {
     });
 
     socket.on("disconnect", () => {});
+
+    // Playback state updates from overlay clients (broadcast to other clients)
+    socket.on(
+      "playback_state",
+      (state: { isPaused?: boolean; currentTime?: number; duration?: number; volume?: number }) => {
+        // Broadcast to all other connected clients
+        socket.broadcast.emit("playback_state", state);
+      }
+    );
   });
 
   if (settingsManager.settings.discordToken && settingsManager.settings.channelId) {

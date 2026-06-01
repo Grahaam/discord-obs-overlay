@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Bot, Activity, AlertTriangle, RefreshCw } from "lucide-react";
+import { Bot, Activity, AlertTriangle, RefreshCw, RotateCcw } from "lucide-react";
 import { LogEntry, BotStatus } from "../types";
 import { useQueueStore } from "../store/queueStore";
 
@@ -134,7 +134,7 @@ export default function OBSStatusDock() {
           logs.slice(0, 50).map((log) => (
             <div
               key={log.id}
-              className="px-3 py-1.5 flex items-baseline gap-2 border-b border-white/[0.04] hover:bg-white/[0.02] transition"
+              className="group px-3 py-1.5 flex items-baseline gap-2 border-b border-white/4 hover:bg-white/2 transition"
             >
               <span className={`shrink-0 w-1.5 h-1.5 rounded-full mt-1 ${STATUS_DOT[log.status] ?? "bg-white/20"}`} />
               <span className="text-white/20 font-mono shrink-0 tabular-nums text-[9px] leading-4">
@@ -150,6 +150,22 @@ export default function OBSStatusDock() {
               >
                 {log.reason}
               </span>
+              {log.mediaUrl && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    fetch("/api/replay-alert", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ logId: log.id }),
+                    }).catch(() => {})
+                  }
+                  title="Rejouer"
+                  className="shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-indigo-600/15 border border-indigo-600/20 text-indigo-400/70 hover:bg-indigo-600/35 hover:border-indigo-500/50 hover:text-indigo-200 transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <RotateCcw className="w-2.5 h-2.5" />
+                </button>
+              )}
             </div>
           ))
         )}

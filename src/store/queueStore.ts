@@ -5,6 +5,12 @@ import { AlertPayload } from "../types";
 interface QueueStoreState {
   queue: AlertPayload[];
   nowPlaying: AlertPayload | null;
+  playback: {
+    isPaused: boolean;
+    currentTime: number;
+    duration: number;
+    volume: number;
+  } | null;
   wsStatus: "connected" | "connecting" | "disconnected";
   socket: Socket | null;
   queueRef: React.MutableRefObject<AlertPayload[]>;
@@ -21,6 +27,11 @@ interface QueueStoreState {
   setSkipCallback: (cb: () => void) => void;
   setPauseCallback: (cb: () => void) => void;
   setResumeCallback: (cb: () => void) => void;
+  setSeekCallback: (cb: (seconds: number) => void) => void;
+  setSetVolumeCallback: (cb: (v: number) => void) => void;
+  setPlaybackState: (
+    state: { isPaused?: boolean; currentTime?: number; duration?: number; volume?: number } | null
+  ) => void;
 }
 
 let socketInstance: Socket | null = null;
@@ -31,6 +42,8 @@ const socketRef = { current: null as Socket | null };
 let _onSkip: (() => void) | undefined;
 let _onPause: (() => void) | undefined;
 let _onResume: (() => void) | undefined;
+let _onSeek: ((seconds: number) => void) | undefined;
+let _onSetVolume: ((v: number) => void) | undefined;
 
 function initializeSocket(set: any) {
   // Prevent double initialization
@@ -66,9 +79,7 @@ function initializeSocket(set: any) {
     // Exclude only the currently-playing item: server still holds it pending alert_played,
     // but we've already dequeued it locally and are mid-playback.
     const playingId = state.nowPlaying?.id;
-    const reconciled = playingId
-      ? serverQueue.filter((a) => a.id !== playingId)
-      : serverQueue;
+    const reconciled = playingId ? serverQueue.filter((a) => a.id !== playingId) : serverQueue;
     queueRef.current = reconciled;
     set({ queue: reconciled });
   });
@@ -93,13 +104,41 @@ function initializeSocket(set: any) {
     set({ queue: newQueue });
   });
 
+  socketInstance.on("seek_alert", (payload: { seconds: number }) => {
+    try {
+      _onSeek?.(payload.seconds);
+    } catch {
+      /* ignore */
+    }
+  });
+
+  socketInstance.on("set_volume", (payload: { v: number }) => {
+    try {
+      _onSetVolume?.(payload.v);
+    } catch {
+      /* ignore */
+    }
+  });
+
+  socketInstance.on(
+    "playback_state",
+    (state: { isPaused?: boolean; currentTime?: number; duration?: number; volume?: number }) => {
+      try {
+        const cur = useQueueStore.getState().playback ?? { isPaused: false, currentTime: 0, duration: 0, volume: 1 };
+        set({ playback: { ...cur, ...state } });
+      } catch {
+        /* ignore */
+      }
+    }
+  );
+
   socketInstance.on("clear_queue", () => {
     queueRef.current = [];
     set({ queue: [] });
   });
 
   socketInstance.on("now_playing", (alert: AlertPayload | null) => {
-    set({ nowPlaying: alert });
+    set({ nowPlaying: alert, ...(alert === null ? { playback: null } : {}) });
   });
 
   socketInstance.on("skip_alert", () => {
@@ -127,6 +166,7 @@ export const useQueueStore = create<QueueStoreState>((set, get) => {
   return {
     queue: [],
     nowPlaying: null,
+    playback: null,
     wsStatus: "disconnected",
     socket: null,
     queueRef,
@@ -183,8 +223,25 @@ export const useQueueStore = create<QueueStoreState>((set, get) => {
       initializeSocket(set);
     },
 
-    setSkipCallback: (cb: () => void) => { _onSkip = cb; },
-    setPauseCallback: (cb: () => void) => { _onPause = cb; },
-    setResumeCallback: (cb: () => void) => { _onResume = cb; },
+    setSkipCallback: (cb: () => void) => {
+      _onSkip = cb;
+    },
+    setPauseCallback: (cb: () => void) => {
+      _onPause = cb;
+    },
+    setResumeCallback: (cb: () => void) => {
+      _onResume = cb;
+    },
+    setSeekCallback: (cb: (seconds: number) => void) => {
+      _onSeek = cb;
+    },
+    setSetVolumeCallback: (cb: (v: number) => void) => {
+      _onSetVolume = cb;
+    },
+    setPlaybackState: (state) => {
+      const cur = get().playback || { isPaused: false, currentTime: 0, duration: 0, volume: 1 };
+      const next = state ? { ...cur, ...state } : null;
+      set({ playback: next });
+    },
   };
 });

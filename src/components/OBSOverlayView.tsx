@@ -78,6 +78,8 @@ export default function OBSOverlayView() {
   const cancelSkipRef = useRef<() => void>(() => {});
   const pauseRef = useRef<() => void>(() => {});
   const resumeRef = useRef<() => void>(() => {});
+  const seekRef = useRef<(s: number) => void>(() => {});
+  const setVolRef = useRef<(v: number) => void>(() => {});
 
   const { queue, setQueue, queueRef, wsStatus, socketRef } = useQueueStore();
 
@@ -88,6 +90,10 @@ export default function OBSOverlayView() {
     setSkipCallback(() => cancelSkipRef.current());
     setPauseCallback(() => pauseRef.current());
     setResumeCallback(() => resumeRef.current());
+    // register seek and volume callbacks (callable with numbers)
+    const { setSeekCallback, setSetVolumeCallback } = useQueueStore.getState();
+    setSeekCallback((s: number) => seekRef.current(s));
+    setSetVolumeCallback((v: number) => setVolRef.current(v));
   }, []);
 
   // Wrapper for setQueue to match React.Dispatch<SetStateAction> signature
@@ -136,6 +142,12 @@ export default function OBSOverlayView() {
       if (isPaused) togglePause();
     };
   }, [isPaused, togglePause]);
+
+  useEffect(() => {
+    // keep refs in sync so store callbacks call the latest functions
+    seekRef.current = seekVideo;
+    setVolRef.current = setVolume;
+  }, [seekVideo, setVolume]);
 
   return (
     <div

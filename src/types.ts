@@ -69,6 +69,7 @@ export interface LogEntry {
   id: string;
   timestamp: number;
   author: string;
+  authorAvatar?: string;
   text: string;
   type: MediaType;
   mediaUrl: string;
