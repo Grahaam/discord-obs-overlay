@@ -45,7 +45,7 @@ export default function StreamerDashboard() {
   );
   const [saveLoading, setSaveLoading] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("hasSeenTutorial"));
-  const { queue: pendingQueue, nowPlaying, reorder, wsStatus } = useQueueStore();
+  const { queue: pendingQueue, nowPlaying, reorder, wsStatus, socket } = useQueueStore();
   const [config, setConfig] = useState<UIConfig>({
     discordToken: "",
     channelId: "",
@@ -116,12 +116,14 @@ export default function StreamerDashboard() {
   }, []);
 
   // Re-subscribe to log events whenever socket connects.
-  // wsStatus dep ensures this re-runs after reconnect; named handlers
-  // allow precise cleanup without stripping other listeners.
+  // Both socket and wsStatus are deps: socket changes when the store first
+  // creates the connection, wsStatus tracks connect/disconnect cycles.
+  // Named handlers allow precise cleanup without stripping other listeners.
+  // Note: initial_logs and initial_server_logs are sent by the server as part
+  // of the get_initial_state handler on connect; no separate request event exists.
+  // The HTTP fetchSettingsAndLogs() on mount already covers the initial load.
   useEffect(() => {
-    if (wsStatus !== "connected") return;
-    const socket = useQueueStore.getState().socketRef.current;
-    if (!socket) return;
+    if (wsStatus !== "connected" || !socket) return;
 
     const onNewLog = (log: LogEntry) => {
       setLogs((prev) => {
@@ -165,7 +167,7 @@ export default function StreamerDashboard() {
       socket.off("initial_server_logs", onInitialServerLogs);
       socket.off("server_logs_cleared", onServerLogsCleared);
     };
-  }, [wsStatus]);
+  }, [socket, wsStatus]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
