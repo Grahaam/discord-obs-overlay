@@ -343,7 +343,39 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
       logger.info({ rawFilename }, "Cache hit (yt-dlp)");
       const normFilename = `${hash}_norm.mp4`;
       const finalFilename = fs.existsSync(path.join(CACHE_DIR, normFilename)) ? normFilename : rawFilename;
-      return { filename: finalFilename, info: { title: "Cached Video" } };
+      const infoFilepath = `${rawFilepath}.info.json`;
+      let cachedInfo: any = {};
+
+      if (fs.existsSync(infoFilepath)) {
+        try {
+          cachedInfo = JSON.parse(await fs.promises.readFile(infoFilepath, "utf8"));
+        } catch (err: any) {
+          logger.warn({ err: err.message, infoFilepath }, "Failed to read cached yt-dlp metadata");
+        }
+      }
+
+      if (!cachedInfo.title) {
+        try {
+          cachedInfo = await withTimeout(
+            ytDlp(url, {
+              noWarnings: true,
+              noCheckCertificates: true,
+              userAgent: dlOptions.userAgent,
+              referer: dlOptions.referer,
+              geoBypass: dlOptions.geoBypass,
+              forceIpv4: dlOptions.forceIpv4,
+              printJson: true,
+              skipDownload: true,
+            }),
+            YTDLP_TIMEOUT_MS,
+            url
+          );
+        } catch (err: any) {
+          logger.warn({ err: err.message, url }, "yt-dlp metadata fetch failed for cached video");
+        }
+      }
+
+      return { filename: finalFilename, info: cachedInfo };
     }
 
     const info: any = await withTimeout(ytDlp(url, { ...dlOptions, printJson: true }), YTDLP_TIMEOUT_MS, url);
@@ -362,6 +394,7 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
     }
 
     await fs.promises.rename(tempFilepath, rawFilepath);
+    await fs.promises.writeFile(`${rawFilepath}.info.json`, JSON.stringify(info), "utf8").catch(() => {});
 
     const normFilename = await normalizeToMp4(rawFilepath, hash);
     return { filename: normFilename ?? rawFilename, info };
