@@ -10,11 +10,6 @@ interface QueueStoreState {
   queueRef: React.MutableRefObject<AlertPayload[]>;
   socketRef: React.MutableRefObject<Socket | null>;
 
-  // Playback control callbacks
-  onSkip?: () => void;
-  onPause?: () => void;
-  onResume?: () => void;
-
   // Actions
   setQueue: (queue: AlertPayload[]) => void;
   setNowPlaying: (alert: AlertPayload | null) => void;
@@ -32,6 +27,10 @@ let socketInstance: Socket | null = null;
 let socketInitialized = false;
 const queueRef = { current: [] as AlertPayload[] };
 const socketRef = { current: null as Socket | null };
+
+let _onSkip: (() => void) | undefined;
+let _onPause: (() => void) | undefined;
+let _onResume: (() => void) | undefined;
 
 function initializeSocket(set: any) {
   // Prevent double initialization
@@ -100,18 +99,15 @@ function initializeSocket(set: any) {
   });
 
   socketInstance.on("skip_alert", () => {
-    const state = useQueueStore.getState();
-    state.onSkip?.();
+    _onSkip?.();
   });
 
   socketInstance.on("pause_alert", () => {
-    const state = useQueueStore.getState();
-    state.onPause?.();
+    _onPause?.();
   });
 
   socketInstance.on("resume_alert", () => {
-    const state = useQueueStore.getState();
-    state.onResume?.();
+    _onResume?.();
   });
 }
 
@@ -131,9 +127,6 @@ export const useQueueStore = create<QueueStoreState>((set, get) => {
     socket: null,
     queueRef,
     socketRef,
-    onSkip: undefined,
-    onPause: undefined,
-    onResume: undefined,
 
     setQueue: (queue: AlertPayload[]) => {
       queueRef.current = queue;
@@ -186,9 +179,9 @@ export const useQueueStore = create<QueueStoreState>((set, get) => {
       initializeSocket(set);
     },
 
-    setSkipCallback: (cb: () => void) => set({ onSkip: cb }),
-    setPauseCallback: (cb: () => void) => set({ onPause: cb }),
-    setResumeCallback: (cb: () => void) => set({ onResume: cb }),
+    setSkipCallback: (cb: () => void) => { _onSkip = cb; },
+    setPauseCallback: (cb: () => void) => { _onPause = cb; },
+    setResumeCallback: (cb: () => void) => { _onResume = cb; },
   };
 });
 
