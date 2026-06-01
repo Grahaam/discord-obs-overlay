@@ -33,7 +33,7 @@ export default function TutorialOverlay({ onComplete, setActiveTab }: TutorialOv
     {
       title: "2. Ajouter dans OBS",
       description:
-        "Dans la zone 'Lien pour OBS', vous avez une URL générée. Copiez-la et collez-la en tant que 'Source Navigateur' dans votre scène OBS. Cochez 'Refroidir la source quand non visible'.",
+        "Dans le panneau à droite, trouvez la carte 'Lien de l'Overlay OBS'. Copiez l'URL et ajoutez-la dans OBS en tant que 'Source Navigateur'. Cochez 'Refroidir la source quand non visible'.",
       icon: <Tv className="w-10 h-10 text-rose-400" />,
       action: () => setStep(3),
       buttonText: "Suivant",
@@ -42,7 +42,7 @@ export default function TutorialOverlay({ onComplete, setActiveTab }: TutorialOv
     {
       title: "3. Tester l'affichage",
       description:
-        "Pour tester, allez dans la section 'Lien pour OBS' et cliquez sur 'SIMULATION' tout en bas. Vous verrez l'alerte apparaître directement dans l'aperçu à droite et dans votre OBS !",
+        "Pour tester, ouvrez l'onglet 'Simulateur' et envoyez une alerte de test. Elle apparaîtra dans la Preview à droite et dans votre OBS !",
       icon: <Play className="w-10 h-10 text-fuchsia-400" />,
       action: () => {
         setStep(4);

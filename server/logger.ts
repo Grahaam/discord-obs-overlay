@@ -1,9 +1,10 @@
 import pino from "pino";
 import { env } from "./env.js";
+import { serverLogManager } from "./serverLogManager.js";
 
 const isDev = env.NODE_ENV === "development";
 
-export const logger = pino({
+const _pino = pino({
   level: isDev ? "debug" : "info",
   transport: isDev
     ? {
@@ -16,3 +17,30 @@ export const logger = pino({
       }
     : undefined,
 });
+
+function capture(level: "warn" | "error" | "fatal", arg1: object | string, arg2?: string) {
+  const msg = typeof arg1 === "string" ? arg1 : (arg2 ?? "");
+  const data = typeof arg1 === "object" ? arg1 : undefined;
+  serverLogManager.add(level, msg, data);
+}
+
+export const logger = {
+  debug: (arg1: object | string, arg2?: string) => {
+    typeof arg1 === "string" ? _pino.debug(arg1) : _pino.debug(arg1, arg2);
+  },
+  info: (arg1: object | string, arg2?: string) => {
+    typeof arg1 === "string" ? _pino.info(arg1) : _pino.info(arg1, arg2);
+  },
+  warn: (arg1: object | string, arg2?: string) => {
+    typeof arg1 === "string" ? _pino.warn(arg1) : _pino.warn(arg1, arg2);
+    capture("warn", arg1, arg2);
+  },
+  error: (arg1: object | string, arg2?: string) => {
+    typeof arg1 === "string" ? _pino.error(arg1) : _pino.error(arg1, arg2);
+    capture("error", arg1, arg2);
+  },
+  fatal: (arg1: object | string, arg2?: string) => {
+    typeof arg1 === "string" ? _pino.fatal(arg1) : _pino.fatal(arg1, arg2);
+    capture("fatal", arg1, arg2);
+  },
+};
