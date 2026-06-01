@@ -152,13 +152,23 @@ export const useQueueStore = create<QueueStoreState>((set, get) => ({
     const queue = [...get().queue];
     const [item] = queue.splice(fromIdx, 1);
     queue.splice(toIdx, 0, item);
-    get().setQueue(queue);
+    get().setQueue(queue); // Optimistic update
 
-    await fetch("/api/queue/force-update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ queue: queue.map((i) => ({ id: i.id })) }),
-    });
+    try {
+      const response = await fetch("/api/queue/force-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ queue: queue.map((i) => ({ id: i.id })) }),
+      });
+      if (!response.ok) {
+        throw new Error(`Queue reorder failed: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("[QueueStore] Reorder API error:", error);
+      // Trigger state reconciliation to sync with server
+      get().ensureSocketConnected();
+      throw error; // Let caller decide what to do
+    }
   },
 
   ensureSocketConnected: () => {
