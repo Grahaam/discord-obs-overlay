@@ -504,6 +504,7 @@ export function usePlaybackController({
     const video = activeVideoRef.current;
     if (video && isFinite(video.duration)) {
       video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
+      lastEmitTimeRef.current = Date.now();
       try {
         socketRef.current?.emit("playback_state", { currentTime: video.currentTime, duration: video.duration });
       } catch {
@@ -518,6 +519,7 @@ export function usePlaybackController({
     const video = activeVideoRef.current;
     if (video && isFinite(video.duration)) {
       video.currentTime = Math.max(0, Math.min(video.duration, seconds));
+      lastEmitTimeRef.current = Date.now();
       try {
         socketRef.current?.emit("playback_state", { currentTime: video.currentTime, duration: video.duration });
       } catch {
