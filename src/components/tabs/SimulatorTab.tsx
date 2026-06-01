@@ -3,7 +3,14 @@ import { TabProps } from "./types";
 import { Send, Radio, CheckCircle2 } from "lucide-react";
 import { MediaType } from "../../types";
 
-const PRESETS: { label: string; url: string; type: MediaType; color: string; textColor: string; borderColor: string }[] = [
+const PRESETS: {
+  label: string;
+  url: string;
+  type: MediaType;
+  color: string;
+  textColor: string;
+  borderColor: string;
+}[] = [
   {
     label: "YT Shorts",
     url: "https://youtube.com/shorts/OX6wSAsiedI?si=qeSpni-1XCmidrqK",
@@ -51,6 +58,11 @@ export default function SimulatorTab(props: TabProps) {
     handleTriggerTest,
     t,
   } = props;
+
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [urlError, setUrlError] = useState(false);
+
   if (
     simName === undefined ||
     setSimName === undefined ||
@@ -64,10 +76,6 @@ export default function SimulatorTab(props: TabProps) {
     t === undefined
   )
     return null;
-
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [urlError, setUrlError] = useState(false);
 
   const inputBase =
     "w-full bg-[#08080f] border border-white/[0.07] rounded-lg px-3 py-2.5 text-xs font-mono text-white/80 placeholder:text-white/15 focus:outline-none focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/10 transition-all";
@@ -107,12 +115,7 @@ export default function SimulatorTab(props: TabProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.logs.simName}</label>
-            <input
-              type="text"
-              value={simName}
-              onChange={(e) => setSimName(e.target.value)}
-              className={inputBase}
-            />
+            <input type="text" value={simName} onChange={(e) => setSimName(e.target.value)} className={inputBase} />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.logs.simType}</label>
@@ -131,12 +134,7 @@ export default function SimulatorTab(props: TabProps) {
 
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.logs.simText}</label>
-          <input
-            type="text"
-            value={simText}
-            onChange={(e) => setSimText(e.target.value)}
-            className={inputBase}
-          />
+          <input type="text" value={simText} onChange={(e) => setSimText(e.target.value)} className={inputBase} />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -150,14 +148,10 @@ export default function SimulatorTab(props: TabProps) {
               if (urlError) setUrlError(false);
             }}
             className={`${inputBase} focus:text-indigo-200 ${
-              urlError
-                ? "border-rose-500/50 text-rose-300 focus:border-rose-500/60"
-                : "text-indigo-300/80"
+              urlError ? "border-rose-500/50 text-rose-300 focus:border-rose-500/60" : "text-indigo-300/80"
             }`}
           />
-          {urlError && (
-            <span className="text-[10px] font-mono text-rose-400">{t.logs.simUrlRequired}</span>
-          )}
+          {urlError && <span className="text-[10px] font-mono text-rose-400">{t.logs.simUrlRequired}</span>}
 
           {/* Platform presets */}
           <div className="flex flex-wrap gap-1.5 pt-0.5">

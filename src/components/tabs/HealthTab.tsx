@@ -6,10 +6,7 @@ function StatBar({ value, max, colorClass }: { value: number; max: number; color
   const pct = Math.min((value / max) * 100, 100);
   return (
     <div className="h-1 w-full bg-white/[0.06] rounded-full overflow-hidden">
-      <div
-        className={`h-full rounded-full transition-all duration-500 ${colorClass}`}
-        style={{ width: `${pct}%` }}
-      />
+      <div className={`h-full rounded-full transition-all duration-500 ${colorClass}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -31,7 +28,7 @@ export default function HealthTab(props: TabProps) {
 
   useEffect(() => {
     if (botStatus?.health?.cache) {
-      setLocalCacheBytes(botStatus.health.cache.size ?? 0);
+      setLocalCacheBytes(botStatus.health.cache.size ?? 0); // eslint-disable-line react-hooks/set-state-in-effect
       setLocalCacheFiles(botStatus.health.cache.files ?? 0);
     }
     setLastRefreshed(new Date());
@@ -97,7 +94,9 @@ export default function HealthTab(props: TabProps) {
           <div className="flex items-center gap-2">
             <span
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider ${
-                isConnected ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/25" : "bg-rose-500/15 text-rose-300 border border-rose-500/25"
+                isConnected
+                  ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/25"
+                  : "bg-rose-500/15 text-rose-300 border border-rose-500/25"
               }`}
             >
               <span
@@ -109,7 +108,8 @@ export default function HealthTab(props: TabProps) {
         </div>
         {botStatus.botUser && (
           <p className="text-[10px] font-mono text-white/30 mt-2 pl-2">
-            <span className="text-white/20">user: </span>{botStatus.botUser}
+            <span className="text-white/20">user: </span>
+            {botStatus.botUser}
           </p>
         )}
         {botStatus.errorMsg && (
@@ -124,14 +124,19 @@ export default function HealthTab(props: TabProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Cpu className="w-3.5 h-3.5 text-white/40" />
-              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{t.health.systemStats}</span>
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
+                {t.health.systemStats}
+              </span>
             </div>
           </div>
           <div className="flex flex-col gap-2.5">
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <span className="text-[10px] font-mono text-white/35">{t.health.cpuUsage}</span>
-                <span className="text-[10px] font-mono text-white/60">{cpuLoad.toFixed(2)}<span className="text-white/25"> avg</span></span>
+                <span className="text-[10px] font-mono text-white/60">
+                  {cpuLoad.toFixed(2)}
+                  <span className="text-white/25"> avg</span>
+                </span>
               </div>
               <StatBar value={cpuPct} max={100} colorClass={barColor(cpuPct)} />
             </div>
@@ -139,8 +144,8 @@ export default function HealthTab(props: TabProps) {
               <div className="flex justify-between items-center mb-1.5">
                 <span className="text-[10px] font-mono text-white/35">{t.health.memoryUsed}</span>
                 <span className="text-[10px] font-mono text-white/60">
-                  {(memUsed / (1024 ** 3)).toFixed(1)}
-                  <span className="text-white/25"> / {(memTotal / (1024 ** 3)).toFixed(1)} GB</span>
+                  {(memUsed / 1024 ** 3).toFixed(1)}
+                  <span className="text-white/25"> / {(memTotal / 1024 ** 3).toFixed(1)} GB</span>
                 </span>
               </div>
               <StatBar value={memPct} max={100} colorClass={barColor(memPct)} />
@@ -153,7 +158,9 @@ export default function HealthTab(props: TabProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <HardDrive className="w-3.5 h-3.5 text-white/40" />
-              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{t.health.cacheStats}</span>
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
+                {t.health.cacheStats}
+              </span>
             </div>
             {refreshedTime && (
               <span className="text-[9px] font-mono text-white/20">
@@ -166,7 +173,7 @@ export default function HealthTab(props: TabProps) {
               <div className="flex justify-between items-center mb-1.5">
                 <span className="text-[10px] font-mono text-white/35">{t.health.cacheSize}</span>
                 <span className="text-[10px] font-mono text-white/60">
-                  {(localCacheBytes / (1024 ** 2)).toFixed(1)}
+                  {(localCacheBytes / 1024 ** 2).toFixed(1)}
                   <span className="text-white/25"> / 2048 MB</span>
                 </span>
               </div>
@@ -189,11 +196,7 @@ export default function HealthTab(props: TabProps) {
                     : "bg-rose-500/10 border-rose-500/20 text-rose-300/70 hover:bg-rose-500/15 hover:text-rose-300 hover:border-rose-500/30"
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                {cleared ? (
-                  <Check className="w-3 h-3" />
-                ) : (
-                  <Trash2 className="w-3 h-3" />
-                )}
+                {cleared ? <Check className="w-3 h-3" /> : <Trash2 className="w-3 h-3" />}
                 {cleared ? t.health.cacheCleared : t.health.clearCache}
               </button>
             </div>
@@ -204,7 +207,9 @@ export default function HealthTab(props: TabProps) {
         <div className="md:col-span-2 bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <VideoIcon className="w-3.5 h-3.5 text-white/40" />
-            <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{t.health.ytdlpStatus}</span>
+            <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
+              {t.health.ytdlpStatus}
+            </span>
           </div>
           <span className="text-[11px] font-mono text-white/50 bg-white/[0.04] border border-white/[0.07] rounded-md px-2.5 py-1 truncate max-w-[60%]">
             {botStatus.health?.ytdlp ?? "—"}

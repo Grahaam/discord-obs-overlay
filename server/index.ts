@@ -142,8 +142,9 @@ async function runServer() {
     });
 
     socket.on("alert_started", (alertId: string) => {
-      const alert = alertManager.getAlerts().find((a) => a.id === alertId)
-        ?? (currentlyPlaying?.id === alertId ? currentlyPlaying : null);
+      const alert =
+        alertManager.getAlerts().find((a) => a.id === alertId) ??
+        (currentlyPlaying?.id === alertId ? currentlyPlaying : null);
       currentlyPlaying = alert ?? null;
       io.emit("now_playing", currentlyPlaying);
     });

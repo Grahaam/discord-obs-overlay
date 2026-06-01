@@ -29,7 +29,16 @@ export interface Settings {
 
   // Visual customization
   alertFont?: "sans" | "mono" | "serif" | "display" | "rounded";
-  alertPosition?: "top-left" | "top-center" | "top-right" | "center-left" | "center" | "center-right" | "bottom-left" | "bottom-center" | "bottom-right";
+  alertPosition?:
+    | "top-left"
+    | "top-center"
+    | "top-right"
+    | "center-left"
+    | "center"
+    | "center-right"
+    | "bottom-left"
+    | "bottom-center"
+    | "bottom-right";
   alertScale?: number;
   alertBgOpacity?: number;
   alertAnimation?: "slide-up" | "fade" | "zoom" | "bounce";

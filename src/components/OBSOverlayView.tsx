@@ -17,10 +17,14 @@ const FONT_MAP: Record<string, string> = {
 function getEntranceClass(animation: string | undefined, isActive: boolean): string {
   if (!isActive) {
     switch (animation) {
-      case "fade":   return "opacity-0 scale-100 translate-y-0 rotate-0 pointer-events-none select-none";
-      case "zoom":   return "opacity-0 scale-50 translate-y-0 rotate-0 pointer-events-none select-none";
-      case "bounce": return "opacity-0 scale-75 translate-y-0 rotate-0 pointer-events-none select-none";
-      default:       return "translate-y-16 scale-90 opacity-0 rotate-1 pointer-events-none select-none";
+      case "fade":
+        return "opacity-0 scale-100 translate-y-0 rotate-0 pointer-events-none select-none";
+      case "zoom":
+        return "opacity-0 scale-50 translate-y-0 rotate-0 pointer-events-none select-none";
+      case "bounce":
+        return "opacity-0 scale-75 translate-y-0 rotate-0 pointer-events-none select-none";
+      default:
+        return "translate-y-16 scale-90 opacity-0 rotate-1 pointer-events-none select-none";
     }
   }
   return "translate-y-0 scale-100 opacity-100 rotate-0 pointer-events-auto";
@@ -44,10 +48,16 @@ function getAbsolutePosition(position: string | undefined): CSSProperties {
   const style: CSSProperties = {};
   if (p.startsWith("top")) style.top = "1.5rem";
   else if (p.startsWith("bottom")) style.bottom = "1.5rem";
-  else { style.top = "50%"; style.marginTop = "-4rem"; }
+  else {
+    style.top = "50%";
+    style.marginTop = "-4rem";
+  }
   if (p.endsWith("left")) style.left = "1.5rem";
   else if (p.endsWith("right")) style.right = "1.5rem";
-  else { style.left = "50%"; style.marginLeft = "-15rem"; }
+  else {
+    style.left = "50%";
+    style.marginLeft = "-15rem";
+  }
   return style;
 }
 
@@ -57,7 +67,9 @@ export default function OBSOverlayView() {
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => (r.ok ? r.json() : null))
-      .then((s) => { if (s?.language) setLanguage(s.language as Language); })
+      .then((s) => {
+        if (s?.language) setLanguage(s.language as Language);
+      })
       .catch(() => {});
   }, []);
 
@@ -88,7 +100,9 @@ export default function OBSOverlayView() {
     cancelCurrentAlert,
   } = useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAlertRef, isLeader });
 
-  cancelSkipRef.current = cancelCurrentAlert;
+  useEffect(() => {
+    cancelSkipRef.current = cancelCurrentAlert;
+  }, [cancelCurrentAlert]);
 
   return (
     <div
@@ -210,17 +224,13 @@ export default function OBSOverlayView() {
                     {active.authorName}
                   </span>
                   {active.title && (
-                    <span className="text-xs sm:text-sm text-white/70 font-medium truncate mt-0.5">
-                      {active.title}
-                    </span>
+                    <span className="text-xs sm:text-sm text-white/70 font-medium truncate mt-0.5">{active.title}</span>
                   )}
                 </div>
               </div>
 
               {(() => {
-                const cleanedText = active.text
-                  ? active.text.replace(/https?:\/\/[^\s]+/gi, "").trim()
-                  : "";
+                const cleanedText = active.text ? active.text.replace(/https?:\/\/[^\s]+/gi, "").trim() : "";
                 if (!cleanedText) return null;
                 return (
                   <p
@@ -239,9 +249,7 @@ export default function OBSOverlayView() {
             {/* Media Canvas */}
             {(() => {
               const isVertical =
-                active.provider === "tiktok" ||
-                active.provider === "instagram" ||
-                active.mediaUrl.includes("shorts");
+                active.provider === "tiktok" || active.provider === "instagram" || active.mediaUrl.includes("shorts");
 
               return (
                 <div className="absolute inset-0 z-0 w-[100vw] h-[100vh] flex items-center justify-center overflow-hidden">
@@ -275,10 +283,7 @@ export default function OBSOverlayView() {
                       />
                     </>
                   ) : active.type === "iframe" || active.type === "link" ? (
-                    <div
-                      className="w-full h-full relative z-10 flex flex-col pt-0"
-                      onMouseEnter={onMouseEnterMedia}
-                    >
+                    <div className="w-full h-full relative z-10 flex flex-col pt-0" onMouseEnter={onMouseEnterMedia}>
                       <iframe
                         src={
                           active.mediaUrl.includes("twitch.tv")

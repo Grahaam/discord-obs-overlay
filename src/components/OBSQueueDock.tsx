@@ -90,7 +90,9 @@ export default function OBSQueueDock() {
     socket.on("clear_queue", () => setQueue([]));
     socket.on("now_playing", (alert: AlertPayload | null) => setNowPlaying(alert));
 
-    return () => { socket.disconnect(); };
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const handleAction = async (endpoint: string, body?: unknown) => {

@@ -99,10 +99,9 @@ export default function StylingTab(props: TabProps) {
         ? `0 4px 24px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.08)`
         : `0 0 18px ${neonColor}66`;
 
-  const previewBorder =
-    alertStyle === "glass" ? "rgba(255,255,255,0.18)" : neonColor;
+  const previewBorder = alertStyle === "glass" ? "rgba(255,255,255,0.18)" : neonColor;
 
-  const previewFilter = alertStyle === "glass" ? "blur(0px)" : undefined;
+  const _previewFilter = alertStyle === "glass" ? "blur(0px)" : undefined;
 
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
@@ -124,7 +123,13 @@ export default function StylingTab(props: TabProps) {
           className="flex items-center justify-center rounded-xl border border-white/[0.06] bg-black/40 py-6 px-4 overflow-hidden"
           style={{ minHeight: 120 }}
         >
-          <div style={{ transform: `scale(${alertScale})`, transformOrigin: "center center", transition: "transform 0.2s" }}>
+          <div
+            style={{
+              transform: `scale(${alertScale})`,
+              transformOrigin: "center center",
+              transition: "transform 0.2s",
+            }}
+          >
             <div
               className="relative rounded-xl overflow-hidden"
               style={{
@@ -139,10 +144,7 @@ export default function StylingTab(props: TabProps) {
             >
               {/* Cyberpunk accent tab */}
               {alertStyle === "cyberpunk" && (
-                <div
-                  className="absolute top-0 left-0 h-full w-0.5"
-                  style={{ background: neonColor }}
-                />
+                <div className="absolute top-0 left-0 h-full w-0.5" style={{ background: neonColor }} />
               )}
 
               <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5">
@@ -280,7 +282,9 @@ export default function StylingTab(props: TabProps) {
 
       {/* Position Picker */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.display.positionLabel}</label>
+        <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">
+          {t.display.positionLabel}
+        </label>
         <div className="flex items-center gap-3">
           <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(3, 28px)" }}>
             {POSITION_GRID.map((row, ri) =>
@@ -310,8 +314,7 @@ export default function StylingTab(props: TabProps) {
                         height: 6,
                         background: isActive ? neonColor : "rgba(255,255,255,0.2)",
                         // position dot hint based on row/col
-                        alignSelf:
-                          ri === 0 ? "flex-start" : ri === 2 ? "flex-end" : "center",
+                        alignSelf: ri === 0 ? "flex-start" : ri === 2 ? "flex-end" : "center",
                         marginTop: ri === 0 ? 2 : undefined,
                         marginBottom: ri === 2 ? 2 : undefined,
                       }}
@@ -321,9 +324,7 @@ export default function StylingTab(props: TabProps) {
               })
             )}
           </div>
-          <span className="text-[10px] font-mono text-white/30 leading-tight">
-            {alertPosition.replace(/-/g, " ")}
-          </span>
+          <span className="text-[10px] font-mono text-white/30 leading-tight">{alertPosition.replace(/-/g, " ")}</span>
         </div>
       </div>
 
@@ -332,7 +333,9 @@ export default function StylingTab(props: TabProps) {
         {/* Scale */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.display.scaleLabel}</label>
+            <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">
+              {t.display.scaleLabel}
+            </label>
             <span className="text-[10px] font-mono text-white/50">{alertScale.toFixed(2)}×</span>
           </div>
           <input
@@ -353,7 +356,9 @@ export default function StylingTab(props: TabProps) {
         {/* Opacity */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.display.opacityLabel}</label>
+            <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">
+              {t.display.opacityLabel}
+            </label>
             <span className="text-[10px] font-mono text-white/50">{Math.round(alertBgOpacity * 100)}%</span>
           </div>
           <input
@@ -374,7 +379,9 @@ export default function StylingTab(props: TabProps) {
 
       {/* Animation Picker */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.display.animationLabel}</label>
+        <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">
+          {t.display.animationLabel}
+        </label>
         <div className="flex gap-1.5 flex-wrap">
           {ANIMATION_OPTIONS.map(({ id, labelKey }) => {
             const isActive = alertAnimation === id;
@@ -406,7 +413,9 @@ export default function StylingTab(props: TabProps) {
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-1.5">
           <Sparkles className="w-3 h-3 text-white/25" />
-          <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.display.customColor}</label>
+          <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">
+            {t.display.customColor}
+          </label>
         </div>
 
         <div className="flex gap-2.5 items-center">

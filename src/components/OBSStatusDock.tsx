@@ -33,20 +33,22 @@ export default function OBSStatusDock() {
         const [botRes, logRes] = await Promise.all([fetch("/api/bot-status"), fetch("/api/logs")]);
         if (botRes.ok) setBotStatus(await botRes.json());
         if (logRes.ok) setLogs(await logRes.json());
-      } catch {}
+      } catch {
+        /* ignore */
+      }
     };
     fetchInitial();
 
-    socket.on("bot_status_update", (update: Partial<BotStatus>) =>
-      setBotStatus((prev) => ({ ...prev, ...update }))
-    );
+    socket.on("bot_status_update", (update: Partial<BotStatus>) => setBotStatus((prev) => ({ ...prev, ...update })));
     socket.on("initial_logs", (incoming: LogEntry[]) => setLogs(incoming));
     socket.on("new_log", (log: LogEntry) =>
       setLogs((prev) => (prev.some((l) => l.id === log.id) ? prev : [log, ...prev].slice(0, 50)))
     );
     socket.on("logs_cleared", () => setLogs([]));
 
-    return () => { socket.disconnect(); };
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const isConnected = botStatus.status === "connected";
@@ -69,21 +71,25 @@ export default function OBSStatusDock() {
       >
         <span
           className={`w-2 h-2 rounded-full shrink-0 ${
-            isConnected
-              ? "bg-emerald-400 animate-pulse"
-              : isConnecting
-                ? "bg-amber-400 animate-pulse"
-                : "bg-red-500"
+            isConnected ? "bg-emerald-400 animate-pulse" : isConnecting ? "bg-amber-400 animate-pulse" : "bg-red-500"
           }`}
         />
         {isError ? (
           <AlertTriangle className="w-3 h-3 shrink-0 text-red-400" />
         ) : (
-          <Bot className={`w-3 h-3 shrink-0 ${isConnected ? "text-emerald-400" : isConnecting ? "text-amber-400" : "text-white/30"}`} />
+          <Bot
+            className={`w-3 h-3 shrink-0 ${isConnected ? "text-emerald-400" : isConnecting ? "text-amber-400" : "text-white/30"}`}
+          />
         )}
         <span
           className={`font-mono font-bold text-[10px] uppercase tracking-widest truncate flex-1 ${
-            isConnected ? "text-emerald-300" : isConnecting ? "text-amber-300" : isError ? "text-red-300" : "text-white/30"
+            isConnected
+              ? "text-emerald-300"
+              : isConnecting
+                ? "text-amber-300"
+                : isError
+                  ? "text-red-300"
+                  : "text-white/30"
           }`}
         >
           {isConnected && botStatus.botUser ? botStatus.botUser : botStatus.status.toUpperCase()}
@@ -109,9 +115,7 @@ export default function OBSStatusDock() {
       <div className="sticky top-0 z-10 px-3 py-1.5 bg-[#07070c] border-b border-white/[0.05] flex items-center gap-1.5">
         <Activity className="w-2.5 h-2.5 text-white/15" />
         <span className="text-[9px] font-bold text-white/15 uppercase tracking-widest">Activité</span>
-        {logs.length > 0 && (
-          <span className="ml-auto text-[9px] font-mono text-white/15">{logs.length}</span>
-        )}
+        {logs.length > 0 && <span className="ml-auto text-[9px] font-mono text-white/15">{logs.length}</span>}
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -135,7 +139,9 @@ export default function OBSStatusDock() {
                   {log.author}
                 </span>
               )}
-              <span className={`truncate flex-1 font-mono text-[9px] leading-4 ${STATUS_TEXT[log.status] ?? "text-white/40"}`}>
+              <span
+                className={`truncate flex-1 font-mono text-[9px] leading-4 ${STATUS_TEXT[log.status] ?? "text-white/40"}`}
+              >
                 {log.reason}
               </span>
             </div>

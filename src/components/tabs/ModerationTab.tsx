@@ -31,6 +31,9 @@ export default function ModerationTab(props: TabProps) {
     handleAddRoleId,
     handleRemoveRoleId,
   } = props;
+
+  const [copiedRoleId, setCopiedRoleId] = useState<string | null>(null);
+
   if (
     config === undefined ||
     setConfig === undefined ||
@@ -41,8 +44,6 @@ export default function ModerationTab(props: TabProps) {
     t === undefined
   )
     return null;
-
-  const [copiedRoleId, setCopiedRoleId] = useState<string | null>(null);
 
   const copyRoleId = (id: string) => {
     navigator.clipboard.writeText(id).then(() => {
@@ -73,7 +74,9 @@ export default function ModerationTab(props: TabProps) {
         <div className="flex gap-3 items-start pl-2">
           <Shield className="w-4 h-4 text-[#7289DA] shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-bold font-mono text-[#7289DA] uppercase tracking-wider mb-1">{t.filter.autoModTitle}</p>
+            <p className="text-xs font-bold font-mono text-[#7289DA] uppercase tracking-wider mb-1">
+              {t.filter.autoModTitle}
+            </p>
             <p className="text-[11px] text-[#7289DA]/60 leading-relaxed font-mono">{t.filter.autoModDesc1}</p>
             <p className="text-[11px] text-white/30 mt-1 font-mono leading-relaxed">{t.filter.autoModDesc2}</p>
           </div>
@@ -95,10 +98,7 @@ export default function ModerationTab(props: TabProps) {
               <span className="text-xs font-mono text-white/70 block">{t.filter.blockLinks}</span>
             </div>
           </div>
-          <Toggle
-            checked={config.blockLinks ?? false}
-            onChange={(v) => setConfig({ ...config, blockLinks: v })}
-          />
+          <Toggle checked={config.blockLinks ?? false} onChange={(v) => setConfig({ ...config, blockLinks: v })} />
         </div>
 
         {/* Block NSFW */}
@@ -109,10 +109,7 @@ export default function ModerationTab(props: TabProps) {
               <span className="text-xs font-mono text-white/70 block">{t.filter.blockNSFW}</span>
             </div>
           </div>
-          <Toggle
-            checked={config.blockNSFW ?? false}
-            onChange={(v) => setConfig({ ...config, blockNSFW: v })}
-          />
+          <Toggle checked={config.blockNSFW ?? false} onChange={(v) => setConfig({ ...config, blockNSFW: v })} />
         </div>
 
         {/* Cooldown */}
@@ -133,7 +130,9 @@ export default function ModerationTab(props: TabProps) {
               onChange={(e) => setConfig({ ...config, cooldownSeconds: Number(e.target.value) })}
               className="w-20 bg-[#08080f] border border-white/[0.07] rounded-lg px-2.5 py-2 text-xs font-mono text-indigo-200 focus:outline-none focus:border-indigo-500/40 text-right pr-7 transition-all"
             />
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-white/20 pointer-events-none">s</span>
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-white/20 pointer-events-none">
+              s
+            </span>
           </div>
         </div>
       </div>
@@ -143,7 +142,9 @@ export default function ModerationTab(props: TabProps) {
         <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
             <ShieldAlert className="w-3.5 h-3.5 text-rose-400/70" />
-            <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{t.filter.localFilter}</span>
+            <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
+              {t.filter.localFilter}
+            </span>
           </div>
           {config.bannedWords.length > 0 && (
             <span className="text-[10px] font-mono text-rose-300/60 bg-rose-950/30 border border-rose-900/30 px-2 py-0.5 rounded-full">
@@ -154,7 +155,9 @@ export default function ModerationTab(props: TabProps) {
 
         {/* Banned words */}
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.filter.bannedWords}</label>
+          <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">
+            {t.filter.bannedWords}
+          </label>
           <div className="flex gap-2">
             <input
               type="text"
@@ -225,7 +228,9 @@ export default function ModerationTab(props: TabProps) {
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-1.5">
             <Lock className="w-3 h-3 text-white/25" />
-            <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.filter.roleFilter}</label>
+            <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">
+              {t.filter.roleFilter}
+            </label>
           </div>
           <div className="flex gap-2">
             <input
@@ -256,7 +261,11 @@ export default function ModerationTab(props: TabProps) {
                     className="w-3.5 h-3.5 rounded flex items-center justify-center transition text-indigo-400/40 hover:text-indigo-300 opacity-0 group-hover:opacity-100"
                     title="Copy ID"
                   >
-                    {copiedRoleId === id ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5" />}
+                    {copiedRoleId === id ? (
+                      <Check className="w-2.5 h-2.5 text-emerald-400" />
+                    ) : (
+                      <Copy className="w-2.5 h-2.5" />
+                    )}
                   </button>
                   <button
                     onClick={() => handleRemoveRoleId?.(id)}
