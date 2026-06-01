@@ -299,7 +299,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     const replayPayload = {
       id: crypto.randomUUID(),
       authorName: log.author,
-      authorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=128&q=80",
+      authorAvatar: log.authorAvatar || "https://cdn.discordapp.com/embed/avatars/0.png",
       text: log.text,
       mediaUrl: log.mediaUrl,
       type: log.type,
@@ -402,6 +402,20 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
   app.post("/api/queue/resume", (_req, res) => {
     io.emit("resume_alert");
+    res.json({ success: true });
+  });
+
+  app.post("/api/queue/seek", (req, res) => {
+    const seconds = typeof req.body.seconds === "number" ? req.body.seconds : null;
+    if (seconds === null) return res.status(400).json({ error: "seconds must be a number" });
+    io.emit("seek_alert", { seconds });
+    res.json({ success: true });
+  });
+
+  app.post("/api/queue/volume", (req, res) => {
+    const v = typeof req.body.v === "number" ? Math.max(0, Math.min(1, req.body.v)) : null;
+    if (v === null) return res.status(400).json({ error: "v must be a number between 0 and 1" });
+    io.emit("set_volume", { v });
     res.json({ success: true });
   });
 

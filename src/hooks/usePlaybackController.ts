@@ -129,6 +129,7 @@ export function usePlaybackController({
   const isPausedRef = useRef(false);
   const isBufferingRef = useRef(false);
   const pausedRemainingRef = useRef(0);
+  const lastEmitTimeRef = useRef(0);
   const timeoutEndRef = useRef(0);
   const alertStartTimeRef = useRef(0);
   const preloadedUrlsRef = useRef<Set<string>>(new Set());
@@ -434,6 +435,33 @@ export function usePlaybackController({
       },
       onPlaying: () => {
         isBufferingRef.current = false;
+        // emit a playback update when playback resumes
+        try {
+          socketRef.current?.emit("playback_state", {
+            isPaused: false,
+            currentTime: activeVideoRef.current?.currentTime ?? 0,
+            duration: activeVideoRef.current?.duration ?? currentDurationRef.current,
+            volume: volumeRef.current,
+          });
+        } catch {
+          /* ignore */
+        }
+      },
+      onTimeUpdate: (e: React.SyntheticEvent<HTMLVideoElement>) => {
+        const now = Date.now();
+        if (now - lastEmitTimeRef.current < 500) return; // throttle to 500ms
+        lastEmitTimeRef.current = now;
+        const vid = e.currentTarget;
+        try {
+          socketRef.current?.emit("playback_state", {
+            currentTime: vid.currentTime,
+            duration: vid.duration,
+            isPaused: isPausedRef.current,
+            volume: volumeRef.current,
+          });
+        } catch {
+          /* ignore */
+        }
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -457,6 +485,17 @@ export function usePlaybackController({
       if (activeVideoRef.current) activeVideoRef.current.play().catch(() => {});
     }
     dispatch(nowPaused ? { type: "PAUSE" } : { type: "RESUME" });
+    // Notify server/other clients of pause/resume
+    try {
+      socketRef.current?.emit("playback_state", {
+        isPaused: nowPaused,
+        currentTime: activeVideoRef.current?.currentTime ?? 0,
+        duration: activeVideoRef.current?.duration ?? currentDurationRef.current,
+        volume: volumeRef.current,
+      });
+    } catch {
+      /* ignore */
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -465,20 +504,33 @@ export function usePlaybackController({
     const video = activeVideoRef.current;
     if (video && isFinite(video.duration)) {
       video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
+      try {
+        socketRef.current?.emit("playback_state", { currentTime: video.currentTime, duration: video.duration });
+      } catch {
+        /* ignore */
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setVolume = useCallback((v: number) => {
-    volumeRef.current = v;
-    dispatch({ type: "SET_VOLUME", v });
-    if (activeVideoRef.current) activeVideoRef.current.volume = v;
-    try {
-      localStorage.setItem("overlay_volume", String(v));
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const setVolume = useCallback(
+    (v: number) => {
+      volumeRef.current = v;
+      dispatch({ type: "SET_VOLUME", v });
+      if (activeVideoRef.current) activeVideoRef.current.volume = v;
+      try {
+        localStorage.setItem("overlay_volume", String(v));
+      } catch {
+        /* ignore */
+      }
+      try {
+        socketRef.current?.emit("playback_state", { volume: v });
+      } catch {
+        /* ignore */
+      }
+    },
+    [socketRef]
+  );
 
   const showControlsTemporarily = useCallback(() => {
     dispatch({ type: "SHOW_CONTROLS" });

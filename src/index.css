@@ -63,7 +63,9 @@
 
 /* Smooth background transparency specifically for OBS browser source layers */
 html,
-body {
+body,
+#root {
+  height: 100%;
   background-color: transparent !important;
   color-scheme: dark;
 }

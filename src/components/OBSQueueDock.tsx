@@ -5,12 +5,15 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { SkipForward, Trash2, Play } from "lucide-react";
+import { SkipForward, Trash2, Play, Pause, RotateCcw, RotateCw } from "lucide-react";
+import { useRef } from "react";
 import { useQueueStore } from "../store/queueStore";
 import { SortableQueueItem } from "./SortableQueueItem";
 
 export default function OBSQueueDock() {
   const { queue, nowPlaying, reorder } = useQueueStore();
+  const playback = useQueueStore((s) => s.playback);
+  const volumeTimerRef = useRef<number | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -37,23 +40,109 @@ export default function OBSQueueDock() {
     }
   };
 
+  function formatTime(s: number) {
+    if (!isFinite(s) || s <= 0) return "0:00";
+    const sec = Math.floor(s % 60);
+    const min = Math.floor(s / 60);
+    return `${min}:${sec.toString().padStart(2, "0")}`;
+  }
+
   return (
-    <div className="bg-[#07070c] text-white min-h-screen flex flex-col font-sans select-none text-xs">
+    <div className="bg-[#07070c] text-white h-full flex flex-col font-sans select-none text-xs">
       {/* ── Controls ── */}
-      <div className="flex gap-1.5 p-2.5 border-b border-white/[0.06] bg-[#0a0a12]">
-        <button
-          onClick={() => handleAction("skip-alert")}
-          className="flex-1 bg-indigo-600 hover:bg-indigo-500 active:scale-95 py-2 rounded-lg flex items-center justify-center gap-1.5 font-bold text-[11px] transition-all shadow-[0_0_10px_rgba(99,102,241,0.3)]"
-        >
-          <SkipForward className="w-3 h-3" /> Skip
-        </button>
-        <button
-          onClick={() => handleAction("queue/clear")}
-          className="bg-white/[0.05] hover:bg-red-900/30 active:scale-95 p-2 rounded-lg transition-all"
-          title="Vider la file"
-        >
-          <Trash2 className="w-3.5 h-3.5 text-white/40 hover:text-red-400" />
-        </button>
+      <div className="flex flex-col gap-2 px-2.5 pt-2.5 pb-2 border-b border-white/[0.06] bg-[#0a0a12]">
+        {/* Button row */}
+        <div className="flex items-center gap-1.5">
+          {/* Seek -5s — YouTube-style */}
+          <button
+            type="button"
+            onClick={() => handleAction("queue/seek", { seconds: -5 })}
+            className="bg-white/[0.05] hover:bg-white/10 active:scale-95 p-1.5 rounded-md transition-all relative"
+            title="-5s"
+          >
+            <RotateCcw className="w-5 h-5 text-white/50" />
+            <span className="absolute inset-0 flex items-center justify-center text-[7px] font-black text-white/70 translate-y-px">5</span>
+          </button>
+
+          {/* Pause / Resume */}
+          <button
+            type="button"
+            onClick={() => handleAction(playback?.isPaused ? "queue/resume" : "queue/pause")}
+            className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 p-2 rounded-md flex items-center justify-center transition-all"
+            title={playback?.isPaused ? "Resume" : "Pause"}
+          >
+            {playback?.isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Seek +5s — YouTube-style */}
+          <button
+            type="button"
+            onClick={() => handleAction("queue/seek", { seconds: 5 })}
+            className="bg-white/[0.05] hover:bg-white/10 active:scale-95 p-1.5 rounded-md transition-all relative"
+            title="+5s"
+          >
+            <RotateCw className="w-5 h-5 text-white/50" />
+            <span className="absolute inset-0 flex items-center justify-center text-[7px] font-black text-white/70 translate-y-px">5</span>
+          </button>
+
+          <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
+
+          {/* Skip alert — distinct: filled indigo + SkipForward */}
+          <button
+            type="button"
+            onClick={() => handleAction("skip-alert")}
+            className="bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 active:scale-95 p-2 rounded-md transition-all"
+            title="Passer l'alerte"
+          >
+            <SkipForward className="w-3.5 h-3.5 text-indigo-400" />
+          </button>
+
+          {/* Clear queue */}
+          <button
+            type="button"
+            onClick={() => handleAction("queue/clear")}
+            className="bg-white/[0.05] hover:bg-red-900/40 active:scale-95 p-2 rounded-md transition-all"
+            title="Vider la file"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-white/40" />
+          </button>
+
+          <div className="flex-1" />
+
+          {/* Volume */}
+          <input
+            aria-label="Volume"
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={typeof playback?.volume === "number" ? playback.volume : 1}
+            onChange={(e) => {
+              const v = parseFloat(e.currentTarget.value);
+              if (volumeTimerRef.current) window.clearTimeout(volumeTimerRef.current);
+              volumeTimerRef.current = window.setTimeout(() => {
+                handleAction("queue/volume", { v });
+              }, 150);
+            }}
+            className="w-20 accent-indigo-500"
+          />
+        </div>
+
+        {/* Progress row */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-white/35 tabular-nums w-8">{formatTime(playback?.currentTime ?? 0)}</span>
+          <input
+            type="range"
+            min={0}
+            max={playback?.duration ?? 1}
+            step={0.5}
+            value={playback?.currentTime ?? 0}
+            onChange={(e) => handleAction("queue/seek", { seconds: parseFloat(e.currentTarget.value) - (playback?.currentTime ?? 0) })}
+            className="flex-1 accent-indigo-500 h-1"
+            aria-label="Seek"
+          />
+          <span className="text-[10px] text-white/35 tabular-nums w-8 text-right">{formatTime(playback?.duration ?? 0)}</span>
+        </div>
       </div>
 
       {/* ── Now playing ── */}
