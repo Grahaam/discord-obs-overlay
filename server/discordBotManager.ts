@@ -94,7 +94,10 @@ export class DiscordBotManager {
             const lines = alerts.map((a, i) => `${i + 1}. **${a.title || a.authorName}** — ${a.type}`);
             let desc = "";
             for (const line of lines) {
-              if (desc.length + line.length + 1 > 4000) { desc += `\n…and more`; break; }
+              if (desc.length + line.length + 1 > 4000) {
+                desc += `\n…and more`;
+                break;
+              }
               desc += (desc ? "\n" : "") + line;
             }
             const embed = new EmbedBuilder()

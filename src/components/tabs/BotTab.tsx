@@ -1,15 +1,38 @@
 import { useState, useRef } from "react";
 import { TabProps } from "./types";
-import { AlertTriangle, CheckCircle2, Terminal, Key, Hash, Timer, HardDrive, Music2, FileText, Eye, EyeOff, Loader2, Play } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Terminal,
+  Key,
+  Hash,
+  Timer,
+  HardDrive,
+  Music2,
+  FileText,
+  Eye,
+  EyeOff,
+  Loader2,
+  Play,
+} from "lucide-react";
 
 export default function BotTab(props: TabProps) {
-  const { config, setConfig, botStatus, t, handleManualBotReconnect, saveLoading, handleSaveSettings } = props;
-  if (config === undefined || setConfig === undefined || botStatus === undefined || t === undefined) return null;
+  const {
+    config,
+    setConfig,
+    botStatus,
+    t,
+    handleManualBotReconnect: _handleManualBotReconnect,
+    saveLoading: _saveLoading,
+    handleSaveSettings: _handleSaveSettings,
+  } = props;
 
   const [showToken, setShowToken] = useState(false);
   const [capturingShortcut, setCapturingShortcut] = useState(false);
   const [soundPreviewPlaying, setSoundPreviewPlaying] = useState(false);
   const soundPreviewRef = useRef<HTMLAudioElement | null>(null);
+
+  if (config === undefined || setConfig === undefined || botStatus === undefined || t === undefined) return null;
 
   const inputBase =
     "bg-[#08080f] w-full border border-white/[0.07] rounded-lg px-4 py-2.5 text-sm font-mono placeholder:text-white/15 focus:outline-none transition-all";
@@ -32,10 +55,13 @@ export default function BotTab(props: TabProps) {
     }
     const audio = new Audio(config.alertSoundUrl);
     soundPreviewRef.current = audio;
-    audio.play().then(() => {
-      setSoundPreviewPlaying(true);
-      audio.onended = () => setSoundPreviewPlaying(false);
-    }).catch(() => setSoundPreviewPlaying(false));
+    audio
+      .play()
+      .then(() => {
+        setSoundPreviewPlaying(true);
+        audio.onended = () => setSoundPreviewPlaying(false);
+      })
+      .catch(() => setSoundPreviewPlaying(false));
   };
 
   const cookieLineCount = config.youtubeCookiesContent
@@ -62,7 +88,9 @@ export default function BotTab(props: TabProps) {
           <div className="flex gap-3 items-start pl-2">
             <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
             <div>
-              <span className="text-xs font-bold font-mono text-rose-300 uppercase tracking-wider block">{t.bot.error}</span>
+              <span className="text-xs font-bold font-mono text-rose-300 uppercase tracking-wider block">
+                {t.bot.error}
+              </span>
               <span className="text-[11px] font-mono text-rose-400/60 mt-1 block break-all">{botStatus.errorMsg}</span>
             </div>
           </div>
@@ -74,7 +102,9 @@ export default function BotTab(props: TabProps) {
           <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-400 rounded-r-full animate-pulse" />
           <div className="flex gap-3 items-center pl-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
-            <span className="text-xs font-bold font-mono text-amber-300 uppercase tracking-wider">{t.bot.connecting}</span>
+            <span className="text-xs font-bold font-mono text-amber-300 uppercase tracking-wider">
+              {t.bot.connecting}
+            </span>
           </div>
         </div>
       )}
@@ -85,7 +115,9 @@ export default function BotTab(props: TabProps) {
           <div className="flex gap-3 items-center pl-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <div>
-              <span className="text-xs font-bold font-mono text-emerald-300 uppercase tracking-wider block">{t.bot.connectedHeader}</span>
+              <span className="text-xs font-bold font-mono text-emerald-300 uppercase tracking-wider block">
+                {t.bot.connectedHeader}
+              </span>
               <span className="text-[11px] font-mono text-emerald-400/50">{t.bot.connectedDesc}</span>
             </div>
           </div>
@@ -158,7 +190,9 @@ export default function BotTab(props: TabProps) {
               onChange={(e) => setConfig({ ...config, mediaMaxSizeMB: Number(e.target.value) })}
               className={`${inputBase} text-white/75 pr-10 focus:border-white/20`}
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-white/20 select-none">MB</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-white/20 select-none">
+              MB
+            </span>
           </div>
           <span className="text-[10px] text-white/20 font-mono leading-snug">{t.bot.maxSizeHelp}</span>
         </div>
@@ -184,7 +218,9 @@ export default function BotTab(props: TabProps) {
           <label className="flex items-center gap-2 cursor-pointer group mt-0.5">
             <div
               className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all ${
-                config.syncDurationWithMedia ? "bg-violet-600 border-violet-500" : "bg-transparent border-white/20 group-hover:border-white/40"
+                config.syncDurationWithMedia
+                  ? "bg-violet-600 border-violet-500"
+                  : "bg-transparent border-white/20 group-hover:border-white/40"
               }`}
             >
               <input
@@ -194,12 +230,20 @@ export default function BotTab(props: TabProps) {
                 onChange={(e) => setConfig({ ...config, syncDurationWithMedia: e.target.checked })}
               />
               {config.syncDurationWithMedia && (
-                <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                <svg
+                  className="w-2 h-2 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={4}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               )}
             </div>
-            <span className="text-[10px] font-mono text-white/40 group-hover:text-white/70 transition-colors leading-snug">{t.bot.syncDuration}</span>
+            <span className="text-[10px] font-mono text-white/40 group-hover:text-white/70 transition-colors leading-snug">
+              {t.bot.syncDuration}
+            </span>
           </label>
         </div>
       </div>
@@ -212,7 +256,7 @@ export default function BotTab(props: TabProps) {
             type="text"
             readOnly
             placeholder="Escape"
-            value={capturingShortcut ? "Press a key…" : (config.stopAlertShortcut || "Escape")}
+            value={capturingShortcut ? "Press a key…" : config.stopAlertShortcut || "Escape"}
             onKeyDown={handleShortcutCapture}
             onBlur={() => setCapturingShortcut(false)}
             onClick={() => setCapturingShortcut(true)}

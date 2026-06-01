@@ -1,8 +1,14 @@
 export type AlertFont = "sans" | "mono" | "serif" | "display" | "rounded";
 export type AlertPosition =
-  | "top-left" | "top-center" | "top-right"
-  | "center-left" | "center" | "center-right"
-  | "bottom-left" | "bottom-center" | "bottom-right";
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "center-left"
+  | "center"
+  | "center-right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right";
 export type AlertAnimation = "slide-up" | "fade" | "zoom" | "bounce";
 
 export interface UIConfig {

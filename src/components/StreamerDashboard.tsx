@@ -512,7 +512,9 @@ export default function StreamerDashboard() {
 
               {/* ── Browser Source section ── */}
               <div className="flex flex-col gap-1.5">
-                <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">{t.display.overlaySection}</span>
+                <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">
+                  {t.display.overlaySection}
+                </span>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono text-white/30 w-14 shrink-0">{t.display.overlayLabel}</span>
                   <input
@@ -537,7 +539,9 @@ export default function StreamerDashboard() {
                 <div className="flex items-center gap-1.5">
                   {[t.display.step1, t.display.step2, t.display.step3].map((step, i) => (
                     <div key={i} className="flex items-center gap-1 flex-1 min-w-0">
-                      <span className="shrink-0 w-3.5 h-3.5 rounded-full bg-indigo-600/25 text-indigo-300 text-[8px] font-bold flex items-center justify-center">{i + 1}</span>
+                      <span className="shrink-0 w-3.5 h-3.5 rounded-full bg-indigo-600/25 text-indigo-300 text-[8px] font-bold flex items-center justify-center">
+                        {i + 1}
+                      </span>
                       <span className="text-[9px] text-white/25 leading-tight truncate">{step}</span>
                     </div>
                   ))}
@@ -546,11 +550,23 @@ export default function StreamerDashboard() {
 
               {/* ── Custom Docks section ── */}
               <div className="flex flex-col gap-1.5 pt-2.5 border-t border-white/[0.05]">
-                <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">{t.display.dockSection}</span>
+                <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">
+                  {t.display.dockSection}
+                </span>
                 {(
                   [
-                    { label: t.display.dockLabel, path: "/dock", copy: copyDockUrlToClipboard, feedback: dockCopyFeedback },
-                    { label: t.display.statusLabel, path: "/status", copy: copyStatusUrlToClipboard, feedback: statusCopyFeedback },
+                    {
+                      label: t.display.dockLabel,
+                      path: "/dock",
+                      copy: copyDockUrlToClipboard,
+                      feedback: dockCopyFeedback,
+                    },
+                    {
+                      label: t.display.statusLabel,
+                      path: "/status",
+                      copy: copyStatusUrlToClipboard,
+                      feedback: statusCopyFeedback,
+                    },
                   ] as const
                 ).map(({ label, path, copy, feedback }) => (
                   <div key={path} className="flex items-center gap-2">
@@ -578,7 +594,9 @@ export default function StreamerDashboard() {
                 <div className="flex items-center gap-1.5">
                   {[t.display.dockStep1, t.display.dockStep2, t.display.dockStep3].map((step, i) => (
                     <div key={i} className="flex items-center gap-1 flex-1 min-w-0">
-                      <span className="shrink-0 w-3.5 h-3.5 rounded-full bg-purple-600/25 text-purple-300 text-[8px] font-bold flex items-center justify-center">{i + 1}</span>
+                      <span className="shrink-0 w-3.5 h-3.5 rounded-full bg-purple-600/25 text-purple-300 text-[8px] font-bold flex items-center justify-center">
+                        {i + 1}
+                      </span>
                       <span className="text-[9px] text-white/25 leading-tight truncate">{step}</span>
                     </div>
                   ))}
@@ -669,7 +687,9 @@ export default function StreamerDashboard() {
                 >
                   {t.logs.title}
                   {logs.length > 0 && (
-                    <span className={`text-[9px] font-mono ${logsView === "activity" ? "text-white/70" : "text-white/25"}`}>
+                    <span
+                      className={`text-[9px] font-mono ${logsView === "activity" ? "text-white/70" : "text-white/25"}`}
+                    >
                       {logs.length}
                     </span>
                   )}
@@ -685,7 +705,9 @@ export default function StreamerDashboard() {
                   <AlertTriangle className="w-3 h-3" />
                   Système
                   {serverLogs.length > 0 && (
-                    <span className={`text-[9px] font-mono ${logsView === "system" ? "text-white/70" : "text-amber-400/60"}`}>
+                    <span
+                      className={`text-[9px] font-mono ${logsView === "system" ? "text-white/70" : "text-amber-400/60"}`}
+                    >
                       {serverLogs.length}
                     </span>
                   )}
@@ -737,7 +759,13 @@ export default function StreamerDashboard() {
                               : "bg-orange-900/30 text-orange-300/70"
                       }`}
                     >
-                      {log.type === "video" ? "vid" : log.type === "image" ? "img" : log.type === "iframe" ? "web" : "url"}
+                      {log.type === "video"
+                        ? "vid"
+                        : log.type === "image"
+                          ? "img"
+                          : log.type === "iframe"
+                            ? "web"
+                            : "url"}
                     </span>
                     {log.author && (
                       <span className="text-indigo-400/70 shrink-0 font-semibold truncate max-w-[72px] text-[10px] leading-tight">
@@ -792,7 +820,8 @@ export default function StreamerDashboard() {
                   const toggleExpand = () =>
                     setExpandedServerLogs((prev) => {
                       const next = new Set(prev);
-                      next.has(log.id) ? next.delete(log.id) : next.add(log.id);
+                      if (next.has(log.id)) next.delete(log.id);
+                      else next.add(log.id);
                       return next;
                     });
 

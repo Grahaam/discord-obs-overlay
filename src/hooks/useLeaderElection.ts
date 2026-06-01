@@ -18,9 +18,7 @@ export function useLeaderElection(): boolean {
       .request("overlay-leader", { signal: ac.signal }, async () => {
         setIsLeader(true);
         // Hold the lock until this component unmounts (ac.abort() below)
-        await new Promise<void>((_, reject) =>
-          ac.signal.addEventListener("abort", () => reject(new Error("aborted")))
-        );
+        await new Promise<void>((_, reject) => ac.signal.addEventListener("abort", () => reject(new Error("aborted"))));
       })
       .catch(() => {
         // AbortError on unmount — normal, ignore

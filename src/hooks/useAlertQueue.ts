@@ -59,9 +59,7 @@ function queueReducer(state: QueueState, action: QueueAction): QueueState {
     case "HIDE_CONTROLS":
       return { ...state, showControls: false };
     case "RETRY_URL":
-      return state.active
-        ? { ...state, active: { ...state.active, mediaUrl: action.url } }
-        : state;
+      return state.active ? { ...state, active: { ...state.active, mediaUrl: action.url } } : state;
     default:
       return state;
   }
@@ -111,14 +109,7 @@ export interface UseAlertQueueProps {
   isLeader: boolean;
 }
 
-export function useAlertQueue({
-  queue,
-  setQueue,
-  queueRef,
-  socketRef,
-  activeAlertRef,
-  isLeader,
-}: UseAlertQueueProps) {
+export function useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAlertRef, isLeader }: UseAlertQueueProps) {
   const [state, dispatch] = useReducer(queueReducer, INITIAL_STATE);
   const { active, particles, isPaused, showControls, currentDuration, volume } = state;
 
@@ -163,6 +154,7 @@ export function useAlertQueue({
   useEffect(() => {
     isLeaderRef.current = isLeader;
     if (isLeader && phaseRef.current === "waiting" && queueRef.current.length > 0) {
+      // eslint-disable-next-line react-hooks/immutability
       runNextAlert();
     }
     // runNextAlert is stable (useCallback []) — safe to omit from deps
@@ -222,7 +214,9 @@ export function useAlertQueue({
       alertStartTimeRef.current = Date.now();
       rafId = requestAnimationFrame(update);
     }
-    return () => { if (rafId) cancelAnimationFrame(rafId); };
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [active]); // currentDuration read via ref — no dep needed
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────────
@@ -242,9 +236,20 @@ export function useAlertQueue({
         cancelAlertRef.current?.();
         return;
       }
-      if (isSpace) { e.preventDefault(); togglePauseRef.current(); return; }
-      if (e.key === "ArrowLeft") { e.preventDefault(); seekVideoRef.current(-5); return; }
-      if (e.key === "ArrowRight") { e.preventDefault(); seekVideoRef.current(5); }
+      if (isSpace) {
+        e.preventDefault();
+        togglePauseRef.current();
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        seekVideoRef.current(-5);
+        return;
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        seekVideoRef.current(5);
+      }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
@@ -252,11 +257,7 @@ export function useAlertQueue({
 
   // ── Core async playback loop ─────────────────────────────────────────────────
   const runNextAlert = useCallback(async () => {
-    if (
-      !isLeaderRef.current ||
-      phaseRef.current !== "waiting" ||
-      queueRef.current.length === 0
-    ) return;
+    if (!isLeaderRef.current || phaseRef.current !== "waiting" || queueRef.current.length === 0) return;
 
     phaseRef.current = "preloading";
     // FIX 3: Reset video retry count at the start of each alert
@@ -265,9 +266,7 @@ export function useAlertQueue({
     setQueue((prev) => prev.slice(1));
 
     // Drop non-embeddable links (yt-dlp failed to download)
-    const NON_EMBEDDABLE = [
-      "youtube.com/watch", "youtu.be/", "twitter.com/", "x.com/", "instagram.com/p/",
-    ];
+    const NON_EMBEDDABLE = ["youtube.com/watch", "youtu.be/", "twitter.com/", "x.com/", "instagram.com/p/"];
     if (item.type === "link" && NON_EMBEDDABLE.some((p) => item.mediaUrl.includes(p))) {
       console.warn(`[Overlay] Skipping non-embeddable link: ${item.mediaUrl}`);
       socketRef.current?.emit("alert_played", item.id);
@@ -284,16 +283,22 @@ export function useAlertQueue({
     await new Promise((r) => requestAnimationFrame(r));
 
     if (item.alertSoundUrl) {
-      try { new Audio(item.alertSoundUrl).play().catch(() => {}); } catch { /* ignore */ }
+      try {
+        new Audio(item.alertSoundUrl).play().catch(() => {});
+      } catch {
+        /* ignore */
+      }
     }
 
     phaseRef.current = "playing";
 
     // ── Per-alert finish machinery ───────────────────────────────────────────
     let resolveFinish: (() => void) | null = null;
-    const finishPromise = new Promise<void>((r) => { resolveFinish = r; });
+    const finishPromise = new Promise<void>((r) => {
+      resolveFinish = r;
+    });
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    const finishAlert = (reason = "unknown") => {
+    const finishAlert = (_reason = "unknown") => {
       if (phaseRef.current === "finished" || phaseRef.current === "waiting") return;
       phaseRef.current = "finished";
       if (timeoutId) clearTimeout(timeoutId);
@@ -330,10 +335,7 @@ export function useAlertQueue({
         timeoutId = setTimeout(() => finishAlert("timeout-fixed"), defaultDuration);
       }
       onVideoErrorRef.current = () => finishAlert("video-error");
-    } else if (
-      (item.type === "iframe" || item.type === "link") &&
-      item.syncDurationWithMedia
-    ) {
+    } else if ((item.type === "iframe" || item.type === "link") && item.syncDurationWithMedia) {
       // All iframe/link types use the same timeout (including youtube.com/embed)
       timeoutEndRef.current = Date.now() + 240_000;
       timeoutId = setTimeout(() => finishAlert("timeout-iframe"), 240_000);
@@ -410,11 +412,7 @@ export function useAlertQueue({
 
       onPlay: () => {
         // Guard: drop stale events during cleanup or preload phases
-        if (
-          phaseRef.current !== "playing" ||
-          !isPausedRef.current ||
-          isBufferingRef.current
-        ) return;
+        if (phaseRef.current !== "playing" || !isPausedRef.current || isBufferingRef.current) return;
         const remaining = pausedRemainingRef.current || 5000;
         extendTimeoutRef.current?.(remaining);
         alertStartTimeRef.current = Date.now() - (currentDurationRef.current - remaining);
@@ -422,8 +420,12 @@ export function useAlertQueue({
         dispatch({ type: "RESUME" });
       },
 
-      onWaiting: () => { isBufferingRef.current = true; },
-      onPlaying: () => { isBufferingRef.current = false; },
+      onWaiting: () => {
+        isBufferingRef.current = true;
+      },
+      onPlaying: () => {
+        isBufferingRef.current = false;
+      },
     }),
     [] // all access via refs — stable across renders
   );
@@ -459,35 +461,33 @@ export function useAlertQueue({
     volumeRef.current = v;
     dispatch({ type: "SET_VOLUME", v });
     if (activeVideoRef.current) activeVideoRef.current.volume = v;
-    try { localStorage.setItem("overlay_volume", String(v)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("overlay_volume", String(v));
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const showControlsTemporarily = useCallback(() => {
     dispatch({ type: "SHOW_CONTROLS" });
     if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current);
-    controlsHideTimerRef.current = setTimeout(
-      () => dispatch({ type: "HIDE_CONTROLS" }),
-      3000
-    );
+    controlsHideTimerRef.current = setTimeout(() => dispatch({ type: "HIDE_CONTROLS" }), 3000);
   }, []);
 
-  const handleProgressBarClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!activeAlertRef.current) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const video = activeVideoRef.current;
-      if (video && isFinite(video.duration)) {
-        // Bar is full-to-empty (1→0): click ratio = remaining fraction
-        video.currentTime = video.duration * (1 - ratio);
-      } else {
-        const newRemaining = Math.max(500, ratio * currentDurationRef.current);
-        extendTimeoutRef.current?.(newRemaining);
-        alertStartTimeRef.current = Date.now() - (currentDurationRef.current - newRemaining);
-      }
-    },
-    []
-  );
+  const handleProgressBarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!activeAlertRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const video = activeVideoRef.current;
+    if (video && isFinite(video.duration)) {
+      // Bar is full-to-empty (1→0): click ratio = remaining fraction
+      video.currentTime = video.duration * (1 - ratio);
+    } else {
+      const newRemaining = Math.max(500, ratio * currentDurationRef.current);
+      extendTimeoutRef.current?.(newRemaining);
+      alertStartTimeRef.current = Date.now() - (currentDurationRef.current - newRemaining);
+    }
+  }, []);
 
   const onMouseEnterMedia = useCallback(() => {
     extendTimeoutRef.current?.(3_600_000);

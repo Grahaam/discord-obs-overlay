@@ -121,7 +121,19 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         alertSoundUrl: z.string().optional(),
         allowedRoleIds: z.array(z.string()).optional(),
         alertFont: z.enum(["sans", "mono", "serif", "display", "rounded"]).optional(),
-        alertPosition: z.enum(["top-left", "top-center", "top-right", "center-left", "center", "center-right", "bottom-left", "bottom-center", "bottom-right"]).optional(),
+        alertPosition: z
+          .enum([
+            "top-left",
+            "top-center",
+            "top-right",
+            "center-left",
+            "center",
+            "center-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right",
+          ])
+          .optional(),
         alertScale: z.number().min(0.5).max(2).optional(),
         alertBgOpacity: z.number().min(0).max(1).optional(),
         alertAnimation: z.enum(["slide-up", "fade", "zoom", "bounce"]).optional(),
@@ -413,7 +425,9 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
           try {
             await fs.promises.unlink(path.join(cacheDir, file));
             deleted++;
-          } catch {}
+          } catch {
+            /* ignore */
+          }
         }
       }
       _cacheStatsCache = null;
