@@ -68,6 +68,37 @@ export default function BotTab(props: TabProps) {
     ? config.youtubeCookiesContent.split("\n").filter((l) => l.trim() && !l.startsWith("#")).length
     : 0;
 
+  const PLATFORM_DOMAINS: Record<string, string> = {
+    "youtube.com": "YouTube", "youtu.be": "YouTube",
+    "x.com": "X/Twitter", "twitter.com": "X/Twitter",
+    "instagram.com": "Instagram",
+    "tiktok.com": "TikTok",
+    "twitch.tv": "Twitch",
+    "reddit.com": "Reddit",
+    "facebook.com": "Facebook",
+  };
+
+  const cookieDomainStatus = (() => {
+    if (!config.youtubeCookiesContent) return [];
+    const now = Math.floor(Date.now() / 1000);
+    const platformStatus: Record<string, "ok" | "expired" | "session"> = {};
+    for (const line of config.youtubeCookiesContent.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const parts = trimmed.split("\t");
+      if (parts.length < 6) continue;
+      const domain = parts[0].replace(/^\./, "");
+      const expiry = parseInt(parts[4], 10);
+      const platform = Object.entries(PLATFORM_DOMAINS).find(([d]) => domain.endsWith(d))?.[1];
+      if (!platform) continue;
+      if (platformStatus[platform] === "ok") continue;
+      if (expiry === 0) { platformStatus[platform] ??= "session"; }
+      else if (expiry < now) { platformStatus[platform] = "expired"; }
+      else { platformStatus[platform] = "ok"; }
+    }
+    return Object.entries(platformStatus);
+  })();
+
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
       {/* Header */}
@@ -315,9 +346,26 @@ export default function BotTab(props: TabProps) {
             <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.cookies}</label>
           </div>
           {cookieLineCount > 0 && (
-            <span className="text-[10px] font-mono text-emerald-400/60 bg-emerald-950/20 border border-emerald-900/30 px-2 py-0.5 rounded-md">
-              {cookieLineCount} cookie{cookieLineCount !== 1 ? "s" : ""} {t.bot.cookiesLoaded}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <span className="text-[10px] font-mono text-emerald-400/60 bg-emerald-950/20 border border-emerald-900/30 px-2 py-0.5 rounded-md">
+                {cookieLineCount} cookie{cookieLineCount !== 1 ? "s" : ""} {t.bot.cookiesLoaded}
+              </span>
+              {cookieDomainStatus.map(([platform, status]) => (
+                <span
+                  key={platform}
+                  title={status === "expired" ? "Cookies expired — re-export from browser" : status === "session" ? "Session cookie — may expire on browser close" : "Valid"}
+                  className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
+                    status === "ok"
+                      ? "text-emerald-400/70 bg-emerald-950/20 border-emerald-900/30"
+                      : status === "expired"
+                      ? "text-rose-400/70 bg-rose-950/20 border-rose-900/30"
+                      : "text-amber-400/60 bg-amber-950/20 border-amber-900/30"
+                  }`}
+                >
+                  {platform} {status === "ok" ? "✓" : status === "expired" ? "✗" : "~"}
+                </span>
+              ))}
+            </div>
           )}
         </div>
         <div className="rounded-xl border border-white/[0.07] overflow-hidden">
@@ -334,7 +382,20 @@ export default function BotTab(props: TabProps) {
             onBlur={(e) => {
               const raw = e.target.value;
               if (!raw) return;
-              const relevantDomains = ["youtube.com", "instagram.com", "tiktok.com", "google.com"];
+              const relevantDomains = [
+                "youtube.com", "youtu.be", "google.com", "googleapis.com",
+                "instagram.com", "tiktok.com",
+                "x.com", "twitter.com", "t.co",
+                "twitch.tv", "clips.twitch.tv",
+                "reddit.com", "redd.it",
+                "facebook.com", "fb.com",
+                "vimeo.com", "dailymotion.com",
+                "streamable.com", "kick.com",
+                "bilibili.com", "nicovideo.jp",
+                "soundcloud.com", "bandcamp.com",
+                "rumble.com", "odysee.com",
+                "pinterest.com", "tumblr.com",
+              ];
               const filtered = raw
                 .split("\n")
                 .filter((line) => {
