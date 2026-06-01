@@ -455,7 +455,7 @@ export function usePlaybackController({
         try {
           socketRef.current?.emit("playback_state", {
             currentTime: vid.currentTime,
-            duration: vid.duration,
+            duration: isFinite(vid.duration) ? vid.duration : undefined,
             isPaused: isPausedRef.current,
             volume: volumeRef.current,
           });
@@ -504,6 +504,20 @@ export function usePlaybackController({
     const video = activeVideoRef.current;
     if (video && isFinite(video.duration)) {
       video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
+      try {
+        socketRef.current?.emit("playback_state", { currentTime: video.currentTime, duration: video.duration });
+      } catch {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const seekAbsolute = useCallback((seconds: number) => {
+    if (!activeAlertRef.current) return;
+    const video = activeVideoRef.current;
+    if (video && isFinite(video.duration)) {
+      video.currentTime = Math.max(0, Math.min(video.duration, seconds));
       try {
         socketRef.current?.emit("playback_state", { currentTime: video.currentTime, duration: video.duration });
       } catch {
@@ -581,6 +595,7 @@ export function usePlaybackController({
     videoHandlers,
     togglePause,
     seekVideo,
+    seekAbsolute,
     setVolume,
     handleProgressBarClick,
     onMouseEnterMedia,

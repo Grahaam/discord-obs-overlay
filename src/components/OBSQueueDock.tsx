@@ -137,7 +137,7 @@ export default function OBSQueueDock() {
             max={playback?.duration ?? 1}
             step={0.5}
             value={playback?.currentTime ?? 0}
-            onChange={(e) => handleAction("queue/seek", { seconds: parseFloat(e.currentTarget.value) - (playback?.currentTime ?? 0) })}
+            onChange={(e) => handleAction("queue/seek-absolute", { seconds: parseFloat(e.currentTarget.value) })}
             className="flex-1 accent-indigo-500 h-1"
             aria-label="Seek"
           />

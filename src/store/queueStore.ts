@@ -28,6 +28,7 @@ interface QueueStoreState {
   setPauseCallback: (cb: () => void) => void;
   setResumeCallback: (cb: () => void) => void;
   setSeekCallback: (cb: (seconds: number) => void) => void;
+  setSeekAbsoluteCallback: (cb: (seconds: number) => void) => void;
   setSetVolumeCallback: (cb: (v: number) => void) => void;
   setPlaybackState: (
     state: { isPaused?: boolean; currentTime?: number; duration?: number; volume?: number } | null
@@ -43,6 +44,7 @@ let _onSkip: (() => void) | undefined;
 let _onPause: (() => void) | undefined;
 let _onResume: (() => void) | undefined;
 let _onSeek: ((seconds: number) => void) | undefined;
+let _onSeekAbsolute: ((seconds: number) => void) | undefined;
 let _onSetVolume: ((v: number) => void) | undefined;
 
 function initializeSocket(set: any) {
@@ -107,6 +109,14 @@ function initializeSocket(set: any) {
   socketInstance.on("seek_alert", (payload: { seconds: number }) => {
     try {
       _onSeek?.(payload.seconds);
+    } catch {
+      /* ignore */
+    }
+  });
+
+  socketInstance.on("seek_alert_absolute", (payload: { seconds: number }) => {
+    try {
+      _onSeekAbsolute?.(payload.seconds);
     } catch {
       /* ignore */
     }
@@ -234,6 +244,9 @@ export const useQueueStore = create<QueueStoreState>((set, get) => {
     },
     setSeekCallback: (cb: (seconds: number) => void) => {
       _onSeek = cb;
+    },
+    setSeekAbsoluteCallback: (cb: (seconds: number) => void) => {
+      _onSeekAbsolute = cb;
     },
     setSetVolumeCallback: (cb: (v: number) => void) => {
       _onSetVolume = cb;
