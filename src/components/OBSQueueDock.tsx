@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { io } from "socket.io-client";
+import { createSocket } from "../lib/createSocket";
 import { GripVertical, X, SkipForward, Trash2, Play, Image, Video, Music, Link } from "lucide-react";
 import { AlertPayload } from "../types";
 import {
@@ -73,12 +73,7 @@ export default function OBSQueueDock() {
   );
 
   useEffect(() => {
-    const socket = io(window.location.origin, {
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-    });
+    const socket = createSocket();
 
     socket.on("connect", () => socket.emit("get_initial_state"));
     socket.on("initial_state", setQueue);

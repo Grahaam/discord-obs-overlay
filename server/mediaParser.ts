@@ -3,6 +3,7 @@ import youtubedl, { create as ytDlpCreate, update as ytDlpUpdateRaw } from "yout
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { logger } from "./logger.js";
+import { CACHE_DIR } from "./binaries.js";
 
 const _require = createRequire(import.meta.url);
 const _ffmpegStatic: string | null = (() => {
@@ -72,7 +73,6 @@ function hashUrl(url: string): string {
 const YTDLP_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
 
 const COBALT_API = "https://api.cobalt.tools/";
-const CACHE_DIR = path.join(process.cwd(), "media_cache");
 const MAX_CACHE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 

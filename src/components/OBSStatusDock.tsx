@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { io } from "socket.io-client";
+import { createSocket } from "../lib/createSocket";
 import { Bot, Activity, AlertTriangle, RefreshCw } from "lucide-react";
 import { LogEntry, BotStatus } from "../types";
 
@@ -22,11 +22,7 @@ export default function OBSStatusDock() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   useEffect(() => {
-    const socket = io(window.location.origin, {
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-    });
+    const socket = createSocket();
 
     const fetchInitial = async () => {
       try {
