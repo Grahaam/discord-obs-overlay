@@ -1,25 +1,16 @@
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SkipForward, Trash2, Play } from "lucide-react";
-import { AlertPayload } from "../types";
-import { useQueueSocket } from "../hooks/useQueueSocket";
+import { useQueueStore } from "../store/queueStore";
 import { SortableQueueItem } from "./SortableQueueItem";
 
 export default function OBSQueueDock() {
-  const { queue, nowPlaying, setQueue } = useQueueSocket();
+  const { queue, nowPlaying, reorder } = useQueueStore();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -34,14 +25,16 @@ export default function OBSQueueDock() {
     });
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = queue.findIndex((i) => i.id === active.id);
     const newIndex = queue.findIndex((i) => i.id === over.id);
-    const reordered = arrayMove(queue, oldIndex, newIndex);
-    setQueue(reordered);
-    handleAction("queue/force-update", { queue: reordered.map((i: AlertPayload) => ({ id: i.id })) });
+    try {
+      await reorder(oldIndex, newIndex);
+    } catch (err) {
+      console.error("Failed to reorder queue:", err);
+    }
   };
 
   return (

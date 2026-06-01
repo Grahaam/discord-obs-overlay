@@ -1,4 +1,4 @@
-// src/hooks/useAlertQueue.ts
+// src/hooks/usePlaybackController.ts
 import { useReducer, useEffect, useRef, useCallback, useMemo } from "react";
 import type { MutableRefObject } from "react";
 import { Socket } from "socket.io-client";
@@ -100,7 +100,7 @@ function generateParticles(neonColor: string): Sparkle[] {
 }
 
 // ─── Hook props ───────────────────────────────────────────────────────────────
-export interface UseAlertQueueProps {
+export interface UsePlaybackControllerProps {
   queue: AlertPayload[];
   setQueue: React.Dispatch<React.SetStateAction<AlertPayload[]>>;
   queueRef: MutableRefObject<AlertPayload[]>;
@@ -109,7 +109,14 @@ export interface UseAlertQueueProps {
   isLeader: boolean;
 }
 
-export function useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAlertRef, isLeader }: UseAlertQueueProps) {
+export function usePlaybackController({
+  queue,
+  setQueue,
+  queueRef,
+  socketRef,
+  activeAlertRef,
+  isLeader,
+}: UsePlaybackControllerProps) {
   const [state, dispatch] = useReducer(queueReducer, INITIAL_STATE);
   const { active, particles, isPaused, showControls, currentDuration, volume } = state;
 
@@ -149,6 +156,7 @@ export function useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAler
 
   useEffect(() => {
     activeAlertRef.current = active;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   useEffect(() => {
@@ -365,6 +373,7 @@ export function useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAler
     if (!activeAlertRef.current && queue.length > 0 && phaseRef.current === "waiting") {
       runNextAlert();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, runNextAlert]);
 
   // ── videoHandlers — spread onto <video ref={activeVideoRef} {...videoHandlers} /> ──
@@ -427,6 +436,7 @@ export function useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAler
         isBufferingRef.current = false;
       },
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [] // all access via refs — stable across renders
   );
 
@@ -447,6 +457,7 @@ export function useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAler
       if (activeVideoRef.current) activeVideoRef.current.play().catch(() => {});
     }
     dispatch(nowPaused ? { type: "PAUSE" } : { type: "RESUME" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const seekVideo = useCallback((seconds: number) => {
@@ -455,6 +466,7 @@ export function useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAler
     if (video && isFinite(video.duration)) {
       video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setVolume = useCallback((v: number) => {
@@ -487,6 +499,7 @@ export function useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAler
       extendTimeoutRef.current?.(newRemaining);
       alertStartTimeRef.current = Date.now() - (currentDurationRef.current - newRemaining);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onMouseEnterMedia = useCallback(() => {
