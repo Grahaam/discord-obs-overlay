@@ -6,7 +6,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SkipForward, Trash2, Play, Pause, RotateCcw, RotateCw } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useQueueStore } from "../store/queueStore";
 import { SortableQueueItem } from "./SortableQueueItem";
 
@@ -14,6 +14,8 @@ export default function OBSQueueDock() {
   const { queue, nowPlaying, reorder } = useQueueStore();
   const playback = useQueueStore((s) => s.playback);
   const volumeTimerRef = useRef<number | null>(null);
+  const [isDraggingSeek, setIsDraggingSeek] = useState(false);
+  const [localSeekValue, setLocalSeekValue] = useState(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -130,14 +132,16 @@ export default function OBSQueueDock() {
 
         {/* Progress row */}
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/35 tabular-nums w-8">{formatTime(playback?.currentTime ?? 0)}</span>
+          <span className="text-[10px] text-white/35 tabular-nums w-8">{formatTime(isDraggingSeek ? localSeekValue : (playback?.currentTime ?? 0))}</span>
           <input
             type="range"
             min={0}
             max={playback?.duration ?? 1}
             step={0.5}
-            value={playback?.currentTime ?? 0}
-            onChange={(e) => handleAction("queue/seek-absolute", { seconds: parseFloat(e.currentTarget.value) })}
+            value={isDraggingSeek ? localSeekValue : (playback?.currentTime ?? 0)}
+            onChange={(e) => setLocalSeekValue(parseFloat(e.currentTarget.value))}
+            onPointerDown={() => { setIsDraggingSeek(true); setLocalSeekValue(playback?.currentTime ?? 0); }}
+            onPointerUp={(e) => { setIsDraggingSeek(false); handleAction("queue/seek-absolute", { seconds: parseFloat((e.target as HTMLInputElement).value) }); }}
             className="flex-1 accent-indigo-500 h-1"
             aria-label="Seek"
           />
