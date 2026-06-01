@@ -217,6 +217,7 @@ async function fetchWithCobalt(url: string): Promise<string | null> {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
+        timeout: 15000,
       }
     );
 
@@ -226,9 +227,9 @@ async function fetchWithCobalt(url: string): Promise<string | null> {
       throw new Error(response.data.error?.code || "Cobalt returned an error status");
     }
 
-    // v10 uses "stream", "tunnel", or "redirect" for a ready-to-download URL
+    // tunnel/redirect → url field; local-processing → tunnel[] array
     if (streamUrl) return streamUrl;
-    if (tunnel) return tunnel;
+    if (tunnel) return Array.isArray(tunnel) ? (tunnel[0] ?? null) : tunnel;
     // "picker" is returned for multi-file content (e.g. tweet with images)
     if (status === "picker" && picker?.[0]?.url) return picker[0].url;
 
@@ -312,7 +313,7 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
   // .tmp.mp4 — ends in .mp4 so yt-dlp doesn't append another extension after merging
   const tempFilepath = path.join(CACHE_DIR, `${hash}.tmp.mp4`);
 
-  // 5000 MB cap for yt-dlp downloads (Discord attachment limit stays at SIZE_LIMITS.video = 50MB)
+  // 5000 MB cap for both yt-dlp and Cobalt downloads
   const maxMB = 5000;
 
   const dlOptions: any = {
@@ -320,13 +321,16 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
     noCheckCertificates: true,
     // Without ffmpeg, use pre-muxed format only (max ~720p). With ffmpeg, prefer 1080p merged.
     format: _ffmpegBin
-      ? "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
-      : "best[height<=1080][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best",
+      ? "bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1440]+bestaudio/bestvideo*[height<=1440]+bestaudio*/bestvideo*+bestaudio*/best[height<=1440]/best"
+      : "best[height<=1440][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best[height<=1440]/best",
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    referer: "https://www.google.com/",
+    // Twitter/X rejects google.com referer when downloading from video.twimg.com
+    ...(!url.includes("x.com") && !url.includes("twitter.com") && { referer: "https://www.google.com/" }),
     geoBypass: true,
     forceIpv4: true,
+    // Android client bypasses n-challenge JS solving required for DASH stream URLs
+    extractorArgs: "youtube:player_client=android,web",
     output: tempFilepath,
     maxFilesize: `${maxMB}M`,
     ...(_ffmpegBin && { mergeOutputFormat: "mp4", ffmpegLocation: path.dirname(_ffmpegBin) }),
@@ -434,6 +438,28 @@ function isDownloadablePlatform(url: string): boolean {
   return DOWNLOADABLE_PLATFORMS.some((p) => lower.includes(p));
 }
 
+const TRACKING_PARAMS: Record<string, string[]> = {
+  "x.com": ["s", "t", "src", "ref_src", "ref_url"],
+  "twitter.com": ["s", "t", "src", "ref_src", "ref_url"],
+  "youtube.com": ["si", "feature", "pp"],
+  "youtu.be": ["si", "feature"],
+  "tiktok.com": ["is_from_webapp", "sender_device", "web_id"],
+  "instagram.com": ["igsh", "igshid"],
+  "reddit.com": ["utm_source", "utm_medium", "utm_campaign", "utm_name", "utm_content", "utm_term", "share_id"],
+};
+
+function cleanUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const paramsToStrip =
+      Object.entries(TRACKING_PARAMS).find(([domain]) => parsed.hostname.endsWith(domain))?.[1] ?? [];
+    for (const p of paramsToStrip) parsed.searchParams.delete(p);
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 export async function resolveMediaFromLink(url: string): Promise<{
   type: "image" | "video" | "iframe" | "link";
   mediaUrl: string;
@@ -443,9 +469,10 @@ export async function resolveMediaFromLink(url: string): Promise<{
   ytDlpError?: string;
 }> {
   const { provider: urlProvider } = parseMediaUrl(url);
+  const cleanedUrl = cleanUrl(url);
 
   if (isDownloadablePlatform(url)) {
-    const ytdlResult = await fetchWithYtDlp(url);
+    const ytdlResult = await fetchWithYtDlp(cleanedUrl);
     if (ytdlResult) {
       logger.info({ ytdlTitle: ytdlResult.info.title }, "yt-dlp resolution title");
       return {
@@ -457,10 +484,10 @@ export async function resolveMediaFromLink(url: string): Promise<{
       };
     }
 
-    const cobaltStreamUrl = await fetchWithCobalt(url);
+    const cobaltStreamUrl = await fetchWithCobalt(cleanedUrl);
     if (cobaltStreamUrl) {
       logger.info("Cobalt resolution title: Video (Hardcoded)");
-      const cachedFilename = await cacheMedia(cobaltStreamUrl, url);
+      const cachedFilename = await cacheMedia(cobaltStreamUrl, cleanedUrl);
       if (cachedFilename) {
         return {
           type: "video",
