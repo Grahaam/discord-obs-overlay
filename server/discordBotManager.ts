@@ -120,6 +120,7 @@ export class DiscordBotManager {
             alertManager.clearQueue();
             if (this.io) {
               this.io.emit("clear_queue");
+              this.io.emit("skip_alert");
               await interaction.reply({ content: "🗑️ Queue cleared.", ephemeral: true });
             } else {
               await interaction.reply({ content: "❌ Overlay not connected.", ephemeral: true });
