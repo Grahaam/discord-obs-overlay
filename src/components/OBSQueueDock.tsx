@@ -1,7 +1,3 @@
-import { useState, useEffect } from "react";
-import { createSocket } from "../lib/createSocket";
-import { GripVertical, X, SkipForward, Trash2, Play, Image, Video, Music, Link } from "lucide-react";
-import { AlertPayload } from "../types";
 import {
   DndContext,
   closestCenter,
@@ -9,86 +5,26 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
 } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-
-const TYPE_ICON: Record<string, React.ReactNode> = {
-  image: <Image className="w-2.5 h-2.5" />,
-  video: <Video className="w-2.5 h-2.5" />,
-  audio: <Music className="w-2.5 h-2.5" />,
-  embed: <Link className="w-2.5 h-2.5" />,
-};
-
-function SortableQueueItem({ item, onRemove }: { item: AlertPayload; onRemove: (id: string) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className="group flex items-center gap-2 px-3 py-2 border-b border-white/[0.04] hover:bg-white/[0.03] transition"
-    >
-      <button
-        {...attributes}
-        {...listeners}
-        className="shrink-0 text-white/15 cursor-grab active:cursor-grabbing touch-none hover:text-white/40 transition"
-      >
-        <GripVertical className="w-3 h-3" />
-      </button>
-
-      <span className="shrink-0 text-white/20">{TYPE_ICON[item.type] ?? TYPE_ICON.video}</span>
-
-      <div className="flex-1 min-w-0">
-        <div className="text-white/90 text-[10px] font-semibold truncate leading-tight">
-          {item.title || item.text || item.authorName}
-        </div>
-        <div className="text-white/30 text-[9px] font-mono truncate leading-tight">{item.authorName}</div>
-      </div>
-
-      <button
-        onClick={() => onRemove(item.id)}
-        className="shrink-0 text-white/15 hover:text-red-400 transition opacity-0 group-hover:opacity-100"
-      >
-        <X className="w-3 h-3" />
-      </button>
-    </div>
-  );
-}
+import { SkipForward, Trash2, Play } from "lucide-react";
+import { AlertPayload } from "../types";
+import { useQueueSocket } from "../hooks/useQueueSocket";
+import { SortableQueueItem } from "./SortableQueueItem";
 
 export default function OBSQueueDock() {
-  const [queue, setQueue] = useState<AlertPayload[]>([]);
-  const [nowPlaying, setNowPlaying] = useState<AlertPayload | null>(null);
+  const { queue, nowPlaying, setQueue } = useQueueSocket();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
-
-  useEffect(() => {
-    const socket = createSocket();
-
-    socket.on("connect", () => socket.emit("get_initial_state"));
-    socket.on("initial_state", setQueue);
-    socket.on("force_queue_update", setQueue);
-    socket.on("new_alert", (alert: AlertPayload) =>
-      setQueue((prev) => (prev.some((i) => i.id === alert.id) ? prev : [...prev, alert]))
-    );
-    socket.on("remove_queue_item", (id: string) => setQueue((prev) => prev.filter((i) => i.id !== id)));
-    socket.on("clear_queue", () => setQueue([]));
-    socket.on("now_playing", (alert: AlertPayload | null) => setNowPlaying(alert));
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
 
   const handleAction = async (endpoint: string, body?: unknown) => {
     await fetch(`/api/${endpoint}`, {
@@ -105,7 +41,7 @@ export default function OBSQueueDock() {
     const newIndex = queue.findIndex((i) => i.id === over.id);
     const reordered = arrayMove(queue, oldIndex, newIndex);
     setQueue(reordered);
-    handleAction("queue/force-update", { queue: reordered.map((i) => ({ id: i.id })) });
+    handleAction("queue/force-update", { queue: reordered.map((i: AlertPayload) => ({ id: i.id })) });
   };
 
   return (
@@ -165,6 +101,7 @@ export default function OBSQueueDock() {
                 <SortableQueueItem
                   key={item.id}
                   item={item}
+                  compact
                   onRemove={(id) => handleAction("queue/remove-item", { id })}
                 />
               ))}
