@@ -9,6 +9,11 @@ interface QueueStoreState {
   queueRef: React.MutableRefObject<AlertPayload[]>;
   socketRef: React.MutableRefObject<Socket | null>;
 
+  // Playback control callbacks
+  onSkip?: () => void;
+  onPause?: () => void;
+  onResume?: () => void;
+
   // Actions
   setQueue: (queue: AlertPayload[]) => void;
   setNowPlaying: (alert: AlertPayload | null) => void;
@@ -17,6 +22,9 @@ interface QueueStoreState {
   addQueueItem: (alert: AlertPayload) => void;
   reorder: (fromIdx: number, toIdx: number) => Promise<void>;
   ensureSocketConnected: () => void;
+  setSkipCallback: (cb: () => void) => void;
+  setPauseCallback: (cb: () => void) => void;
+  setResumeCallback: (cb: () => void) => void;
 }
 
 let socketInstance: Socket | null = null;
@@ -89,6 +97,21 @@ function initializeSocket(set: any) {
   socketInstance.on("now_playing", (alert: AlertPayload | null) => {
     set({ nowPlaying: alert });
   });
+
+  socketInstance.on("skip_alert", () => {
+    const state = useQueueStore.getState();
+    state.onSkip?.();
+  });
+
+  socketInstance.on("pause_alert", () => {
+    const state = useQueueStore.getState();
+    state.onPause?.();
+  });
+
+  socketInstance.on("resume_alert", () => {
+    const state = useQueueStore.getState();
+    state.onResume?.();
+  });
 }
 
 export const useQueueStore = create<QueueStoreState>((set, get) => ({
@@ -97,6 +120,9 @@ export const useQueueStore = create<QueueStoreState>((set, get) => ({
   wsStatus: "disconnected",
   queueRef,
   socketRef,
+  onSkip: undefined,
+  onPause: undefined,
+  onResume: undefined,
 
   setQueue: (queue: AlertPayload[]) => {
     queueRef.current = queue;
@@ -138,6 +164,10 @@ export const useQueueStore = create<QueueStoreState>((set, get) => ({
   ensureSocketConnected: () => {
     initializeSocket(set);
   },
+
+  setSkipCallback: (cb: () => void) => set({ onSkip: cb }),
+  setPauseCallback: (cb: () => void) => set({ onPause: cb }),
+  setResumeCallback: (cb: () => void) => set({ onResume: cb }),
 }));
 
 export function initQueueSocket() {
