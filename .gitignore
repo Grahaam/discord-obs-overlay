@@ -55,3 +55,9 @@ docs/superpowers/
 
 # Screenshots / generated assets
 dashboard.png
+
+# Tool artifacts
+.firecrawl/
+.playwright-mcp/
+graphify-out/
+dashboard-initial.png
