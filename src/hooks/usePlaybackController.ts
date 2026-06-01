@@ -1,4 +1,4 @@
-// src/hooks/useAlertQueue.ts
+// src/hooks/usePlaybackController.ts
 import { useReducer, useEffect, useRef, useCallback, useMemo } from "react";
 import type { MutableRefObject } from "react";
 import { Socket } from "socket.io-client";
@@ -100,7 +100,7 @@ function generateParticles(neonColor: string): Sparkle[] {
 }
 
 // ─── Hook props ───────────────────────────────────────────────────────────────
-export interface UseAlertQueueProps {
+export interface UsePlaybackControllerProps {
   queue: AlertPayload[];
   setQueue: React.Dispatch<React.SetStateAction<AlertPayload[]>>;
   queueRef: MutableRefObject<AlertPayload[]>;
@@ -109,7 +109,7 @@ export interface UseAlertQueueProps {
   isLeader: boolean;
 }
 
-export function useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAlertRef, isLeader }: UseAlertQueueProps) {
+export function usePlaybackController({ queue, setQueue, queueRef, socketRef, activeAlertRef, isLeader }: UsePlaybackControllerProps) {
   const [state, dispatch] = useReducer(queueReducer, INITIAL_STATE);
   const { active, particles, isPaused, showControls, currentDuration, volume } = state;
 

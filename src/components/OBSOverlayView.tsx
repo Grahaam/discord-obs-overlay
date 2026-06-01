@@ -3,7 +3,7 @@ import { Bot, Flame, AlertTriangle, Pause, Play, SkipBack, SkipForward } from "l
 import { AlertPayload } from "../types";
 import { locales, Language } from "../locales";
 import { useOverlaySocket } from "../hooks/useOverlaySocket";
-import { useAlertQueue } from "../hooks/useAlertQueue";
+import { usePlaybackController } from "../hooks/usePlaybackController";
 import { useLeaderElection } from "../hooks/useLeaderElection";
 
 const FONT_MAP: Record<string, string> = {
@@ -102,7 +102,7 @@ export default function OBSOverlayView() {
     onMouseEnterMedia,
     showControlsTemporarily,
     cancelCurrentAlert,
-  } = useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAlertRef, isLeader });
+  } = usePlaybackController({ queue, setQueue, queueRef, socketRef, activeAlertRef, isLeader });
 
   useEffect(() => {
     cancelSkipRef.current = cancelCurrentAlert;
