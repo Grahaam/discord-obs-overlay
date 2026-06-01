@@ -1,21 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── Sanity checks ─────────────────────────────────────────────────────────────
-if [ ! -f .env ]; then
-    echo "[ERROR] .env file not found."
-    echo ""
-    echo "  Run ./install.sh first to set up the app."
-    echo ""
+# ── Sanity check ──────────────────────────────────────────────────────────────
+if [ ! -f dist/server.mjs ]; then
+    echo "[ERROR] App not installed yet."
+    echo "  Run ./install.sh first."
     exit 1
 fi
 
-if [ ! -f dist/server.mjs ]; then
-    echo "[ERROR] App not built yet."
-    echo ""
-    echo "  Run ./install.sh first to build the app."
-    echo ""
-    exit 1
+# Add ./bin to PATH in case yt-dlp was downloaded there by install.sh
+if [ -d "$HOME/.local/bin" ]; then
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 
 # ── Open browser after a short delay ──────────────────────────────────────────
@@ -40,4 +35,4 @@ echo "  Press Ctrl+C to stop the app."
 echo "============================================="
 echo ""
 
-npm start
+node dist/server.mjs
