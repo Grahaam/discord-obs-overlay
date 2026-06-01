@@ -169,9 +169,9 @@ export const useQueueStore = create<QueueStoreState>((set, get) => {
         }
       } catch (error) {
         console.error("[QueueStore] Reorder API error:", error);
-        // Trigger state reconciliation to sync with server
-        get().ensureSocketConnected();
-        throw error; // Let caller decide what to do
+        // Re-request authoritative queue from server to roll back optimistic update
+        socketInstance?.emit("get_initial_state");
+        throw error;
       }
     },
 
@@ -184,7 +184,3 @@ export const useQueueStore = create<QueueStoreState>((set, get) => {
     setResumeCallback: (cb: () => void) => { _onResume = cb; },
   };
 });
-
-export function initQueueSocket() {
-  useQueueStore.getState().ensureSocketConnected();
-}
