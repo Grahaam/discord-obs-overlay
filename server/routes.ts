@@ -395,6 +395,16 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     res.json({ success: true });
   });
 
+  app.post("/api/queue/pause", (_req, res) => {
+    io.emit("pause_alert");
+    res.json({ success: true });
+  });
+
+  app.post("/api/queue/resume", (_req, res) => {
+    io.emit("resume_alert");
+    res.json({ success: true });
+  });
+
   app.post("/api/queue/force-update", (req, res) => {
     const queue: { id: string }[] = req.body.queue;
     if (!Array.isArray(queue)) return res.status(400).json({ error: "queue must be an array" });

@@ -4,6 +4,8 @@ import { AlertPayload } from "../types";
 
 interface UseOverlaySocketOptions {
   onSkip: () => void;
+  onPause: () => void;
+  onResume: () => void;
   activeAlertRef: React.MutableRefObject<AlertPayload | null>;
 }
 
@@ -15,22 +17,37 @@ interface UseOverlaySocketReturn {
   socketRef: React.MutableRefObject<Socket | null>;
 }
 
-export function useOverlaySocket({ onSkip, activeAlertRef }: UseOverlaySocketOptions): UseOverlaySocketReturn {
+export function useOverlaySocket({
+  onSkip,
+  onPause,
+  onResume,
+  activeAlertRef,
+}: UseOverlaySocketOptions): UseOverlaySocketReturn {
   const [queue, setQueue] = useState<AlertPayload[]>([]);
   const queueRef = useRef<AlertPayload[]>([]);
   const [wsStatus, setWsStatus] = useState<"connected" | "connecting" | "disconnected">("connecting");
   const socketRef = useRef<Socket | null>(null);
   const onSkipRef = useRef(onSkip);
+  const onPauseRef = useRef(onPause);
+  const onResumeRef = useRef(onResume);
 
   // Keep queueRef in sync with state for the playback loop
   useEffect(() => {
     queueRef.current = queue;
   }, [queue]);
 
-  // Keep onSkipRef current so the socket effect (mount-only) calls the latest handler
+  // Keep callback refs current so the mount-only socket effect calls the latest handlers
   useEffect(() => {
     onSkipRef.current = onSkip;
   }, [onSkip]);
+
+  useEffect(() => {
+    onPauseRef.current = onPause;
+  }, [onPause]);
+
+  useEffect(() => {
+    onResumeRef.current = onResume;
+  }, [onResume]);
 
   // Socket connection — reconnect-safe with state reconciliation
   useEffect(() => {
@@ -101,6 +118,16 @@ export function useOverlaySocket({ onSkip, activeAlertRef }: UseOverlaySocketOpt
     socket.on("skip_alert", () => {
       console.log("[Overlay] Skip requested");
       onSkipRef.current();
+    });
+
+    socket.on("pause_alert", () => {
+      console.log("[Overlay] Pause requested");
+      onPauseRef.current();
+    });
+
+    socket.on("resume_alert", () => {
+      console.log("[Overlay] Resume requested");
+      onResumeRef.current();
     });
 
     return () => {

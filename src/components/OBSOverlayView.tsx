@@ -76,9 +76,13 @@ export default function OBSOverlayView() {
   const isLeader = useLeaderElection();
   const activeAlertRef = useRef<AlertPayload | null>(null);
   const cancelSkipRef = useRef<() => void>(() => {});
+  const pauseRef = useRef<() => void>(() => {});
+  const resumeRef = useRef<() => void>(() => {});
 
   const { queue, setQueue, queueRef, wsStatus, socketRef } = useOverlaySocket({
     onSkip: () => cancelSkipRef.current(),
+    onPause: () => pauseRef.current(),
+    onResume: () => resumeRef.current(),
     activeAlertRef,
   });
 
@@ -103,6 +107,18 @@ export default function OBSOverlayView() {
   useEffect(() => {
     cancelSkipRef.current = cancelCurrentAlert;
   }, [cancelCurrentAlert]);
+
+  useEffect(() => {
+    pauseRef.current = () => {
+      if (!isPaused) togglePause();
+    };
+  }, [isPaused, togglePause]);
+
+  useEffect(() => {
+    resumeRef.current = () => {
+      if (isPaused) togglePause();
+    };
+  }, [isPaused, togglePause]);
 
   return (
     <div
