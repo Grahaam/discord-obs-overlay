@@ -10,8 +10,6 @@ import {
   Send,
   HeartPulse,
   Tv,
-  GripVertical,
-  X,
   CheckCircle2,
   Loader2,
   ExternalLink,
@@ -32,6 +30,23 @@ import StylingTab from "./tabs/StylingTab";
 import ModerationTab from "./tabs/ModerationTab";
 import SimulatorTab from "./tabs/SimulatorTab";
 import HealthTab from "./tabs/HealthTab";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableQueueItem } from "./SortableQueueItem";
+import { useQueueSocket } from "../hooks/useQueueSocket";
 
 export default function StreamerDashboard() {
   const [activeTab, setActiveTab] = useState<"credentials" | "styling" | "moderation" | "simulator" | "health">(
@@ -39,8 +54,7 @@ export default function StreamerDashboard() {
   );
   const [saveLoading, setSaveLoading] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("hasSeenTutorial"));
-  const [pendingQueue, setPendingQueue] = useState<AlertPayload[]>([]);
-  const [nowPlaying, setNowPlaying] = useState<AlertPayload | null>(null);
+  const { queue: pendingQueue, nowPlaying, setQueue: setPendingQueue } = useQueueSocket();
   const [config, setConfig] = useState<UIConfig>({
     discordToken: "",
     channelId: "",
@@ -115,15 +129,6 @@ export default function StreamerDashboard() {
   useEffect(() => {
     const socket = createSocket();
 
-    socket.on("connect", () => socket.emit("get_initial_state"));
-    socket.on("initial_state", (q: AlertPayload[]) => setPendingQueue(q));
-    socket.on("force_queue_update", (q: AlertPayload[]) => setPendingQueue(q));
-    socket.on("new_alert", (alert: AlertPayload) =>
-      setPendingQueue((prev) => (prev.some((i) => i.id === alert.id) ? prev : [...prev, alert]))
-    );
-    socket.on("remove_queue_item", (id: string) => setPendingQueue((prev) => prev.filter((i) => i.id !== id)));
-    socket.on("clear_queue", () => setPendingQueue([]));
-    socket.on("now_playing", (alert: AlertPayload | null) => setNowPlaying(alert));
     socket.on("new_log", (log: LogEntry) => {
       setLogs((prev) => {
         if (prev.some((l) => l.id === log.id)) return prev;
@@ -156,6 +161,25 @@ export default function StreamerDashboard() {
       socket.disconnect();
     };
   }, []);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = pendingQueue.findIndex((i) => i.id === active.id);
+    const newIndex = pendingQueue.findIndex((i) => i.id === over.id);
+    const reordered = arrayMove(pendingQueue, oldIndex, newIndex);
+    setPendingQueue(reordered);
+    fetch("/api/queue/force-update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ queue: reordered.map((i) => ({ id: i.id })) }),
+    });
+  };
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -642,30 +666,23 @@ export default function StreamerDashboard() {
                 </div>
               </div>
               <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
-                {pendingQueue.map((item) => (
-                  <div
-                    key={item.id}
-                    className="group bg-white/[0.04] hover:bg-white/[0.06] border border-white/[0.05] px-3 py-2 rounded-xl flex items-center gap-2 text-xs transition"
-                  >
-                    <GripVertical className="w-3 h-3 text-white/20 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <span className="font-semibold text-white/90 truncate block">{item.authorName}</span>
-                      {item.text && <span className="text-white/35 text-[10px] truncate block">{item.text}</span>}
-                    </div>
-                    <button
-                      onClick={() =>
-                        fetch("/api/queue/remove-item", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ id: item.id }),
-                        })
-                      }
-                      className="shrink-0 text-white/20 hover:text-red-400 transition opacity-0 group-hover:opacity-100"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={pendingQueue.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                    {pendingQueue.map((item) => (
+                      <SortableQueueItem
+                        key={item.id}
+                        item={item}
+                        onRemove={(id) =>
+                          fetch("/api/queue/remove-item", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ id }),
+                          })
+                        }
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
             </div>
           )}
