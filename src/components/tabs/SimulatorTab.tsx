@@ -98,7 +98,7 @@ export default function SimulatorTab(props: TabProps) {
         </div>
         <div>
           <h2 className="text-sm font-bold font-mono text-white tracking-wider uppercase">{t.logs.simTitle}</h2>
-          <p className="text-[10px] text-white/30 mt-0.5 font-mono">Inject a test alert directly into the queue</p>
+          <p className="text-[10px] text-white/30 mt-0.5 font-mono">{t.logs.simSubtitle}</p>
         </div>
       </div>
 

@@ -39,6 +39,9 @@ export const locales = {
       save: "Enregistrer les modifications",
       saveWorking: "Sauvegarde en cours...",
       reconnect: "Reconnecter",
+      connecting: "Connexion en cours…",
+      shortcutCapturing: "Cliquez sur le champ et appuyez sur une touche.",
+      cookiesLoaded: "chargés",
     },
     display: {
       title: "Apparence des alertes",
@@ -112,6 +115,7 @@ export const locales = {
     },
     logs: {
       title: "Journaux d'Activité",
+      simSubtitle: "Injectez une alerte de test directement dans la file d'attente",
       logsSub: "Historique des alertes médias soumises par le bot Discord.",
       clear: "Vider l'historique",
       simTitle: "Outils de Simulation",
@@ -192,6 +196,9 @@ export const locales = {
       save: "Save changes",
       saveWorking: "Saving configuration...",
       reconnect: "Reconnect",
+      connecting: "Connecting…",
+      shortcutCapturing: "Click the field and press any key to capture it.",
+      cookiesLoaded: "loaded",
     },
     display: {
       title: "Alert Appearance",
@@ -265,6 +272,7 @@ export const locales = {
     },
     logs: {
       title: "Activity Logs",
+      simSubtitle: "Inject a test alert directly into the queue",
       logsSub: "Historical records of media alerts processed by the Discord bot.",
       clear: "Clear Activity Logs",
       simTitle: "Simulation Tools",
@@ -343,6 +351,9 @@ export const locales = {
       save: "Save Configuwations~",
       saveWorking: "Saving to memowy... *sweats*",
       reconnect: "Weconnect Bawt",
+      connecting: "Connecting UwU…",
+      shortcutCapturing: "Cwic da fiewd and pwess any key to captuwe it~ nyaa",
+      cookiesLoaded: "woaded~",
     },
     display: {
       title: "Aesthetic Stywes & Visuaws >///<",
@@ -420,6 +431,7 @@ export const locales = {
       logsSub: "Twace of aww media awewts weceived.",
       clear: "Cweaw Histowy UwU",
       simTitle: "Simuwation Toows",
+      simSubtitle: "Inject a test awewt diwectwy into da queue~ nyaa",
       simName: "Simuwatow Name (Optionaw)",
       simText: "Simuwated awewt text content",
       simType: "Fowce specific media type (optionaw)",
@@ -497,6 +509,9 @@ export const locales = {
       save: "Sauvewgwawdew wes configuwations~",
       saveWorking: "Inscwiption en mémoiwe... *sweats*",
       reconnect: "Weconnect Bawt",
+      connecting: "Connexion en couwse UwU…",
+      shortcutCapturing: "Cwic suw we champ et appuyew une touche~ nyaa",
+      cookiesLoaded: "chawgés~",
     },
     display: {
       title: "Aesthetic Stywes & Visuaws >///<",
@@ -574,6 +589,7 @@ export const locales = {
       logsSub: "Twace de toutes wes awewtes media weçues du bawt.",
       clear: "Videw w'histowique UwU",
       simTitle: "Outiws de Test & Simuwation",
+      simSubtitle: "Injectew une awewte de test dans wa fiwe d'attente~ nyaa",
       simName: "Nom Simuwateuw (Optionnew)",
       simText: "Contenu texte de w'awewte simuwée",
       simType: "Fowcew un type spécifique de media (option)",

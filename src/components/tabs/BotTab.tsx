@@ -74,7 +74,7 @@ export default function BotTab(props: TabProps) {
           <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-400 rounded-r-full animate-pulse" />
           <div className="flex gap-3 items-center pl-2">
             <Loader2 className="w-4 h-4 text-amber-400 animate-spin shrink-0" />
-            <span className="text-xs font-bold font-mono text-amber-300 uppercase tracking-wider">Connecting…</span>
+            <span className="text-xs font-bold font-mono text-amber-300 uppercase tracking-wider">{t.bot.connecting}</span>
           </div>
         </div>
       )}
@@ -228,7 +228,7 @@ export default function BotTab(props: TabProps) {
           )}
         </div>
         <span className="text-[10px] text-white/20 font-mono">
-          {capturingShortcut ? "Click the field and press any key to capture it." : t.bot.shortcutHelp}
+          {capturingShortcut ? t.bot.shortcutCapturing : t.bot.shortcutHelp}
         </span>
       </div>
 
@@ -272,7 +272,7 @@ export default function BotTab(props: TabProps) {
           </div>
           {cookieLineCount > 0 && (
             <span className="text-[10px] font-mono text-emerald-400/60 bg-emerald-950/20 border border-emerald-900/30 px-2 py-0.5 rounded-md">
-              {cookieLineCount} cookie{cookieLineCount !== 1 ? "s" : ""} loaded
+              {cookieLineCount} cookie{cookieLineCount !== 1 ? "s" : ""} {t.bot.cookiesLoaded}
             </span>
           )}
         </div>
