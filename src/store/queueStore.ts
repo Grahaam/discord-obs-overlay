@@ -62,11 +62,15 @@ function initializeSocket(set: any) {
 
   socketInstance.on("initial_state", (serverQueue: AlertPayload[]) => {
     const state = useQueueStore.getState();
-    const knownIds = new Set([...state.queue.map((a) => a.id), ...(state.nowPlaying ? [state.nowPlaying.id] : [])]);
-    const newItems = serverQueue.filter((a) => !knownIds.has(a.id));
-    const merged = [...state.queue, ...newItems];
-    queueRef.current = merged;
-    set({ queue: merged });
+    // Server queue is authoritative for ordering.
+    // Exclude only the currently-playing item: server still holds it pending alert_played,
+    // but we've already dequeued it locally and are mid-playback.
+    const playingId = state.nowPlaying?.id;
+    const reconciled = playingId
+      ? serverQueue.filter((a) => a.id !== playingId)
+      : serverQueue;
+    queueRef.current = reconciled;
+    set({ queue: reconciled });
   });
 
   socketInstance.on("force_queue_update", (serverQueue: AlertPayload[]) => {
