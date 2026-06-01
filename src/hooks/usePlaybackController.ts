@@ -109,7 +109,14 @@ export interface UsePlaybackControllerProps {
   isLeader: boolean;
 }
 
-export function usePlaybackController({ queue, setQueue, queueRef, socketRef, activeAlertRef, isLeader }: UsePlaybackControllerProps) {
+export function usePlaybackController({
+  queue,
+  setQueue,
+  queueRef,
+  socketRef,
+  activeAlertRef,
+  isLeader,
+}: UsePlaybackControllerProps) {
   const [state, dispatch] = useReducer(queueReducer, INITIAL_STATE);
   const { active, particles, isPaused, showControls, currentDuration, volume } = state;
 
@@ -149,6 +156,7 @@ export function usePlaybackController({ queue, setQueue, queueRef, socketRef, ac
 
   useEffect(() => {
     activeAlertRef.current = active;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   useEffect(() => {
@@ -365,6 +373,7 @@ export function usePlaybackController({ queue, setQueue, queueRef, socketRef, ac
     if (!activeAlertRef.current && queue.length > 0 && phaseRef.current === "waiting") {
       runNextAlert();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, runNextAlert]);
 
   // ── videoHandlers — spread onto <video ref={activeVideoRef} {...videoHandlers} /> ──
@@ -427,6 +436,7 @@ export function usePlaybackController({ queue, setQueue, queueRef, socketRef, ac
         isBufferingRef.current = false;
       },
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [] // all access via refs — stable across renders
   );
 
@@ -447,6 +457,7 @@ export function usePlaybackController({ queue, setQueue, queueRef, socketRef, ac
       if (activeVideoRef.current) activeVideoRef.current.play().catch(() => {});
     }
     dispatch(nowPaused ? { type: "PAUSE" } : { type: "RESUME" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const seekVideo = useCallback((seconds: number) => {
@@ -455,6 +466,7 @@ export function usePlaybackController({ queue, setQueue, queueRef, socketRef, ac
     if (video && isFinite(video.duration)) {
       video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setVolume = useCallback((v: number) => {
@@ -487,6 +499,7 @@ export function usePlaybackController({ queue, setQueue, queueRef, socketRef, ac
       extendTimeoutRef.current?.(newRemaining);
       alertStartTimeRef.current = Date.now() - (currentDurationRef.current - newRemaining);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onMouseEnterMedia = useCallback(() => {

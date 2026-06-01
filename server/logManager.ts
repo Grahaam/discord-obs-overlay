@@ -1,5 +1,5 @@
 import { logger } from "./logger.js";
-import type { MediaType, LogEntry } from "../src/types.js";
+import type { LogEntry } from "../src/types.js";
 
 const MAX_LOG_ENTRIES = 500;
 
