@@ -31,6 +31,9 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
+      - name: Format code (auto-fix, non-blocking)
+        run: npx prettier --write . || true
+
       - name: Run linter
         run: npm run lint
 
