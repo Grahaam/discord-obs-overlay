@@ -1,7 +1,7 @@
 import path from "path";
 import { createRequire } from "module";
 import { AlertPayload } from "../src/types.js";
-import { LogEntry } from "./logManager.js";
+import type { LogEntry } from "../src/types.js";
 import { logger } from "./logger.js";
 
 const _require = createRequire(import.meta.url);

@@ -1,12 +1,5 @@
 import crypto from "crypto";
-
-export interface ServerLogEntry {
-  id: string;
-  timestamp: number;
-  level: "warn" | "error" | "fatal";
-  msg: string;
-  data?: Record<string, unknown>;
-}
+import type { ServerLogEntry } from "../src/types.js";
 
 const MAX_ENTRIES = 200;
 

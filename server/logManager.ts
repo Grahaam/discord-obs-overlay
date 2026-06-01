@@ -1,18 +1,5 @@
 import { logger } from "./logger.js";
-
-// MediaType is the canonical union — never add "react-player" here again.
-export type MediaType = "image" | "video" | "iframe" | "link";
-
-export interface LogEntry {
-  id: string;
-  timestamp: number;
-  author: string;
-  text: string;
-  type: MediaType;
-  mediaUrl: string;
-  status: "approved" | "blocked" | "censored" | "error";
-  reason: string;
-}
+import type { MediaType, LogEntry } from "../src/types.js";
 
 const MAX_LOG_ENTRIES = 500;
 
