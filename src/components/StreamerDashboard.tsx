@@ -29,17 +29,9 @@ import StylingTab from "./tabs/StylingTab";
 import ModerationTab from "./tabs/ModerationTab";
 import SimulatorTab from "./tabs/SimulatorTab";
 import HealthTab from "./tabs/HealthTab";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -53,7 +45,7 @@ export default function StreamerDashboard() {
   );
   const [saveLoading, setSaveLoading] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("hasSeenTutorial"));
-  const { queue: pendingQueue, nowPlaying, reorder } = useQueueStore();
+  const { queue: pendingQueue, nowPlaying, reorder, wsStatus } = useQueueStore();
   const [config, setConfig] = useState<UIConfig>({
     discordToken: "",
     channelId: "",
@@ -123,55 +115,57 @@ export default function StreamerDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Use the queue store's singleton socket to listen for logs and server logs.
-  // All clients (dashboard, dock, overlay) share one socket per page via the queue store.
+  // Re-subscribe to log events whenever socket connects.
+  // wsStatus dep ensures this re-runs after reconnect; named handlers
+  // allow precise cleanup without stripping other listeners.
   useEffect(() => {
-    const { socketRef } = useQueueStore.getState();
-    const socket = socketRef.current;
+    if (wsStatus !== "connected") return;
+    const socket = useQueueStore.getState().socketRef.current;
+    if (!socket) return;
 
-    if (!socket) {
-      console.warn("[StreamerDashboard] Socket not initialized in queue store");
-      return;
-    }
-
-    socket.on("new_log", (log: LogEntry) => {
+    const onNewLog = (log: LogEntry) => {
       setLogs((prev) => {
         if (prev.some((l) => l.id === log.id)) return prev;
         return [log, ...prev].slice(0, 500);
       });
-    });
-    socket.on("initial_logs", (logs: LogEntry[]) => {
+    };
+    const onInitialLogs = (logs: LogEntry[]) => {
       setLogs((prev) => {
         const knownIds = new Set(prev.map((l) => l.id));
         const newEntries = logs.filter((l) => !knownIds.has(l.id));
         if (newEntries.length === 0) return prev;
         return [...newEntries, ...prev].slice(0, 500);
       });
-    });
-    socket.on("logs_cleared", () => setLogs([]));
-
-    socket.on("new_server_log", (log: ServerLogEntry) => {
+    };
+    const onLogsCleared = () => setLogs([]);
+    const onNewServerLog = (log: ServerLogEntry) => {
       setServerLogs((prev) => (prev.some((l) => l.id === log.id) ? prev : [log, ...prev].slice(0, 200)));
-    });
-    socket.on("initial_server_logs", (incoming: ServerLogEntry[]) => {
+    };
+    const onInitialServerLogs = (incoming: ServerLogEntry[]) => {
       setServerLogs((prev) => {
         const knownIds = new Set(prev.map((l) => l.id));
         const next = incoming.filter((l) => !knownIds.has(l.id));
         return next.length === 0 ? prev : [...next, ...prev].slice(0, 200);
       });
-    });
-    socket.on("server_logs_cleared", () => setServerLogs([]));
-
-    // Note: We do NOT disconnect the socket on unmount - it's owned by the queue store
-    return () => {
-      socket.off("new_log");
-      socket.off("initial_logs");
-      socket.off("logs_cleared");
-      socket.off("new_server_log");
-      socket.off("initial_server_logs");
-      socket.off("server_logs_cleared");
     };
-  }, []);
+    const onServerLogsCleared = () => setServerLogs([]);
+
+    socket.on("new_log", onNewLog);
+    socket.on("initial_logs", onInitialLogs);
+    socket.on("logs_cleared", onLogsCleared);
+    socket.on("new_server_log", onNewServerLog);
+    socket.on("initial_server_logs", onInitialServerLogs);
+    socket.on("server_logs_cleared", onServerLogsCleared);
+
+    return () => {
+      socket.off("new_log", onNewLog);
+      socket.off("initial_logs", onInitialLogs);
+      socket.off("logs_cleared", onLogsCleared);
+      socket.off("new_server_log", onNewServerLog);
+      socket.off("initial_server_logs", onInitialServerLogs);
+      socket.off("server_logs_cleared", onServerLogsCleared);
+    };
+  }, [wsStatus]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
