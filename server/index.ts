@@ -14,6 +14,7 @@ import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser } from "./media
 import { alertManager } from "./alertManager.js";
 import { initDb, loadPersistedAlerts, loadPersistedLogs } from "./db.js";
 import { logManager } from "./logManager.js";
+import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
 
 dotenv.config();
@@ -61,9 +62,11 @@ async function runServer() {
   });
 
   app.use("/api/logs", readLimiter);
+  app.use("/api/server-logs", readLimiter);
   app.use("/api/bot-status", readLimiter);
   app.use("/api/settings", readLimiter);
   app.use("/api/media-cache", readLimiter);
+  app.use("/api/health", readLimiter);
   app.use("/api", writeLimiter);
 
   // Phase 4: CSP hardening — set via HTTP headers (more reliable in OBS than meta tags)
@@ -102,6 +105,19 @@ async function runServer() {
     io.emit("new_log", log);
   };
 
+  serverLogManager.onLogAdded = (log) => {
+    io.emit("new_server_log", log);
+  };
+
+  // Capture unhandled process errors into server log ring
+  process.on("uncaughtException", (err) => {
+    serverLogManager.add("fatal", "Uncaught exception", { message: err.message, name: err.name });
+  });
+  process.on("unhandledRejection", (reason) => {
+    const msg = reason instanceof Error ? reason.message : String(reason);
+    serverLogManager.add("error", "Unhandled promise rejection", { reason: msg });
+  });
+
   // Phase 3: heartbeat — lets overlay detect server restarts and reconcile queue state
   const heartbeatInterval = setInterval(() => {
     io.emit("heartbeat", {
@@ -122,6 +138,7 @@ async function runServer() {
       socket.emit("initial_state", alertManager.getAlerts());
       socket.emit("now_playing", currentlyPlaying);
       socket.emit("initial_logs", logManager.getLogs());
+      socket.emit("initial_server_logs", serverLogManager.getLogs());
     });
 
     socket.on("alert_started", (alertId: string) => {

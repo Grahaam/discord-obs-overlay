@@ -87,7 +87,7 @@ export default function StylingTab(props: TabProps) {
   const alertScale = config.alertScale ?? 1;
   const alertBgOpacity = config.alertBgOpacity ?? 0.9;
   const alertAnimation = config.alertAnimation ?? "slide-up";
-  const alertPosition = config.alertPosition ?? "bottom-right";
+  const alertPosition = config.alertPosition ?? "bottom-left";
 
   const fontLabels = getFontLabels(t);
 
