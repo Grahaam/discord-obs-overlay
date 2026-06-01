@@ -319,10 +319,10 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
   const dlOptions: any = {
     noWarnings: true,
     noCheckCertificates: true,
-    // Without ffmpeg, use pre-muxed format only (max ~720p). With ffmpeg, prefer 720p merged.
+    // Without ffmpeg, use pre-muxed format only (max ~720p). With ffmpeg, prefer 1080p merged.
     format: _ffmpegBin
-      ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best"
-      : "best[height<=720][ext=mp4]/best[height<=480][ext=mp4]/best[ext=mp4]/best",
+      ? "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
+      : "best[height<=1080][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best",
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     // Twitter/X rejects google.com referer when downloading from video.twimg.com
