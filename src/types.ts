@@ -1,3 +1,16 @@
+export type AlertFont = "sans" | "mono" | "serif" | "display" | "rounded";
+export type AlertPosition =
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "center-left"
+  | "center"
+  | "center-right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right";
+export type AlertAnimation = "slide-up" | "fade" | "zoom" | "bounce";
+
 export interface UIConfig {
   discordToken: string;
   channelId: string;
@@ -16,6 +29,11 @@ export interface UIConfig {
   language?: "fr" | "en" | "uwu-fr" | "uwu-en";
   alertSoundUrl?: string;
   allowedRoleIds?: string[];
+  alertFont?: AlertFont;
+  alertPosition?: AlertPosition;
+  alertScale?: number;
+  alertBgOpacity?: number;
+  alertAnimation?: AlertAnimation;
 }
 
 /** Canonical media type — shared by alerts and logs. "react-player" is not used. */
@@ -40,6 +58,11 @@ export interface AlertPayload {
   alertSoundUrl?: string;
   timestamp: number;
   isTest?: boolean;
+  alertFont?: AlertFont;
+  alertPosition?: AlertPosition;
+  alertScale?: number;
+  alertBgOpacity?: number;
+  alertAnimation?: AlertAnimation;
 }
 
 export interface LogEntry {
@@ -51,6 +74,14 @@ export interface LogEntry {
   mediaUrl: string;
   status: "approved" | "blocked" | "censored" | "error";
   reason: string;
+}
+
+export interface ServerLogEntry {
+  id: string;
+  timestamp: number;
+  level: "warn" | "error" | "fatal";
+  msg: string;
+  data?: Record<string, unknown>;
 }
 
 export interface Sparkle {

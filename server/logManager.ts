@@ -49,10 +49,7 @@ export class LogManager {
     import("./db.js").then(({ clearPersistedLogs }) => clearPersistedLogs()).catch(() => {});
   }
 
-  public updateLog(
-    id: string,
-    patch: Partial<Pick<LogEntry, "status" | "reason" | "mediaUrl" | "type">>
-  ): boolean {
+  public updateLog(id: string, patch: Partial<Pick<LogEntry, "status" | "reason" | "mediaUrl" | "type">>): boolean {
     const log = this.logs.find((l) => l.id === id);
     if (!log) return false;
     Object.assign(log, patch);
