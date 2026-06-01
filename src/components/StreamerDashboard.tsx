@@ -46,7 +46,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SortableQueueItem } from "./SortableQueueItem";
-import { useQueueSocket } from "../hooks/useQueueSocket";
+import { useQueueStore } from "../store/queueStore";
 
 export default function StreamerDashboard() {
   const [activeTab, setActiveTab] = useState<"credentials" | "styling" | "moderation" | "simulator" | "health">(
@@ -54,7 +54,7 @@ export default function StreamerDashboard() {
   );
   const [saveLoading, setSaveLoading] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("hasSeenTutorial"));
-  const { queue: pendingQueue, nowPlaying, setQueue: setPendingQueue } = useQueueSocket();
+  const { queue: pendingQueue, nowPlaying, reorder } = useQueueStore();
   const [config, setConfig] = useState<UIConfig>({
     discordToken: "",
     channelId: "",
@@ -167,18 +167,16 @@ export default function StreamerDashboard() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = pendingQueue.findIndex((i) => i.id === active.id);
     const newIndex = pendingQueue.findIndex((i) => i.id === over.id);
-    const reordered = arrayMove(pendingQueue, oldIndex, newIndex);
-    setPendingQueue(reordered);
-    fetch("/api/queue/force-update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ queue: reordered.map((i) => ({ id: i.id })) }),
-    });
+    try {
+      await reorder(oldIndex, newIndex);
+    } catch (err) {
+      console.error("Failed to reorder queue:", err);
+    }
   };
 
   useEffect(() => {
