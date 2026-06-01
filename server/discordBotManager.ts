@@ -94,7 +94,10 @@ export class DiscordBotManager {
             const lines = alerts.map((a, i) => `${i + 1}. **${a.title || a.authorName}** — ${a.type}`);
             let desc = "";
             for (const line of lines) {
-              if (desc.length + line.length + 1 > 4000) { desc += `\n…and more`; break; }
+              if (desc.length + line.length + 1 > 4000) {
+                desc += `\n…and more`;
+                break;
+              }
               desc += (desc ? "\n" : "") + line;
             }
             const embed = new EmbedBuilder()
@@ -311,6 +314,11 @@ export class DiscordBotManager {
                 alertStyle: settingsManager.settings.alertStyle,
                 stopAlertShortcut: settingsManager.settings.stopAlertShortcut || "Escape",
                 alertSoundUrl: settingsManager.settings.alertSoundUrl || "",
+                alertFont: settingsManager.settings.alertFont || "sans",
+                alertPosition: settingsManager.settings.alertPosition || "bottom-left",
+                alertScale: settingsManager.settings.alertScale ?? 1,
+                alertBgOpacity: settingsManager.settings.alertBgOpacity ?? 0.9,
+                alertAnimation: settingsManager.settings.alertAnimation || "slide-up",
                 timestamp: Date.now(),
               };
 

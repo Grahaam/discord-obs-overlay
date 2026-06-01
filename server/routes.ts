@@ -11,6 +11,7 @@ import { exec } from "child_process";
 import { logger } from "./logger.js";
 import { settingsManager } from "./settingsManager.js";
 import { logManager } from "./logManager.js";
+import { serverLogManager } from "./serverLogManager.js";
 import { botManager } from "./discordBotManager.js";
 import { resolveMediaFromLink, _ytDlpCustomPath } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
@@ -119,6 +120,23 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         language: z.enum(["fr", "en", "uwu-fr", "uwu-en"]),
         alertSoundUrl: z.string().optional(),
         allowedRoleIds: z.array(z.string()).optional(),
+        alertFont: z.enum(["sans", "mono", "serif", "display", "rounded"]).optional(),
+        alertPosition: z
+          .enum([
+            "top-left",
+            "top-center",
+            "top-right",
+            "center-left",
+            "center",
+            "center-right",
+            "bottom-left",
+            "bottom-center",
+            "bottom-right",
+          ])
+          .optional(),
+        alertScale: z.number().min(0.5).max(2).optional(),
+        alertBgOpacity: z.number().min(0).max(1).optional(),
+        alertAnimation: z.enum(["slide-up", "fade", "zoom", "bounce"]).optional(),
       });
       const incoming = SettingsSchema.parse(req.body);
       const originalToken = settingsManager.settings.discordToken;
@@ -143,6 +161,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         language: incoming.language || "fr",
         alertSoundUrl: incoming.alertSoundUrl || "",
         allowedRoleIds: incoming.allowedRoleIds || [],
+        alertFont: incoming.alertFont || "sans",
+        alertPosition: incoming.alertPosition || "bottom-left",
+        alertScale: incoming.alertScale ?? 1,
+        alertBgOpacity: incoming.alertBgOpacity ?? 0.9,
+        alertAnimation: incoming.alertAnimation || "slide-up",
       };
 
       settingsManager.saveSettings(updatedSettings);
@@ -181,6 +204,17 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
   app.post("/api/logs/clear", (req, res) => {
     logManager.clearLogs();
     io.emit("logs_cleared");
+    res.json({ success: true });
+  });
+
+  // Server logs (warn/error/fatal from pino)
+  app.get("/api/server-logs", (req, res) => {
+    res.json(serverLogManager.getLogs());
+  });
+
+  app.post("/api/server-logs/clear", (req, res) => {
+    serverLogManager.clearLogs();
+    io.emit("server_logs_cleared");
     res.json({ success: true });
   });
 
@@ -275,6 +309,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       alertStyle: settingsManager.settings.alertStyle,
       stopAlertShortcut: settingsManager.settings.stopAlertShortcut || "Escape",
       alertSoundUrl: settingsManager.settings.alertSoundUrl || "",
+      alertFont: settingsManager.settings.alertFont || "sans",
+      alertPosition: settingsManager.settings.alertPosition || "bottom-left",
+      alertScale: settingsManager.settings.alertScale ?? 1,
+      alertBgOpacity: settingsManager.settings.alertBgOpacity ?? 0.9,
+      alertAnimation: settingsManager.settings.alertAnimation || "slide-up",
       timestamp: Date.now(),
       isTest: true as const,
     };
@@ -330,6 +369,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       alertStyle: alertStyle || settingsManager.settings.alertStyle,
       stopAlertShortcut: settingsManager.settings.stopAlertShortcut || "Escape",
       alertSoundUrl: settingsManager.settings.alertSoundUrl || "",
+      alertFont: settingsManager.settings.alertFont || "sans",
+      alertPosition: settingsManager.settings.alertPosition || "bottom-left",
+      alertScale: settingsManager.settings.alertScale ?? 1,
+      alertBgOpacity: settingsManager.settings.alertBgOpacity ?? 0.9,
+      alertAnimation: settingsManager.settings.alertAnimation || "slide-up",
       timestamp: Date.now(),
       isTest: true,
     };
@@ -364,6 +408,39 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     alertManager.removeAlert(req.body.id);
     io.emit("remove_queue_item", req.body.id);
     res.json({ success: true });
+  });
+
+  // Clear media cache
+  app.post("/api/cache/clear", async (req, res) => {
+    const cacheDir = path.join(process.cwd(), "media_cache");
+    if (!fs.existsSync(cacheDir)) {
+      _cacheStatsCache = null;
+      return res.json({ success: true, deleted: 0 });
+    }
+    try {
+      const files = await fs.promises.readdir(cacheDir);
+      let deleted = 0;
+      for (const file of files) {
+        if (!file.endsWith(".tmp")) {
+          try {
+            await fs.promises.unlink(path.join(cacheDir, file));
+            deleted++;
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      _cacheStatsCache = null;
+      io.emit("cache_cleared", { deleted });
+      res.json({ success: true, deleted });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to clear cache" });
+    }
+  });
+
+  // Lightweight health ping
+  app.get("/api/health", (_req, res) => {
+    res.json({ ok: true, uptime: Math.floor(process.uptime()) });
   });
 
   // Serve local media files
