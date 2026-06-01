@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { createSocket } from "../lib/createSocket";
 import {
   Bot,
   Sliders,
@@ -124,10 +123,16 @@ export default function StreamerDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Dedicated socket for server-authoritative queue tracking.
-  // Separate from the embed's socket so embed's local playback state doesn't desync the display.
+  // Use the queue store's singleton socket to listen for logs and server logs.
+  // All clients (dashboard, dock, overlay) share one socket per page via the queue store.
   useEffect(() => {
-    const socket = createSocket();
+    const { socketRef } = useQueueStore.getState();
+    const socket = socketRef.current;
+
+    if (!socket) {
+      console.warn("[StreamerDashboard] Socket not initialized in queue store");
+      return;
+    }
 
     socket.on("new_log", (log: LogEntry) => {
       setLogs((prev) => {
@@ -157,8 +162,14 @@ export default function StreamerDashboard() {
     });
     socket.on("server_logs_cleared", () => setServerLogs([]));
 
+    // Note: We do NOT disconnect the socket on unmount - it's owned by the queue store
     return () => {
-      socket.disconnect();
+      socket.off("new_log");
+      socket.off("initial_logs");
+      socket.off("logs_cleared");
+      socket.off("new_server_log");
+      socket.off("initial_server_logs");
+      socket.off("server_logs_cleared");
     };
   }, []);
 

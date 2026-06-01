@@ -28,11 +28,14 @@ interface QueueStoreState {
 }
 
 let socketInstance: Socket | null = null;
+let socketInitialized = false;
 const queueRef = { current: [] as AlertPayload[] };
 const socketRef = { current: null as Socket | null };
 
 function initializeSocket(set: any) {
-  if (socketInstance) return;
+  // Prevent double initialization
+  if (socketInitialized) return;
+  socketInitialized = true;
 
   socketInstance = io(window.location.origin, {
     reconnection: true,
@@ -114,71 +117,81 @@ function initializeSocket(set: any) {
   });
 }
 
-export const useQueueStore = create<QueueStoreState>((set, get) => ({
-  queue: [],
-  nowPlaying: null,
-  wsStatus: "disconnected",
-  queueRef,
-  socketRef,
-  onSkip: undefined,
-  onPause: undefined,
-  onResume: undefined,
+export const useQueueStore = create<QueueStoreState>((set, get) => {
+  // Auto-initialize socket on first store access (if in browser)
+  if (typeof window !== "undefined" && !socketInitialized) {
+    setTimeout(() => {
+      const state = get();
+      state.ensureSocketConnected();
+    }, 0);
+  }
 
-  setQueue: (queue: AlertPayload[]) => {
-    queueRef.current = queue;
-    set({ queue });
-  },
+  return {
+    queue: [],
+    nowPlaying: null,
+    wsStatus: "disconnected",
+    queueRef,
+    socketRef,
+    onSkip: undefined,
+    onPause: undefined,
+    onResume: undefined,
 
-  setNowPlaying: (alert: AlertPayload | null) => {
-    set({ nowPlaying: alert });
-  },
+    setQueue: (queue: AlertPayload[]) => {
+      queueRef.current = queue;
+      set({ queue });
+    },
 
-  removeQueueItem: (id: string) => {
-    const queue = get().queue.filter((item) => item.id !== id);
-    get().setQueue(queue);
-  },
+    setNowPlaying: (alert: AlertPayload | null) => {
+      set({ nowPlaying: alert });
+    },
 
-  clearQueue: () => {
-    get().setQueue([]);
-  },
+    removeQueueItem: (id: string) => {
+      const queue = get().queue.filter((item) => item.id !== id);
+      get().setQueue(queue);
+    },
 
-  addQueueItem: (alert: AlertPayload) => {
-    const queue = get().queue;
-    if (queue.some((a) => a.id === alert.id)) return;
-    get().setQueue([...queue, alert]);
-  },
+    clearQueue: () => {
+      get().setQueue([]);
+    },
 
-  reorder: async (fromIdx: number, toIdx: number) => {
-    const queue = [...get().queue];
-    const [item] = queue.splice(fromIdx, 1);
-    queue.splice(toIdx, 0, item);
-    get().setQueue(queue); // Optimistic update
+    addQueueItem: (alert: AlertPayload) => {
+      const queue = get().queue;
+      if (queue.some((a) => a.id === alert.id)) return;
+      get().setQueue([...queue, alert]);
+    },
 
-    try {
-      const response = await fetch("/api/queue/force-update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ queue: queue.map((i) => ({ id: i.id })) }),
-      });
-      if (!response.ok) {
-        throw new Error(`Queue reorder failed: ${response.status}`);
+    reorder: async (fromIdx: number, toIdx: number) => {
+      const queue = [...get().queue];
+      const [item] = queue.splice(fromIdx, 1);
+      queue.splice(toIdx, 0, item);
+      get().setQueue(queue); // Optimistic update
+
+      try {
+        const response = await fetch("/api/queue/force-update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ queue: queue.map((i) => ({ id: i.id })) }),
+        });
+        if (!response.ok) {
+          throw new Error(`Queue reorder failed: ${response.status}`);
+        }
+      } catch (error) {
+        console.error("[QueueStore] Reorder API error:", error);
+        // Trigger state reconciliation to sync with server
+        get().ensureSocketConnected();
+        throw error; // Let caller decide what to do
       }
-    } catch (error) {
-      console.error("[QueueStore] Reorder API error:", error);
-      // Trigger state reconciliation to sync with server
-      get().ensureSocketConnected();
-      throw error; // Let caller decide what to do
-    }
-  },
+    },
 
-  ensureSocketConnected: () => {
-    initializeSocket(set);
-  },
+    ensureSocketConnected: () => {
+      initializeSocket(set);
+    },
 
-  setSkipCallback: (cb: () => void) => set({ onSkip: cb }),
-  setPauseCallback: (cb: () => void) => set({ onPause: cb }),
-  setResumeCallback: (cb: () => void) => set({ onResume: cb }),
-}));
+    setSkipCallback: (cb: () => void) => set({ onSkip: cb }),
+    setPauseCallback: (cb: () => void) => set({ onPause: cb }),
+    setResumeCallback: (cb: () => void) => set({ onResume: cb }),
+  };
+});
 
 export function initQueueSocket() {
   useQueueStore.getState().ensureSocketConnected();

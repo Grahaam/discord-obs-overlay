@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { createSocket } from "../lib/createSocket";
 import { Bot, Activity, AlertTriangle, RefreshCw } from "lucide-react";
 import { LogEntry, BotStatus } from "../types";
+import { useQueueStore } from "../store/queueStore";
 
 const STATUS_DOT: Record<LogEntry["status"], string> = {
   approved: "bg-emerald-400",
@@ -22,7 +22,13 @@ export default function OBSStatusDock() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   useEffect(() => {
-    const socket = createSocket();
+    const { socketRef } = useQueueStore.getState();
+    const socket = socketRef.current;
+
+    if (!socket) {
+      console.warn("[OBSStatusDock] Socket not initialized in queue store");
+      return;
+    }
 
     const fetchInitial = async () => {
       try {
@@ -42,8 +48,12 @@ export default function OBSStatusDock() {
     );
     socket.on("logs_cleared", () => setLogs([]));
 
+    // Note: We do NOT disconnect the socket on unmount - it's owned by the queue store
     return () => {
-      socket.disconnect();
+      socket.off("bot_status_update");
+      socket.off("initial_logs");
+      socket.off("new_log");
+      socket.off("logs_cleared");
     };
   }, []);
 
