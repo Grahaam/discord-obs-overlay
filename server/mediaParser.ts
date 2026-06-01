@@ -329,6 +329,8 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
     ...(!url.includes("x.com") && !url.includes("twitter.com") && { referer: "https://www.google.com/" }),
     geoBypass: true,
     forceIpv4: true,
+    // iOS client bypasses YouTube n-challenge (no deno required) and provides pre-muxed streams
+    extractorArgs: "youtube:player_client=ios",
     output: tempFilepath,
     maxFilesize: `${maxMB}M`,
     ...(_ffmpegBin && { mergeOutputFormat: "mp4", ffmpegLocation: path.dirname(_ffmpegBin) }),
