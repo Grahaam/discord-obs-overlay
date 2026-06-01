@@ -1,9 +1,9 @@
-import { CSSProperties, useState, useEffect, useRef } from "react";
+import { CSSProperties, useState, useEffect, useRef, useCallback } from "react";
 import { Bot, Flame, AlertTriangle, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { AlertPayload } from "../types";
 import { locales, Language } from "../locales";
-import { useOverlaySocket } from "../hooks/useOverlaySocket";
-import { useAlertQueue } from "../hooks/useAlertQueue";
+import { useQueueStore } from "../store/queueStore";
+import { usePlaybackController } from "../hooks/usePlaybackController";
 import { useLeaderElection } from "../hooks/useLeaderElection";
 
 const FONT_MAP: Record<string, string> = {
@@ -79,12 +79,29 @@ export default function OBSOverlayView() {
   const pauseRef = useRef<() => void>(() => {});
   const resumeRef = useRef<() => void>(() => {});
 
-  const { queue, setQueue, queueRef, wsStatus, socketRef } = useOverlaySocket({
-    onSkip: () => cancelSkipRef.current(),
-    onPause: () => pauseRef.current(),
-    onResume: () => resumeRef.current(),
-    activeAlertRef,
-  });
+  const { queue, setQueue, queueRef, wsStatus, socketRef } = useQueueStore();
+
+  // Register playback control callbacks with store
+  useEffect(() => {
+    const { setSkipCallback, setPauseCallback, setResumeCallback } = useQueueStore.getState();
+
+    setSkipCallback(() => cancelSkipRef.current());
+    setPauseCallback(() => pauseRef.current());
+    setResumeCallback(() => resumeRef.current());
+  }, []);
+
+  // Wrapper for setQueue to match React.Dispatch<SetStateAction> signature
+  const setQueueCompat = useCallback(
+    (updater: AlertPayload[] | ((prev: AlertPayload[]) => AlertPayload[])) => {
+      if (typeof updater === "function") {
+        const currentQueue = useQueueStore.getState().queue;
+        setQueue(updater(currentQueue));
+      } else {
+        setQueue(updater);
+      }
+    },
+    [setQueue]
+  );
 
   const {
     active,
@@ -102,7 +119,7 @@ export default function OBSOverlayView() {
     onMouseEnterMedia,
     showControlsTemporarily,
     cancelCurrentAlert,
-  } = useAlertQueue({ queue, setQueue, queueRef, socketRef, activeAlertRef, isLeader });
+  } = usePlaybackController({ queue, setQueue: setQueueCompat, queueRef, socketRef, activeAlertRef, isLeader });
 
   useEffect(() => {
     cancelSkipRef.current = cancelCurrentAlert;

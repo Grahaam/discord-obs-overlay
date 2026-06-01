@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { createSocket } from "../lib/createSocket";
 import {
   Bot,
   Sliders,
@@ -30,23 +29,15 @@ import StylingTab from "./tabs/StylingTab";
 import ModerationTab from "./tabs/ModerationTab";
 import SimulatorTab from "./tabs/SimulatorTab";
 import HealthTab from "./tabs/HealthTab";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { SortableQueueItem } from "./SortableQueueItem";
-import { useQueueSocket } from "../hooks/useQueueSocket";
+import { useQueueStore } from "../store/queueStore";
 
 export default function StreamerDashboard() {
   const [activeTab, setActiveTab] = useState<"credentials" | "styling" | "moderation" | "simulator" | "health">(
@@ -54,7 +45,7 @@ export default function StreamerDashboard() {
   );
   const [saveLoading, setSaveLoading] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("hasSeenTutorial"));
-  const { queue: pendingQueue, nowPlaying, setQueue: setPendingQueue } = useQueueSocket();
+  const { queue: pendingQueue, nowPlaying, reorder, wsStatus, socket } = useQueueStore();
   const [config, setConfig] = useState<UIConfig>({
     discordToken: "",
     channelId: "",
@@ -124,61 +115,75 @@ export default function StreamerDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Dedicated socket for server-authoritative queue tracking.
-  // Separate from the embed's socket so embed's local playback state doesn't desync the display.
+  // Re-subscribe to log events whenever socket connects.
+  // Both socket and wsStatus are deps: socket changes when the store first
+  // creates the connection, wsStatus tracks connect/disconnect cycles.
+  // Named handlers allow precise cleanup without stripping other listeners.
+  // Note: initial_logs and initial_server_logs are sent by the server as part
+  // of the get_initial_state handler on connect; no separate request event exists.
+  // The HTTP fetchSettingsAndLogs() on mount already covers the initial load.
   useEffect(() => {
-    const socket = createSocket();
+    if (wsStatus !== "connected" || !socket) return;
 
-    socket.on("new_log", (log: LogEntry) => {
+    const onNewLog = (log: LogEntry) => {
       setLogs((prev) => {
         if (prev.some((l) => l.id === log.id)) return prev;
         return [log, ...prev].slice(0, 500);
       });
-    });
-    socket.on("initial_logs", (logs: LogEntry[]) => {
+    };
+    const onInitialLogs = (logs: LogEntry[]) => {
       setLogs((prev) => {
         const knownIds = new Set(prev.map((l) => l.id));
         const newEntries = logs.filter((l) => !knownIds.has(l.id));
         if (newEntries.length === 0) return prev;
         return [...newEntries, ...prev].slice(0, 500);
       });
-    });
-    socket.on("logs_cleared", () => setLogs([]));
-
-    socket.on("new_server_log", (log: ServerLogEntry) => {
+    };
+    const onLogsCleared = () => setLogs([]);
+    const onNewServerLog = (log: ServerLogEntry) => {
       setServerLogs((prev) => (prev.some((l) => l.id === log.id) ? prev : [log, ...prev].slice(0, 200)));
-    });
-    socket.on("initial_server_logs", (incoming: ServerLogEntry[]) => {
+    };
+    const onInitialServerLogs = (incoming: ServerLogEntry[]) => {
       setServerLogs((prev) => {
         const knownIds = new Set(prev.map((l) => l.id));
         const next = incoming.filter((l) => !knownIds.has(l.id));
         return next.length === 0 ? prev : [...next, ...prev].slice(0, 200);
       });
-    });
-    socket.on("server_logs_cleared", () => setServerLogs([]));
+    };
+    const onServerLogsCleared = () => setServerLogs([]);
+
+    socket.on("new_log", onNewLog);
+    socket.on("initial_logs", onInitialLogs);
+    socket.on("logs_cleared", onLogsCleared);
+    socket.on("new_server_log", onNewServerLog);
+    socket.on("initial_server_logs", onInitialServerLogs);
+    socket.on("server_logs_cleared", onServerLogsCleared);
 
     return () => {
-      socket.disconnect();
+      socket.off("new_log", onNewLog);
+      socket.off("initial_logs", onInitialLogs);
+      socket.off("logs_cleared", onLogsCleared);
+      socket.off("new_server_log", onNewServerLog);
+      socket.off("initial_server_logs", onInitialServerLogs);
+      socket.off("server_logs_cleared", onServerLogsCleared);
     };
-  }, []);
+  }, [socket, wsStatus]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = pendingQueue.findIndex((i) => i.id === active.id);
     const newIndex = pendingQueue.findIndex((i) => i.id === over.id);
-    const reordered = arrayMove(pendingQueue, oldIndex, newIndex);
-    setPendingQueue(reordered);
-    fetch("/api/queue/force-update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ queue: reordered.map((i) => ({ id: i.id })) }),
-    });
+    try {
+      await reorder(oldIndex, newIndex);
+    } catch (err) {
+      console.error("Failed to reorder queue:", err);
+    }
   };
 
   useEffect(() => {
