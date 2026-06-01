@@ -1,21 +1,8 @@
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
-import { createRequire } from "module";
 import { logger } from "./logger.js";
-
-const _require = createRequire(import.meta.url);
-// ffmpeg-static provides a bundled binary — prefer it over system ffmpeg
-const _ffmpegStatic: string | null = (() => {
-  try {
-    return _require("ffmpeg-static") as string;
-  } catch {
-    return null;
-  }
-})();
-const FFMPEG_BIN = _ffmpegStatic ?? "ffmpeg";
-
-const CACHE_DIR = path.join(process.cwd(), "media_cache");
+import { FFMPEG_BIN, CACHE_DIR } from "./binaries.js";
 const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
 
 /**

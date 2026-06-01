@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { io } from "socket.io-client";
+import { createSocket } from "../lib/createSocket";
 import {
   Bot,
   Sliders,
@@ -113,7 +113,7 @@ export default function StreamerDashboard() {
   // Dedicated socket for server-authoritative queue tracking.
   // Separate from the embed's socket so embed's local playback state doesn't desync the display.
   useEffect(() => {
-    const socket = io(window.location.origin, { reconnection: true });
+    const socket = createSocket();
 
     socket.on("connect", () => socket.emit("get_initial_state"));
     socket.on("initial_state", (q: AlertPayload[]) => setPendingQueue(q));
