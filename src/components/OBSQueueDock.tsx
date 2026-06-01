@@ -14,25 +14,18 @@ export default function OBSQueueDock() {
   const { queue, nowPlaying, reorder } = useQueueStore();
   const playback = useQueueStore((s) => s.playback);
   const volumeTimerRef = useRef<number | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [localSeekValue, setLocalSeekValue] = useState(0);
-  const [pendingSeekTarget, setPendingSeekTarget] = useState<number | null>(null);
-  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrubRef = useRef<HTMLInputElement>(null);
+  const isDraggingRef = useRef(false);
+  const [scrubDisplayTime, setScrubDisplayTime] = useState(0);
 
-  // Clear pending once socket confirms video reached the target (within 1s tolerance)
+  // Imperatively sync scrubber position from socket — skip while user is dragging
   useEffect(() => {
-    if (pendingSeekTarget !== null && playback?.currentTime !== undefined) {
-      if (Math.abs(playback.currentTime - pendingSeekTarget) < 1.0) {
-        setPendingSeekTarget(null);
-      }
+    const t = playback?.currentTime ?? 0;
+    if (!isDraggingRef.current) {
+      if (scrubRef.current) scrubRef.current.value = String(t);
+      setScrubDisplayTime(t);
     }
-  }, [playback?.currentTime, pendingSeekTarget]);
-
-  const seekDisplayTime = isDragging
-    ? localSeekValue
-    : pendingSeekTarget !== null
-      ? pendingSeekTarget
-      : (playback?.currentTime ?? 0);
+  }, [playback?.currentTime]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -149,22 +142,19 @@ export default function OBSQueueDock() {
 
         {/* Progress row */}
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/35 tabular-nums w-8">{formatTime(seekDisplayTime)}</span>
+          <span className="text-[10px] text-white/35 tabular-nums w-8">{formatTime(scrubDisplayTime)}</span>
           <input
+            ref={scrubRef}
             type="range"
             min={0}
             max={playback?.duration ?? 1}
             step={0.5}
-            value={seekDisplayTime}
-            onChange={(e) => setLocalSeekValue(parseFloat(e.currentTarget.value))}
-            onPointerDown={() => { setIsDragging(true); setLocalSeekValue(playback?.currentTime ?? 0); }}
+            defaultValue={0}
+            onPointerDown={() => { isDraggingRef.current = true; }}
+            onInput={(e) => setScrubDisplayTime(parseFloat(e.currentTarget.value))}
             onPointerUp={(e) => {
-              const target = parseFloat((e.target as HTMLInputElement).value);
-              setIsDragging(false);
-              setPendingSeekTarget(target);
-              if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-              settleTimerRef.current = setTimeout(() => setPendingSeekTarget(null), 2000);
-              handleAction("queue/seek-absolute", { seconds: target });
+              isDraggingRef.current = false;
+              handleAction("queue/seek-absolute", { seconds: parseFloat(e.currentTarget.value) });
             }}
             className="flex-1 accent-indigo-500 h-1"
             aria-label="Seek"
