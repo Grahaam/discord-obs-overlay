@@ -41,11 +41,16 @@ if (!found) {
   process.exit(0);
 }
 
-const [pythonExe, extraArgs] = found;
-if (!fs.existsSync(VENV)) {
-  console.log("[Setup] Creating virtual environment...");
-  execFileSync(pythonExe, [...extraArgs, "-m", "venv", VENV], { stdio: "inherit" });
+try {
+  const [pythonExe, extraArgs] = found;
+  if (!fs.existsSync(VENV)) {
+    console.log("[Setup] Creating virtual environment...");
+    execFileSync(pythonExe, [...extraArgs, "-m", "venv", VENV], { stdio: "inherit" });
+  }
+  execFileSync(VENV_PYTHON, ["-m", "pip", "install", "--upgrade", "pip"], { stdio: "inherit" });
+  execFileSync(VENV_PYTHON, ["-m", "pip", "install", "--upgrade", "yt-dlp"], { stdio: "inherit" });
+  console.log("[Setup] Done.");
+} catch (err) {
+  console.warn("[Setup] venv/pip setup failed (non-fatal):", err.message);
+  console.warn("[Setup] App will use system yt-dlp or youtube-dl-exec instead.");
 }
-execFileSync(VENV_PYTHON, ["-m", "pip", "install", "--upgrade", "pip"], { stdio: "inherit" });
-execFileSync(VENV_PYTHON, ["-m", "pip", "install", "--upgrade", "yt-dlp"], { stdio: "inherit" });
-console.log("[Setup] Done.");

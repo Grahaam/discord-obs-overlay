@@ -105,6 +105,62 @@ export class DiscordBotManager {
               .setColor(0x6366f1)
               .setDescription(desc);
             await interaction.reply({ embeds: [embed], ephemeral: true });
+            return;
+          }
+
+          if (interaction.commandName === "clear") {
+            const hasPermission = interaction.memberPermissions?.has(PermissionFlagsBits.ManageMessages);
+            if (!hasPermission) {
+              await interaction.reply({
+                content: "❌ You need Manage Messages permission to clear the queue.",
+                ephemeral: true,
+              });
+              return;
+            }
+            alertManager.clearQueue();
+            if (this.io) {
+              this.io.emit("clear_queue");
+              await interaction.reply({ content: "🗑️ Queue cleared.", ephemeral: true });
+            } else {
+              await interaction.reply({ content: "❌ Overlay not connected.", ephemeral: true });
+            }
+            return;
+          }
+
+          if (interaction.commandName === "pause") {
+            const hasPermission = interaction.memberPermissions?.has(PermissionFlagsBits.ManageMessages);
+            if (!hasPermission) {
+              await interaction.reply({
+                content: "❌ You need Manage Messages permission to pause alerts.",
+                ephemeral: true,
+              });
+              return;
+            }
+            if (this.io) {
+              this.io.emit("pause_alert");
+              await interaction.reply({ content: "⏸️ Alert paused.", ephemeral: true });
+            } else {
+              await interaction.reply({ content: "❌ Overlay not connected.", ephemeral: true });
+            }
+            return;
+          }
+
+          if (interaction.commandName === "resume") {
+            const hasPermission = interaction.memberPermissions?.has(PermissionFlagsBits.ManageMessages);
+            if (!hasPermission) {
+              await interaction.reply({
+                content: "❌ You need Manage Messages permission to resume alerts.",
+                ephemeral: true,
+              });
+              return;
+            }
+            if (this.io) {
+              this.io.emit("resume_alert");
+              await interaction.reply({ content: "▶️ Alert resumed.", ephemeral: true });
+            } else {
+              await interaction.reply({ content: "❌ Overlay not connected.", ephemeral: true });
+            }
+            return;
           }
         } catch (err) {
           logger.error({ err }, "Exception in interactionCreate handler");
@@ -382,6 +438,9 @@ export class DiscordBotManager {
       const commands = [
         new SlashCommandBuilder().setName("skip").setDescription("Skip the currently playing alert").toJSON(),
         new SlashCommandBuilder().setName("queue").setDescription("Show the current alert queue").toJSON(),
+        new SlashCommandBuilder().setName("clear").setDescription("Clear the alert queue").toJSON(),
+        new SlashCommandBuilder().setName("pause").setDescription("Pause the current alert").toJSON(),
+        new SlashCommandBuilder().setName("resume").setDescription("Resume the current alert").toJSON(),
       ];
 
       const rest = new REST({ version: "10" }).setToken(token);
