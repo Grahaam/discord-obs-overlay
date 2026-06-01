@@ -6,6 +6,7 @@ interface QueueStoreState {
   queue: AlertPayload[];
   nowPlaying: AlertPayload | null;
   wsStatus: "connected" | "connecting" | "disconnected";
+  socket: Socket | null;
   queueRef: React.MutableRefObject<AlertPayload[]>;
   socketRef: React.MutableRefObject<Socket | null>;
 
@@ -45,7 +46,7 @@ function initializeSocket(set: any) {
   });
 
   socketRef.current = socketInstance;
-  set({ wsStatus: "connecting" });
+  set({ socket: socketInstance, wsStatus: "connecting" });
 
   socketInstance.on("connect", () => {
     set({ wsStatus: "connected" });
@@ -62,10 +63,7 @@ function initializeSocket(set: any) {
 
   socketInstance.on("initial_state", (serverQueue: AlertPayload[]) => {
     const state = useQueueStore.getState();
-    const knownIds = new Set([
-      ...state.queue.map((a) => a.id),
-      ...(state.nowPlaying ? [state.nowPlaying.id] : []),
-    ]);
+    const knownIds = new Set([...state.queue.map((a) => a.id), ...(state.nowPlaying ? [state.nowPlaying.id] : [])]);
     const newItems = serverQueue.filter((a) => !knownIds.has(a.id));
     const merged = [...state.queue, ...newItems];
     queueRef.current = merged;
@@ -130,6 +128,7 @@ export const useQueueStore = create<QueueStoreState>((set, get) => {
     queue: [],
     nowPlaying: null,
     wsStatus: "disconnected",
+    socket: null,
     queueRef,
     socketRef,
     onSkip: undefined,
