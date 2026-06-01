@@ -321,16 +321,14 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
     noCheckCertificates: true,
     // Without ffmpeg, use pre-muxed format only (max ~720p). With ffmpeg, prefer 720p merged.
     format: _ffmpegBin
-      ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/bestvideo*[height<=720]+bestaudio*/bestvideo*+bestaudio*/best[height<=720]/best"
-      : "best[height<=720][ext=mp4]/best[ext=mp4]/best[height<=720]/best",
+      ? "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best"
+      : "best[height<=720][ext=mp4]/best[height<=480][ext=mp4]/best[ext=mp4]/best",
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     // Twitter/X rejects google.com referer when downloading from video.twimg.com
     ...(!url.includes("x.com") && !url.includes("twitter.com") && { referer: "https://www.google.com/" }),
     geoBypass: true,
     forceIpv4: true,
-    // Android client bypasses n-challenge JS solving required for DASH stream URLs
-    extractorArgs: "youtube:player_client=android,web",
     output: tempFilepath,
     maxFilesize: `${maxMB}M`,
     ...(_ffmpegBin && { mergeOutputFormat: "mp4", ffmpegLocation: path.dirname(_ffmpegBin) }),
