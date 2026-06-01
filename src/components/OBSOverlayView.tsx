@@ -79,6 +79,7 @@ export default function OBSOverlayView() {
   const pauseRef = useRef<() => void>(() => {});
   const resumeRef = useRef<() => void>(() => {});
   const seekRef = useRef<(s: number) => void>(() => {});
+  const seekAbsoluteRef = useRef<(s: number) => void>(() => {});
   const setVolRef = useRef<(v: number) => void>(() => {});
 
   const { queue, setQueue, queueRef, wsStatus, socketRef } = useQueueStore();
@@ -91,8 +92,9 @@ export default function OBSOverlayView() {
     setPauseCallback(() => pauseRef.current());
     setResumeCallback(() => resumeRef.current());
     // register seek and volume callbacks (callable with numbers)
-    const { setSeekCallback, setSetVolumeCallback } = useQueueStore.getState();
+    const { setSeekCallback, setSeekAbsoluteCallback, setSetVolumeCallback } = useQueueStore.getState();
     setSeekCallback((s: number) => seekRef.current(s));
+    setSeekAbsoluteCallback((s: number) => seekAbsoluteRef.current(s));
     setSetVolumeCallback((v: number) => setVolRef.current(v));
   }, []);
 
@@ -120,6 +122,7 @@ export default function OBSOverlayView() {
     videoHandlers,
     togglePause,
     seekVideo,
+    seekAbsolute,
     setVolume,
     handleProgressBarClick,
     onMouseEnterMedia,
@@ -146,8 +149,9 @@ export default function OBSOverlayView() {
   useEffect(() => {
     // keep refs in sync so store callbacks call the latest functions
     seekRef.current = seekVideo;
+    seekAbsoluteRef.current = seekAbsolute;
     setVolRef.current = setVolume;
-  }, [seekVideo, setVolume]);
+  }, [seekVideo, seekAbsolute, setVolume]);
 
   return (
     <div

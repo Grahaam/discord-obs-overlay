@@ -407,8 +407,15 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
   app.post("/api/queue/seek", (req, res) => {
     const seconds = typeof req.body.seconds === "number" ? req.body.seconds : null;
-    if (seconds === null) return res.status(400).json({ error: "seconds must be a number" });
+    if (seconds === null || isNaN(seconds)) return res.status(400).json({ error: "seconds must be a number" });
     io.emit("seek_alert", { seconds });
+    res.json({ success: true });
+  });
+
+  app.post("/api/queue/seek-absolute", (req, res) => {
+    const seconds = typeof req.body.seconds === "number" ? req.body.seconds : null;
+    if (seconds === null || isNaN(seconds) || seconds < 0) return res.status(400).json({ error: "seconds must be a non-negative number" });
+    io.emit("seek_alert_absolute", { seconds });
     res.json({ success: true });
   });
 
