@@ -1,10 +1,6 @@
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SkipForward, Trash2, Play, Pause, RotateCcw, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useQueueStore } from "../store/queueStore";
@@ -18,13 +14,32 @@ export default function OBSQueueDock() {
   const isDraggingRef = useRef(false);
   const [scrubDisplayTime, setScrubDisplayTime] = useState(0);
 
+  // Tracks the last currentTime we accepted — used to reject stale streams from a second overlay.
+  // Two overlay instances (OBS + browser tab) each emit playback_state independently; their
+  // streams interleave at the dock. We accept an update only when it's within 2s of the last
+  // accepted value (normal 500ms cadence) or within 1.5s of a commanded seek target.
+  const acceptedTimeRef = useRef<number>(0);
+  const seekTargetRef = useRef<number | null>(null);
+
+  // Reset convergence state when a new alert starts (currentTime restarts at 0)
+  useEffect(() => {
+    acceptedTimeRef.current = 0;
+    seekTargetRef.current = null;
+  }, [nowPlaying]);
+
   // Imperatively sync scrubber position from socket — skip while user is dragging
   useEffect(() => {
     const t = playback?.currentTime ?? 0;
-    if (!isDraggingRef.current) {
-      if (scrubRef.current) scrubRef.current.value = String(t);
-      setScrubDisplayTime(t);
-    }
+    if (isDraggingRef.current) return;
+
+    const target = seekTargetRef.current;
+    const drift = Math.abs(t - acceptedTimeRef.current);
+    // Reject events far from last accepted position that don't match the seek target.
+    if (drift > 2 && (target === null || Math.abs(t - target) >= 1.5)) return;
+
+    acceptedTimeRef.current = t;
+    if (scrubRef.current) scrubRef.current.value = String(t);
+    setScrubDisplayTime(t);
   }, [playback?.currentTime]);
 
   const sensors = useSensors(
@@ -73,7 +88,9 @@ export default function OBSQueueDock() {
             title="-5s"
           >
             <RotateCcw className="w-5 h-5 text-white/50" />
-            <span className="absolute inset-0 flex items-center justify-center text-[7px] font-black text-white/70 translate-y-px">5</span>
+            <span className="absolute inset-0 flex items-center justify-center text-[7px] font-black text-white/70 translate-y-px">
+              5
+            </span>
           </button>
 
           {/* Pause / Resume */}
@@ -94,7 +111,9 @@ export default function OBSQueueDock() {
             title="+5s"
           >
             <RotateCw className="w-5 h-5 text-white/50" />
-            <span className="absolute inset-0 flex items-center justify-center text-[7px] font-black text-white/70 translate-y-px">5</span>
+            <span className="absolute inset-0 flex items-center justify-center text-[7px] font-black text-white/70 translate-y-px">
+              5
+            </span>
           </button>
 
           <div className="w-px h-4 bg-white/10 mx-0.5 shrink-0" />
@@ -150,16 +169,23 @@ export default function OBSQueueDock() {
             max={playback?.duration ?? 1}
             step={0.5}
             defaultValue={0}
-            onPointerDown={() => { isDraggingRef.current = true; }}
+            onPointerDown={() => {
+              isDraggingRef.current = true;
+            }}
             onInput={(e) => setScrubDisplayTime(parseFloat(e.currentTarget.value))}
             onPointerUp={(e) => {
               isDraggingRef.current = false;
-              handleAction("queue/seek-absolute", { seconds: parseFloat(e.currentTarget.value) });
+              const seekTo = parseFloat(e.currentTarget.value);
+              seekTargetRef.current = seekTo;
+              acceptedTimeRef.current = seekTo;
+              handleAction("queue/seek-absolute", { seconds: seekTo });
             }}
             className="flex-1 accent-indigo-500 h-1"
             aria-label="Seek"
           />
-          <span className="text-[10px] text-white/35 tabular-nums w-8 text-right">{formatTime(playback?.duration ?? 0)}</span>
+          <span className="text-[10px] text-white/35 tabular-nums w-8 text-right">
+            {formatTime(playback?.duration ?? 0)}
+          </span>
         </div>
       </div>
 
