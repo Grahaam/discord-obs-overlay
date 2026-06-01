@@ -9,7 +9,7 @@ import prettierConfig from "eslint-config-prettier";
 import globals from "globals";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", ".venv", "scripts"] },
+  { ignores: ["dist", "node_modules", ".venv", "scripts", ".claude/worktrees/**"] },
   js.configs.recommended,
   tseslint.configs.recommended,
   prettierConfig,

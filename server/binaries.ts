@@ -15,7 +15,9 @@ export const FFMPEG_BIN: string = (() => {
       logger.info({ ffmpegBin: bin }, "Using ffmpeg binary (ffmpeg-static)");
       return bin;
     }
-  } catch { /* not installed */ }
+  } catch {
+    /* not installed */
+  }
   // Try system ffmpeg
   for (const cmd of ["which", "where"]) {
     try {
@@ -24,7 +26,9 @@ export const FFMPEG_BIN: string = (() => {
         logger.info({ ffmpegBin: found }, "Using ffmpeg binary (system)");
         return found;
       }
-    } catch { /* not found */ }
+    } catch {
+      /* not found */
+    }
   }
   logger.warn("ffmpeg not found — yt-dlp will use pre-muxed formats only (max 720p)");
   return "ffmpeg"; // fallback: hope it's on PATH

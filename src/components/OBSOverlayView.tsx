@@ -91,14 +91,17 @@ export default function OBSOverlayView() {
   }, []);
 
   // Wrapper for setQueue to match React.Dispatch<SetStateAction> signature
-  const setQueueCompat = useCallback((updater: AlertPayload[] | ((prev: AlertPayload[]) => AlertPayload[])) => {
-    if (typeof updater === "function") {
-      const currentQueue = useQueueStore.getState().queue;
-      setQueue(updater(currentQueue));
-    } else {
-      setQueue(updater);
-    }
-  }, [setQueue]);
+  const setQueueCompat = useCallback(
+    (updater: AlertPayload[] | ((prev: AlertPayload[]) => AlertPayload[])) => {
+      if (typeof updater === "function") {
+        const currentQueue = useQueueStore.getState().queue;
+        setQueue(updater(currentQueue));
+      } else {
+        setQueue(updater);
+      }
+    },
+    [setQueue]
+  );
 
   const {
     active,
