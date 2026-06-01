@@ -1,6 +1,7 @@
 # StreamAlerts Hub
 
 StreamAlerts Hub est une application pour les streamers permettant de récupérer des médias (vidéos, images, liens) depuis un salon Discord et de les afficher automatiquement en direct via OBS.
+[![CI](https://github.com/Grahaam/discord-obs-overlay/actions/workflows/ci.yml/badge.svg)](https://github.com/Grahaam/discord-obs-overlay/actions/workflows/ci.yml)
 
 ## Prérequis
 
