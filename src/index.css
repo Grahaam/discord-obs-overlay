@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
 @theme {
@@ -104,6 +104,64 @@ body,
 
 .animate-progress-timer {
   animation: timer-shrink var(--timer-duration, 8s) linear forwards;
+}
+
+/* Signal ring expansion for audio card */
+@keyframes signal-ring {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.65;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+.signal-ring {
+  animation: signal-ring 2.5s cubic-bezier(0.15, 0.5, 0.45, 1) var(--ring-delay, 0s) infinite;
+}
+
+/* Vinyl record rotation for audio card (kept for reference) */
+@keyframes vinyl-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.vinyl-spin {
+  animation: vinyl-spin 3s linear infinite;
+}
+.vinyl-spin.vinyl-paused {
+  animation-play-state: paused;
+}
+
+/* Audio waveform bars */
+@keyframes waveform-bounce {
+  /* TODO: implement the waveform animation keyframes here.
+     Each bar has --bar-min (min height px) and --bar-max (max height px).
+     Animate the height or scaleY between those two values for a visualizer effect.
+     Consider: multiple stops, easing, alternate direction for a natural beat feel. */
+  0% {
+    height: var(--bar-min, 4px);
+  }
+  25% {
+    scaley: var(--bar-max, 20px);
+  }
+  50% {
+    height: var(--bar-min, 4px);
+  }
+  75% {
+    scaley: var(--bar-max, 20px);
+  }
+  100% {
+    height: var(--bar-min, 4px);
+  }
+}
+.waveform-bar {
+  animation: waveform-bounce var(--bar-dur, 0.8s) ease-in-out var(--bar-delay, 0s) infinite;
+  height: var(--bar-min, 4px);
 }
 
 /* Retro CRT lines overlay for secondary cyberpunk effects */

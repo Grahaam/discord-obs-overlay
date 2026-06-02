@@ -1,4 +1,5 @@
 import { CSSProperties, useState, useEffect, useRef, useCallback } from "react";
+import AudioMotionAnalyzer from "audiomotion-analyzer";
 import { Bot, Flame, AlertTriangle, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { AlertPayload } from "../types";
 import { locales, Language } from "../locales";
@@ -82,6 +83,10 @@ export default function OBSOverlayView() {
   const seekAbsoluteRef = useRef<(s: number) => void>(() => {});
   const setVolRef = useRef<(v: number) => void>(() => {});
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const vizContainerRef = useRef<HTMLDivElement | null>(null);
+  const analyzerRef = useRef<AudioMotionAnalyzer | null>(null);
+
   const { queue, setQueue, queueRef, wsStatus, socketRef } = useQueueStore();
 
   // Register playback control callbacks with store
@@ -152,6 +157,47 @@ export default function OBSOverlayView() {
     seekAbsoluteRef.current = seekAbsolute;
     setVolRef.current = setVolume;
   }, [seekVideo, seekAbsolute, setVolume]);
+
+  useEffect(() => {
+    const container = vizContainerRef.current;
+    const audio = audioRef.current;
+
+    if (active?.type !== "audio" || !container || !audio) {
+      analyzerRef.current?.destroy();
+      analyzerRef.current = null;
+      return;
+    }
+
+    const neonColor = active.neonColor ?? "#6366f1";
+
+    try {
+      const am = new AudioMotionAnalyzer(container, {
+        source: audio,
+        height: 200,
+        mode: 6,
+        showScaleX: false,
+        showBgColor: false,
+        bgAlpha: 0,
+        reflexRatio: 0.5,
+        reflexAlpha: 0.3,
+        reflexFit: true,
+        roundBars: true,
+        barSpace: 0.25,
+        fillAlpha: 0.9,
+        lineWidth: 1.5,
+      });
+      am.registerGradient("neon", { colorStops: [neonColor, `${neonColor}55`] });
+      am.gradient = "neon";
+      analyzerRef.current = am;
+    } catch {
+      // AudioContext blocked or container detached
+    }
+
+    return () => {
+      analyzerRef.current?.destroy();
+      analyzerRef.current = null;
+    };
+  }, [active?.type, active?.mediaUrl, active?.neonColor]);
 
   return (
     <div
@@ -302,7 +348,101 @@ export default function OBSOverlayView() {
 
               return (
                 <div className="absolute inset-0 z-0 w-[100vw] h-[100vh] flex items-center justify-center overflow-hidden">
-                  {active.type === "video" ? (
+                  {active.type === "audio" ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden">
+                      {/* Radial atmosphere */}
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          background: `radial-gradient(ellipse 60% 60% at 50% 40%, ${active.neonColor}1e 0%, transparent 70%)`,
+                        }}
+                      />
+                      {/* Film grain */}
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          opacity: 0.04,
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                          backgroundSize: "200px 200px",
+                        }}
+                      />
+
+                      {/* Signal rings + avatar */}
+                      <div
+                        className="relative flex items-center justify-center shrink-0"
+                        style={{ width: 140, height: 140 }}
+                      >
+                        {[0, 1, 2, 3].map((i) => (
+                          <div
+                            key={i}
+                            className="signal-ring absolute rounded-full pointer-events-none"
+                            style={
+                              {
+                                width: 120,
+                                height: 120,
+                                border: `1.5px solid ${active.neonColor}`,
+                                "--ring-delay": `${i * 0.65}s`,
+                              } as CSSProperties
+                            }
+                          />
+                        ))}
+                        <div
+                          className="relative z-10 overflow-hidden rounded-full shrink-0"
+                          style={{
+                            width: 96,
+                            height: 96,
+                            border: `2px solid ${active.neonColor}88`,
+                            boxShadow: `0 0 28px ${active.neonColor}44, 0 0 60px ${active.neonColor}1a`,
+                          }}
+                        >
+                          <img
+                            src={active.authorAvatar}
+                            alt="Avatar"
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Track title — Bebas Neue condensed display */}
+                      <h2
+                        className="text-center leading-none uppercase mt-5 px-8"
+                        style={{
+                          fontFamily: "'Bebas Neue', Impact, sans-serif",
+                          fontSize: "clamp(3rem, 7vw, 6rem)",
+                          letterSpacing: "0.06em",
+                          color: "#fff",
+                          textShadow: `0 0 50px ${active.neonColor}44, 0 2px 0 rgba(0,0,0,0.8)`,
+                          maxWidth: "80vw",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {active.title || "Audio Track"}
+                      </h2>
+
+                      {/* Metadata */}
+                      <div
+                        className="flex items-center gap-3 mt-2.5"
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: "0.6rem",
+                          letterSpacing: "0.28em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        <span style={{ color: `${active.neonColor}dd` }}>{active.provider ?? "audio"}</span>
+                        <span style={{ color: "rgba(255,255,255,0.22)" }}>—</span>
+                        <span style={{ color: "rgba(255,255,255,0.52)" }}>{active.authorName}</span>
+                      </div>
+
+                      {/* Real-time spectrum analyzer canvas */}
+                      <div ref={vizContainerRef} className="mt-7 w-full" style={{ maxWidth: 600, height: 200 }} />
+
+                      <audio ref={audioRef} src={active.mediaUrl} autoPlay {...videoHandlers} />
+                    </div>
+                  ) : active.type === "video" ? (
                     <>
                       <video
                         src={active.mediaUrl}

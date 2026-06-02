@@ -10,7 +10,7 @@ const FFMPEG_TIMEOUT_MS = 5 * 60 * 1000;
  * Returns the normalized filename, or null if ffmpeg is unavailable or fails.
  * The input file is preserved; a new _norm.mp4 file is produced.
  */
-export async function normalizeToMp4(inputPath: string, inputHash: string): Promise<string | null> {
+export async function normalizeToMp4(inputPath: string, inputHash: string, isAudioOnly = false): Promise<string | null> {
   const outputFilename = `${inputHash}_norm.mp4`;
   const outputPath = path.join(CACHE_DIR, outputFilename);
   const tempOutput = `${outputPath}.tmp`;
@@ -28,15 +28,18 @@ export async function normalizeToMp4(inputPath: string, inputHash: string): Prom
       "0:v?",
       "-map",
       "0:a?",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-pix_fmt",
-      "yuv420p",
-      // Ensure even dimensions required by yuv420p
-      "-vf",
-      "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+      ...(isAudioOnly
+        ? []
+        : [
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-pix_fmt",
+            "yuv420p",
+            "-vf",
+            "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+          ]),
       // MP4 faststart moves moov atom to front for instant playback
       "-movflags",
       "+faststart",

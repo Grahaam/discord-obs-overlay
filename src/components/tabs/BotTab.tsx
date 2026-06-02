@@ -14,6 +14,7 @@ import {
   EyeOff,
   Loader2,
   Play,
+  ChevronDown,
 } from "lucide-react";
 
 const PLATFORM_DOMAINS: Record<string, string> = {
@@ -42,6 +43,7 @@ export default function BotTab(props: TabProps) {
   const [showToken, setShowToken] = useState(false);
   const [capturingShortcut, setCapturingShortcut] = useState(false);
   const [soundPreviewPlaying, setSoundPreviewPlaying] = useState(false);
+  const [cobaltOpen, setCobaltOpen] = useState(false);
   const soundPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   const cookieDomainStatus = useMemo(() => {
@@ -223,7 +225,7 @@ export default function BotTab(props: TabProps) {
           <div className="relative">
             <input
               type="number"
-              placeholder="8"
+              placeholder="50"
               value={config.mediaMaxSizeMB}
               onChange={(e) => setConfig({ ...config, mediaMaxSizeMB: Number(e.target.value) })}
               className={`${inputBase} text-white/75 pr-10 focus:border-white/20`}
@@ -283,6 +285,27 @@ export default function BotTab(props: TabProps) {
               {t.bot.syncDuration}
             </span>
           </label>
+        </div>
+      </div>
+
+      {/* Quality */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.mediaQuality}</label>
+        <div className="flex gap-1 bg-black/30 border border-white/[0.07] rounded-xl p-1">
+          {(["720", "1080", "1440", "2160"] as const).map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => setConfig({ ...config, mediaQuality: q })}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
+                (config.mediaQuality ?? "1080") === q
+                  ? "bg-indigo-600 text-white shadow-[0_0_10px_rgba(99,102,241,0.4)]"
+                  : "text-white/35 hover:text-white/70 hover:bg-white/4"
+              }`}
+            >
+              {q === "2160" ? "4K" : `${q}p`}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -444,28 +467,39 @@ export default function BotTab(props: TabProps) {
 
       {/* Cobalt */}
       <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.cobaltTitle}</span>
-        </div>
-        <div className="flex flex-col gap-2">
-          <input
-            type="url"
-            className="w-full bg-white/4 border border-white/8 rounded-lg px-3 py-2 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-violet-500/50"
-            placeholder="http://localhost:9001/"
-            value={config.cobaltApiUrl || ""}
-            onChange={(e) => setConfig({ ...config, cobaltApiUrl: e.target.value })}
+        <button
+          type="button"
+          onClick={() => setCobaltOpen((v) => !v)}
+          className="flex items-center justify-between w-full group"
+        >
+          <span className="text-[10px] font-mono text-white/35 uppercase tracking-widest group-hover:text-white/55 transition-colors">
+            {t.bot.cobaltTitle}
+          </span>
+          <ChevronDown
+            className={`w-3 h-3 text-white/25 transition-transform duration-200 ${cobaltOpen ? "rotate-180" : ""}`}
           />
-          <input
-            type="password"
-            className="w-full bg-white/4 border border-white/8 rounded-lg px-3 py-2 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-violet-500/50"
-            placeholder={t.bot.cobaltKeyPlaceholder}
-            value={config.cobaltApiKey || ""}
-            onChange={(e) => setConfig({ ...config, cobaltApiKey: e.target.value })}
-          />
-        </div>
-        <div className="bg-violet-950/15 border border-violet-500/10 rounded-lg p-2.5">
-          <span className="text-[10px] text-violet-200/40 font-mono leading-relaxed">{t.bot.cobaltHelp}</span>
-        </div>
+        </button>
+        {cobaltOpen && (
+          <div className="flex flex-col gap-2">
+            <input
+              type="url"
+              className="w-full bg-white/4 border border-white/8 rounded-lg px-3 py-2 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-violet-500/50"
+              placeholder="http://localhost:9000/"
+              value={config.cobaltApiUrl || ""}
+              onChange={(e) => setConfig({ ...config, cobaltApiUrl: e.target.value })}
+            />
+            <input
+              type="password"
+              className="w-full bg-white/4 border border-white/8 rounded-lg px-3 py-2 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-violet-500/50"
+              placeholder={t.bot.cobaltKeyPlaceholder}
+              value={config.cobaltApiKey || ""}
+              onChange={(e) => setConfig({ ...config, cobaltApiKey: e.target.value })}
+            />
+            <div className="bg-violet-950/15 border border-violet-500/10 rounded-lg p-2.5">
+              <span className="text-[10px] text-violet-200/40 font-mono leading-relaxed">{t.bot.cobaltHelp}</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

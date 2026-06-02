@@ -168,7 +168,7 @@ export function startMediaParser(): void {
 }
 
 export function parseMediaUrl(url: string): {
-  type: "image" | "video" | "iframe" | "link";
+  type: "image" | "video" | "audio" | "iframe" | "link";
   mediaUrl: string;
   provider?: string;
 } {
@@ -178,12 +178,16 @@ export function parseMediaUrl(url: string): {
     return { type: "image", mediaUrl: url };
   }
 
-  if (/\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(lowercaseUrl)) {
+  if (/\.(mp4|webm|mov)(\?.*)?$/i.test(lowercaseUrl)) {
     return { type: "video", mediaUrl: url };
   }
 
+  if (/\.(mp3|m4a|ogg|opus|flac|wav|aac)(\?.*)?$/i.test(lowercaseUrl)) {
+    return { type: "audio", mediaUrl: url };
+  }
+
   const ytRegex =
-    /(?:youtube(?:-nocookie|-education)?\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|watch\?v=|shorts\/)|youtu\.be\/)([^"&?\s]{11})/i;
+    /(?:(?:[a-z0-9-]+\.)?youtube(?:-nocookie|-education)?\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|watch\?v=|shorts\/)|youtu\.be\/)([^"&?\s]{11})/i;
   const ytMatch = url.match(ytRegex);
   if (ytMatch && ytMatch[1]) {
     return {
@@ -247,7 +251,7 @@ async function fetchWithCobalt(url: string): Promise<string | null> {
     if (cobaltKey) headers["Authorization"] = `Api-Key ${cobaltKey}`;
     const response = await axios.post(
       cobaltUrl,
-      { url, videoQuality: "1080", filenameStyle: "basic" },
+      { url, videoQuality: settingsManager.settings.mediaQuality || "1080", filenameStyle: "basic" },
       { headers, timeout: 15000 }
     );
 
@@ -271,6 +275,7 @@ async function fetchWithCobalt(url: string): Promise<string | null> {
 }
 
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+const AUDIO_EXTENSIONS = new Set(["mp3", "m4a", "ogg", "opus", "flac", "wav", "aac"]);
 
 function getImageExt(url: string): string | null {
   const m = url.match(/\.(jpe?g|png|gif|webp)(\?|$)/i);
@@ -278,14 +283,20 @@ function getImageExt(url: string): string | null {
   return m[1].toLowerCase() === "jpeg" ? "jpg" : m[1].toLowerCase();
 }
 
+function getAudioExt(url: string): string | null {
+  const m = url.match(/\.(mp3|m4a|ogg|opus|flac|wav|aac)(\?|$)/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
 async function cacheMedia(url: string, originalUrl: string, ext = "mp4"): Promise<string | null> {
   const isImage = IMAGE_EXTENSIONS.has(ext);
+  const isAudio = AUDIO_EXTENSIONS.has(ext);
   try {
     const hash = hashUrl(originalUrl);
     const rawFilename = `${hash}.${ext}`;
     const rawFilepath = path.join(CACHE_DIR, rawFilename);
     const tempFilepath = `${rawFilepath}.tmp`;
-    const sizeLimit = isImage ? SIZE_LIMITS.image : SIZE_LIMITS.video;
+    const sizeLimit = isImage ? SIZE_LIMITS.image : isAudio ? SIZE_LIMITS.video : SIZE_LIMITS.video;
 
     if (!fs.existsSync(rawFilepath)) {
       logger.info({ rawFilename }, "Downloading to cache");
@@ -309,6 +320,10 @@ async function cacheMedia(url: string, originalUrl: string, ext = "mp4"): Promis
       });
 
       const stat = await fs.promises.stat(tempFilepath);
+      if (stat.size === 0) {
+        await fs.promises.unlink(tempFilepath).catch(() => {});
+        throw new Error("Downloaded file is empty");
+      }
       if (stat.size > sizeLimit) {
         await fs.promises.unlink(tempFilepath).catch(() => {});
         throw new Error(`Downloaded file exceeds size limit (${(stat.size / 1024 / 1024).toFixed(0)}MB)`);
@@ -319,7 +334,7 @@ async function cacheMedia(url: string, originalUrl: string, ext = "mp4"): Promis
       logger.info({ rawFilename }, "Cache hit");
     }
 
-    if (isImage) return rawFilename;
+    if (isImage || isAudio) return rawFilename;
     const normFilename = await normalizeToMp4(rawFilepath, hash);
     return normFilename ?? rawFilename;
   } catch (err: any) {
@@ -345,7 +360,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
-async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: any } | null> {
+async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filename: string; info: any } | null> {
   const cookiesPath = path.join(process.cwd(), "cookies.txt");
   const hasCookies = fs.existsSync(cookiesPath);
   const hash = hashUrl(url);
@@ -357,13 +372,15 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
   // 5000 MB cap for both yt-dlp and Cobalt downloads
   const maxMB = 5000;
 
+  const quality = settingsManager.settings.mediaQuality ?? "1080";
   const dlOptions: any = {
     noWarnings: true,
     noCheckCertificates: true,
-    // Without ffmpeg, use pre-muxed format only (max ~720p). With ffmpeg, prefer 1080p merged.
-    format: _ffmpegBin
-      ? "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
-      : "best[height<=1080][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best",
+    format: audioOnly
+      ? `bestaudio[ext=m4a]/bestaudio[ext=opus]/bestaudio`
+      : _ffmpegBin
+        ? `bestvideo[height<=${quality}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]/best`
+        : `best[height<=${quality}][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best`,
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     // Twitter/X rejects google.com referer when downloading from video.twimg.com
@@ -442,10 +459,21 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
     await fs.promises.rename(tempFilepath, rawFilepath);
     await fs.promises.writeFile(`${rawFilepath}.info.json`, JSON.stringify(info), "utf8").catch(() => {});
 
-    const normFilename = await normalizeToMp4(rawFilepath, hash);
+    const isAudioOnly = info?.vcodec === "none";
+    const normFilename = await normalizeToMp4(rawFilepath, hash, isAudioOnly);
     return { filename: normFilename ?? rawFilename, info };
   } catch (err: any) {
-    logger.warn({ err: err.message, url }, "yt-dlp failed");
+    const rawMsg: string = err.message || err.stderr || String(err) || "";
+    const tail = rawMsg.trim().split("\n").slice(-6).join(" | ");
+    logger.warn(
+      {
+        url,
+        err: tail || "(empty — likely bot detection or PO token required)",
+        hasCookies,
+        isYouTube,
+      },
+      "yt-dlp failed"
+    );
     if (fs.existsSync(tempFilepath)) {
       await fs.promises.unlink(tempFilepath).catch(() => {});
     }
@@ -551,8 +579,29 @@ function cleanUrl(url: string): string {
   }
 }
 
+// Rewrite subdomain variants to the canonical domain that yt-dlp and Cobalt handle best.
+// audioOnly: true forces bestaudio-only extraction and marks the result as type "audio".
+const CANONICAL_HOSTS: Array<{ pattern: RegExp; canonical: string; audioOnly?: boolean }> = [
+  { pattern: /^(?!www\.)[a-z0-9-]+\.youtube\.com$/, canonical: "www.youtube.com", audioOnly: true },
+];
+
+function normalizeForExtraction(url: string): { url: string; audioOnly: boolean } {
+  try {
+    const parsed = new URL(url);
+    for (const { pattern, canonical, audioOnly } of CANONICAL_HOSTS) {
+      if (pattern.test(parsed.hostname)) {
+        parsed.hostname = canonical;
+        return { url: parsed.toString(), audioOnly: audioOnly ?? false };
+      }
+    }
+    return { url, audioOnly: false };
+  } catch {
+    return { url, audioOnly: false };
+  }
+}
+
 export async function resolveMediaFromLink(url: string): Promise<{
-  type: "image" | "video" | "iframe" | "link";
+  type: "image" | "video" | "audio" | "iframe" | "link";
   mediaUrl: string;
   title?: string;
   duration?: number;
@@ -563,8 +612,10 @@ export async function resolveMediaFromLink(url: string): Promise<{
   const cleanedUrl = cleanUrl(url);
   const cookiesPath = path.join(process.cwd(), "cookies.txt");
 
+  const { url: normalizedUrl, audioOnly: isAudioOrigin } = normalizeForExtraction(cleanedUrl);
+
   // Reddit pre-resolver: extract direct media URL before hitting yt-dlp
-  let downloadUrl = cleanedUrl;
+  let downloadUrl = normalizedUrl;
   if (/reddit\.com\/r\/[^/]+\/comments\//.test(url)) {
     const redditMediaUrl = await resolveRedditPostMediaUrl(cleanedUrl, cookiesPath);
     if (redditMediaUrl) {
@@ -585,15 +636,18 @@ export async function resolveMediaFromLink(url: string): Promise<{
     }
   }
 
-  const ytdlResult = await fetchWithYtDlp(downloadUrl);
+  const ytdlResult = await fetchWithYtDlp(downloadUrl, isAudioOrigin);
   if (ytdlResult) {
     logger.info({ ytdlTitle: ytdlResult.info.title }, "yt-dlp resolution title");
     const isImg = !!getImageExt(ytdlResult.filename);
+    // vcodec === "none": yt-dlp selected audio-only stream; isAudioOrigin: music platform forced bestaudio
+    const isAudio = !isImg && (ytdlResult.info.vcodec === "none" || isAudioOrigin);
+    const mediaType = isImg ? "image" : isAudio ? "audio" : "video";
     return {
-      type: isImg ? "image" : "video",
+      type: mediaType,
       mediaUrl: `/api/media-cache/${ytdlResult.filename}`,
-      title: ytdlResult.info.title || (isImg ? "Image" : "Video"),
-      duration: isImg ? undefined : ytdlResult.info.duration ? ytdlResult.info.duration * 1000 : undefined,
+      title: ytdlResult.info.title || (isImg ? "Image" : isAudio ? "Audio" : "Video"),
+      duration: isImg || isAudio ? undefined : ytdlResult.info.duration ? ytdlResult.info.duration * 1000 : undefined,
       provider: urlProvider,
     };
   }
@@ -601,14 +655,15 @@ export async function resolveMediaFromLink(url: string): Promise<{
   const cobaltStreamUrl = await fetchWithCobalt(downloadUrl);
   if (cobaltStreamUrl) {
     logger.info("Cobalt resolved media");
-    const cobaltExt = getImageExt(cobaltStreamUrl) ?? "mp4";
+    const cobaltExt = getImageExt(cobaltStreamUrl) ?? getAudioExt(cobaltStreamUrl) ?? "mp4";
     const cachedFilename = await cacheMedia(cobaltStreamUrl, cleanedUrl, cobaltExt);
     if (cachedFilename) {
       const isImg = !!getImageExt(cachedFilename);
+      const isAud = !!getAudioExt(cachedFilename);
       return {
-        type: isImg ? "image" : "video",
+        type: isImg ? "image" : isAud ? "audio" : "video",
         mediaUrl: `/api/media-cache/${cachedFilename}`,
-        title: isImg ? "Image" : "Video",
+        title: isImg ? "Image" : isAud ? "Audio" : "Video",
         provider: urlProvider,
       };
     }

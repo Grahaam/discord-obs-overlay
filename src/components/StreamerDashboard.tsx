@@ -47,7 +47,7 @@ export default function StreamerDashboard() {
     channelId: "",
     alertDuration: 8000,
     syncDurationWithMedia: true,
-    mediaMaxSizeMB: 8,
+    mediaMaxSizeMB: 50,
     bannedWords: [],
     neonColor: "#6366f1",
     alertStyle: "neon",
@@ -58,6 +58,9 @@ export default function StreamerDashboard() {
     blockLinks: false,
     blockNSFW: false,
     language: "fr",
+    cobaltApiUrl: "",
+    cobaltApiKey: "",
+    mediaQuality: "1080",
   });
   const [botStatus, setBotStatus] = useState<BotStatus>({ status: "disconnected", botUser: "", errorMsg: "" });
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -426,7 +429,7 @@ export default function StreamerDashboard() {
       </nav>
 
       {/* ── Main Grid ── */}
-      <main className="relative z-10 flex-1 p-3 sm:p-6 max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <main className="relative z-10 flex-1 p-3 sm:p-5 max-w-400 w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* ── LEFT COLUMN ── */}
         <section className="lg:col-span-7 flex flex-col gap-4">
           {/* Tab bar */}

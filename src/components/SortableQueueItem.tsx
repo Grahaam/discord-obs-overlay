@@ -1,4 +1,4 @@
-import { GripVertical, X, Image, Video, Link } from "lucide-react";
+import { GripVertical, X, Image, Video, Link, Music } from "lucide-react";
 import { AlertPayload, MediaType } from "../types";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 const TYPE_ICON: Record<MediaType, React.ReactNode> = {
   image: <Image className="w-2.5 h-2.5" />,
   video: <Video className="w-2.5 h-2.5" />,
+  audio: <Music className="w-2.5 h-2.5" />,
   iframe: <Link className="w-2.5 h-2.5" />,
   link: <Link className="w-2.5 h-2.5" />,
 };
