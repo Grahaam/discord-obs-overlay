@@ -7,7 +7,9 @@ on:
 
 jobs:
   build-release:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -30,10 +32,11 @@ jobs:
           npm run build
 
       - name: Package Release Artifact
+        shell: bash
         run: |
           mkdir -p release_package
-          cp -r dist/ scripts/ package.json package-lock.json release_package/
-          zip -r discord-obs-overlay-release.zip release_package
+          cp -r dist scripts package.json package-lock.json release_package/
+          cd release_package && zip -r ../discord-obs-overlay-release.zip .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
