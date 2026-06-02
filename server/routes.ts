@@ -414,7 +414,8 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
   app.post("/api/queue/seek-absolute", (req, res) => {
     const seconds = typeof req.body.seconds === "number" ? req.body.seconds : null;
-    if (seconds === null || isNaN(seconds) || seconds < 0) return res.status(400).json({ error: "seconds must be a non-negative number" });
+    if (seconds === null || isNaN(seconds) || seconds < 0)
+      return res.status(400).json({ error: "seconds must be a non-negative number" });
     io.emit("seek_alert_absolute", { seconds });
     res.json({ success: true });
   });
@@ -489,6 +490,15 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     const stat = fs.statSync(filepath);
     const fileSize = stat.size;
     const range = req.headers.range;
+    const extMap: Record<string, string> = {
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".gif": "image/gif",
+      ".webp": "image/webp",
+    };
+    const fileExt = path.extname(filename).toLowerCase();
+    const contentType = extMap[fileExt] ?? "video/mp4";
 
     // Set CORS and other headers
     res.header("Access-Control-Allow-Origin", "*");
@@ -505,14 +515,14 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       const head = {
         "Content-Range": `bytes ${start}-${end}/${fileSize}`,
         "Content-Length": chunksize,
-        "Content-Type": "video/mp4",
+        "Content-Type": contentType,
       };
       res.writeHead(206, head);
       file.pipe(res);
     } else {
       const head = {
         "Content-Length": fileSize,
-        "Content-Type": "video/mp4",
+        "Content-Type": contentType,
       };
       res.writeHead(200, head);
       fs.createReadStream(filepath).pipe(res);

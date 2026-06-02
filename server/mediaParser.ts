@@ -16,9 +16,31 @@ const _ffmpegStatic: string | null = (() => {
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import dns from "dns";
+import net from "net";
 import axios from "axios";
 import { normalizeToMp4 } from "./ffmpegNormalizer.js";
 import { SIZE_LIMITS } from "./mediaWorkerQueue.js";
+import { settingsManager } from "./settingsManager.js";
+
+async function resolveDNSHost(url: string): Promise<string> {
+  const hostname = new URL(url).hostname;
+  const { address } = await dns.promises.lookup(hostname);
+  if (net.isIPv4(address)) {
+    const parts = address.split(".").map(Number);
+    // Block loopback, private, and link-local ranges
+    if (
+      parts[0] === 127 ||
+      parts[0] === 10 ||
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+      (parts[0] === 192 && parts[1] === 168) ||
+      (parts[0] === 169 && parts[1] === 254)
+    ) {
+      throw new Error(`Blocked SSRF attempt to private address: ${address}`);
+    }
+  }
+  return address;
+}
 
 function findBestYtDlpPath(): string | null {
   const isWin = process.platform === "win32";
@@ -72,7 +94,6 @@ function hashUrl(url: string): string {
 
 const YTDLP_TIMEOUT_MS = 4 * 60 * 1000; // 4 minutes
 
-const COBALT_API = "https://api.cobalt.tools/";
 const MAX_CACHE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -198,27 +219,36 @@ export function parseMediaUrl(url: string): {
   if (lowercaseUrl.includes("twitter.com") || lowercaseUrl.includes("x.com")) providerDefault = "twitter";
   if (lowercaseUrl.includes("twitch.tv")) providerDefault = "twitch";
   if (lowercaseUrl.includes("facebook.com")) providerDefault = "facebook";
+  if (lowercaseUrl.includes("reddit.com") || lowercaseUrl.includes("v.redd.it")) providerDefault = "reddit";
+  if (lowercaseUrl.includes("bsky.app")) providerDefault = "bluesky";
+  if (lowercaseUrl.includes("bilibili.com") || lowercaseUrl.includes("b23.tv")) providerDefault = "bilibili";
+  if (lowercaseUrl.includes("dailymotion.com")) providerDefault = "dailymotion";
+  if (lowercaseUrl.includes("facebook.com") || lowercaseUrl.includes("fb.watch")) providerDefault = "facebook";
+  if (lowercaseUrl.includes("loom.com")) providerDefault = "loom";
+  if (lowercaseUrl.includes("pinterest.com") || lowercaseUrl.includes("pin.it")) providerDefault = "pinterest";
+  if (lowercaseUrl.includes("soundcloud.com")) providerDefault = "soundcloud";
+  if (lowercaseUrl.includes("streamable.com")) providerDefault = "streamable";
+  if (lowercaseUrl.includes("tumblr.com")) providerDefault = "tumblr";
+  if (lowercaseUrl.includes("vimeo.com")) providerDefault = "vimeo";
+  if (lowercaseUrl.includes("vk.com")) providerDefault = "vk";
 
   return { type: "link", mediaUrl: url, provider: providerDefault };
 }
 
 async function fetchWithCobalt(url: string): Promise<string | null> {
+  const cobaltUrl = settingsManager.settings.cobaltApiUrl?.trim() || "http://localhost:9000/";
+  const cobaltKey = settingsManager.settings.cobaltApiKey?.trim() || "";
   try {
     logger.info({ url }, "Cobalt attempting extraction");
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    };
+    if (cobaltKey) headers["Authorization"] = `Api-Key ${cobaltKey}`;
     const response = await axios.post(
-      COBALT_API,
-      {
-        url,
-        videoQuality: "1080",
-        filenamePattern: "basic",
-      },
-      {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        timeout: 15000,
-      }
+      cobaltUrl,
+      { url, videoQuality: "1080", filenameStyle: "basic" },
+      { headers, timeout: 15000 }
     );
 
     const { status, url: streamUrl, tunnel, picker } = response.data;
@@ -240,20 +270,31 @@ async function fetchWithCobalt(url: string): Promise<string | null> {
   }
 }
 
-async function cacheMedia(url: string, originalUrl: string): Promise<string | null> {
+const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+
+function getImageExt(url: string): string | null {
+  const m = url.match(/\.(jpe?g|png|gif|webp)(\?|$)/i);
+  if (!m) return null;
+  return m[1].toLowerCase() === "jpeg" ? "jpg" : m[1].toLowerCase();
+}
+
+async function cacheMedia(url: string, originalUrl: string, ext = "mp4"): Promise<string | null> {
+  const isImage = IMAGE_EXTENSIONS.has(ext);
   try {
     const hash = hashUrl(originalUrl);
-    const rawFilename = `${hash}.mp4`;
+    const rawFilename = `${hash}.${ext}`;
     const rawFilepath = path.join(CACHE_DIR, rawFilename);
     const tempFilepath = `${rawFilepath}.tmp`;
+    const sizeLimit = isImage ? SIZE_LIMITS.image : SIZE_LIMITS.video;
 
     if (!fs.existsSync(rawFilepath)) {
       logger.info({ rawFilename }, "Downloading to cache");
+      await resolveDNSHost(url);
       const response = await axios({ method: "get", url, responseType: "stream" });
 
       const contentLength = response.headers["content-length"];
-      if (contentLength && Number(contentLength) > SIZE_LIMITS.video) {
-        throw new Error(`Content-Length exceeds video size limit`);
+      if (contentLength && Number(contentLength) > sizeLimit) {
+        throw new Error(`Content-Length exceeds size limit`);
       }
 
       const writer = fs.createWriteStream(tempFilepath);
@@ -267,11 +308,10 @@ async function cacheMedia(url: string, originalUrl: string): Promise<string | nu
         });
       });
 
-      // Validate actual file size
       const stat = await fs.promises.stat(tempFilepath);
-      if (stat.size > SIZE_LIMITS.video) {
+      if (stat.size > sizeLimit) {
         await fs.promises.unlink(tempFilepath).catch(() => {});
-        throw new Error(`Downloaded file exceeds video size limit (${(stat.size / 1024 / 1024).toFixed(0)}MB)`);
+        throw new Error(`Downloaded file exceeds size limit (${(stat.size / 1024 / 1024).toFixed(0)}MB)`);
       }
 
       await fs.promises.rename(tempFilepath, rawFilepath);
@@ -279,11 +319,12 @@ async function cacheMedia(url: string, originalUrl: string): Promise<string | nu
       logger.info({ rawFilename }, "Cache hit");
     }
 
+    if (isImage) return rawFilename;
     const normFilename = await normalizeToMp4(rawFilepath, hash);
     return normFilename ?? rawFilename;
   } catch (err: any) {
     logger.error({ err: err.message, originalUrl }, "Cache download failed");
-    fs.promises.unlink(path.join(CACHE_DIR, `${hashUrl(originalUrl)}.mp4.tmp`)).catch(() => {});
+    fs.promises.unlink(path.join(CACHE_DIR, `${hashUrl(originalUrl)}.${ext}.tmp`)).catch(() => {});
     return null;
   }
 }
@@ -329,14 +370,15 @@ async function fetchWithYtDlp(url: string): Promise<{ filename: string; info: an
     ...(!url.includes("x.com") && !url.includes("twitter.com") && { referer: "https://www.google.com/" }),
     geoBypass: true,
     forceIpv4: true,
-    // iOS client bypasses YouTube n-challenge (no deno required) and provides pre-muxed streams
-    extractorArgs: "youtube:player_client=ios",
     output: tempFilepath,
     maxFilesize: `${maxMB}M`,
     ...(_ffmpegBin && { mergeOutputFormat: "mp4", ffmpegLocation: path.dirname(_ffmpegBin) }),
   };
 
-  if (hasCookies) {
+  // YouTube clients that support cookies require a GVS PO Token (not available here).
+  // ANDROID_VR (the working fallback) explicitly rejects cookies. Skip for YouTube.
+  const isYouTube = /youtube\.com|youtu\.be/.test(url);
+  if (hasCookies && !isYouTube) {
     dlOptions.cookies = cookiesPath;
   }
 
@@ -421,21 +463,70 @@ export async function updateYtDlp(): Promise<void> {
   }
 }
 
-// Platforms where yt-dlp/Cobalt should be attempted — iframes are never a fallback for these.
-const DOWNLOADABLE_PLATFORMS = [
-  "tiktok.com",
-  "instagram.com",
-  "twitter.com",
-  "x.com",
-  "youtube.com",
-  "youtu.be",
-  "twitch.tv",
-  "clips.twitch.tv",
-];
+function parseCookiesForDomain(cookiesPath: string, domain: string): string {
+  try {
+    const now = Date.now() / 1000;
+    return fs
+      .readFileSync(cookiesPath, "utf8")
+      .split("\n")
+      .filter((l) => !l.startsWith("#") && l.trim())
+      .map((l) => l.split("\t"))
+      .filter((p) => p.length >= 7 && p[0].includes(domain) && Number(p[4]) > now)
+      .map((p) => `${p[5]}=${p[6].trim()}`)
+      .join("; ");
+  } catch {
+    return "";
+  }
+}
 
-function isDownloadablePlatform(url: string): boolean {
-  const lower = url.toLowerCase();
-  return DOWNLOADABLE_PLATFORMS.some((p) => lower.includes(p));
+async function resolveRedditPostMediaUrl(postUrl: string, cookiesPath: string): Promise<string | null> {
+  const cookie = parseCookiesForDomain(cookiesPath, "reddit.com");
+  try {
+    const parsed = new URL(postUrl);
+    const jsonUrl = `https://www.reddit.com${parsed.pathname.replace(/\/$/, "")}.json`;
+    const reqHeaders: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    };
+    if (cookie) reqHeaders["Cookie"] = cookie;
+    const { data } = await axios.get(jsonUrl, {
+      headers: reqHeaders,
+      timeout: 6000,
+    });
+    const post = data[0]?.data?.children?.[0]?.data;
+    if (!post) return null;
+
+    // Video post
+    if (post.is_video) {
+      const previewVideo = post.preview?.reddit_video_preview?.fallback_url;
+      return post.media?.reddit_video?.fallback_url ?? previewVideo ?? null;
+    }
+
+    // Gallery post — use i.redd.it/{id}.{ext} (CDN, no auth required)
+    if (post.is_gallery && post.gallery_data?.items?.length > 0) {
+      const meta: Record<string, any> = post.media_metadata ?? {};
+      for (const item of post.gallery_data.items) {
+        const entry = meta[item.media_id];
+        if (!entry) continue;
+        if (entry.e === "AnimatedImage" && entry.s?.mp4) return entry.s.mp4;
+        if (entry.e === "Image" && entry.m) {
+          const ext = (entry.m as string).split("/")[1] || "jpg";
+          return `https://i.redd.it/${item.media_id}.${ext}`;
+        }
+      }
+    }
+
+    // Single image post
+    if (post.post_hint === "image" && post.url) return post.url as string;
+
+    // Animated image in media_metadata (non-gallery)
+    for (const item of Object.values(post.media_metadata ?? {}) as any[]) {
+      if (item.e === "AnimatedImage" && item.s?.mp4) return item.s.mp4;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 const TRACKING_PARAMS: Record<string, string[]> = {
@@ -470,43 +561,57 @@ export async function resolveMediaFromLink(url: string): Promise<{
 }> {
   const { provider: urlProvider } = parseMediaUrl(url);
   const cleanedUrl = cleanUrl(url);
+  const cookiesPath = path.join(process.cwd(), "cookies.txt");
 
-  if (isDownloadablePlatform(url)) {
-    const ytdlResult = await fetchWithYtDlp(cleanedUrl);
-    if (ytdlResult) {
-      logger.info({ ytdlTitle: ytdlResult.info.title }, "yt-dlp resolution title");
-      return {
-        type: "video",
-        mediaUrl: `/api/media-cache/${ytdlResult.filename}`,
-        title: ytdlResult.info.title || "Video",
-        duration: ytdlResult.info.duration ? ytdlResult.info.duration * 1000 : undefined,
-        provider: urlProvider,
-      };
-    }
-
-    const cobaltStreamUrl = await fetchWithCobalt(cleanedUrl);
-    if (cobaltStreamUrl) {
-      logger.info("Cobalt resolution title: Video (Hardcoded)");
-      const cachedFilename = await cacheMedia(cobaltStreamUrl, cleanedUrl);
-      if (cachedFilename) {
-        return {
-          type: "video",
-          mediaUrl: `/api/media-cache/${cachedFilename}`,
-          title: "Video",
-          provider: urlProvider,
-        };
+  // Reddit pre-resolver: extract direct media URL before hitting yt-dlp
+  let downloadUrl = cleanedUrl;
+  if (/reddit\.com\/r\/[^/]+\/comments\//.test(url)) {
+    const redditMediaUrl = await resolveRedditPostMediaUrl(cleanedUrl, cookiesPath);
+    if (redditMediaUrl) {
+      logger.info({ redditMediaUrl }, "Reddit post pre-resolved to direct media URL");
+      const imgExt = getImageExt(redditMediaUrl);
+      if (imgExt) {
+        const cachedFilename = await cacheMedia(redditMediaUrl, cleanedUrl, imgExt);
+        if (cachedFilename) {
+          return {
+            type: "image",
+            mediaUrl: `/api/media-cache/${cachedFilename}`,
+            title: "Image",
+            provider: urlProvider,
+          };
+        }
       }
+      downloadUrl = redditMediaUrl;
     }
   }
 
-  if (isDownloadablePlatform(url)) {
-    logger.warn({ url }, "All extractors failed — media unavailable");
+  const ytdlResult = await fetchWithYtDlp(downloadUrl);
+  if (ytdlResult) {
+    logger.info({ ytdlTitle: ytdlResult.info.title }, "yt-dlp resolution title");
+    const isImg = !!getImageExt(ytdlResult.filename);
     return {
-      type: "link",
-      mediaUrl: url,
+      type: isImg ? "image" : "video",
+      mediaUrl: `/api/media-cache/${ytdlResult.filename}`,
+      title: ytdlResult.info.title || (isImg ? "Image" : "Video"),
+      duration: isImg ? undefined : ytdlResult.info.duration ? ytdlResult.info.duration * 1000 : undefined,
       provider: urlProvider,
-      ytDlpError: "yt-dlp and Cobalt both failed — media unavailable",
     };
+  }
+
+  const cobaltStreamUrl = await fetchWithCobalt(downloadUrl);
+  if (cobaltStreamUrl) {
+    logger.info("Cobalt resolved media");
+    const cobaltExt = getImageExt(cobaltStreamUrl) ?? "mp4";
+    const cachedFilename = await cacheMedia(cobaltStreamUrl, cleanedUrl, cobaltExt);
+    if (cachedFilename) {
+      const isImg = !!getImageExt(cachedFilename);
+      return {
+        type: isImg ? "image" : "video",
+        mediaUrl: `/api/media-cache/${cachedFilename}`,
+        title: isImg ? "Image" : "Video",
+        provider: urlProvider,
+      };
+    }
   }
 
   const quick = parseMediaUrl(url);
@@ -518,6 +623,7 @@ export async function resolveMediaFromLink(url: string): Promise<{
     const preview = (await getLinkPreview(url, {
       timeout: 3000,
       followRedirects: "follow",
+      resolveDNSHost,
       headers: {
         "user-agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
