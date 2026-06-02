@@ -274,11 +274,8 @@ export class DiscordBotManager {
                   resolvedType = "video";
                   mediaUrl = attachment.url;
                 } else if (isAudio) {
-                  // Cache audio attachment locally — raw Discord CDN URLs are cross-origin
-                  // and cause Web Audio (AudioMotionAnalyzer) to produce no sound in OBS.
-                  const resolved = await resolveMediaFromLink(attachment.url);
-                  resolvedType = resolved.type;
-                  mediaUrl = resolved.mediaUrl;
+                  resolvedType = "audio";
+                  mediaUrl = attachment.url;
                 } else {
                   logger.warn({ mime }, "Rejected unsupported attachment mimetype");
                   logManager.addLog({
