@@ -27,6 +27,10 @@ export interface Settings {
   alertSoundUrl?: string;
   allowedRoleIds?: string[];
 
+  // Cobalt (optional self-hosted media extractor)
+  cobaltApiUrl?: string;
+  cobaltApiKey?: string;
+
   // Visual customization
   alertFont?: "sans" | "mono" | "serif" | "display" | "rounded";
   alertPosition?:

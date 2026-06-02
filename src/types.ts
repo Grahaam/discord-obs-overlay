@@ -34,6 +34,8 @@ export interface UIConfig {
   alertScale?: number;
   alertBgOpacity?: number;
   alertAnimation?: AlertAnimation;
+  cobaltApiUrl?: string;
+  cobaltApiKey?: string;
 }
 
 /** Canonical media type — shared by alerts and logs. "react-player" is not used. */

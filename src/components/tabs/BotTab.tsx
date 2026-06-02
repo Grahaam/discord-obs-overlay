@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { TabProps } from "./types";
 import {
   AlertTriangle,
@@ -16,6 +16,18 @@ import {
   Play,
 } from "lucide-react";
 
+const PLATFORM_DOMAINS: Record<string, string> = {
+  "youtube.com": "YouTube",
+  "youtu.be": "YouTube",
+  "x.com": "X/Twitter",
+  "twitter.com": "X/Twitter",
+  "instagram.com": "Instagram",
+  "tiktok.com": "TikTok",
+  "twitch.tv": "Twitch",
+  "reddit.com": "Reddit",
+  "facebook.com": "Facebook",
+};
+
 export default function BotTab(props: TabProps) {
   const {
     config,
@@ -31,6 +43,32 @@ export default function BotTab(props: TabProps) {
   const [capturingShortcut, setCapturingShortcut] = useState(false);
   const [soundPreviewPlaying, setSoundPreviewPlaying] = useState(false);
   const soundPreviewRef = useRef<HTMLAudioElement | null>(null);
+
+  const cookieDomainStatus = useMemo(() => {
+    if (!config?.youtubeCookiesContent) return [];
+    // eslint-disable-next-line react-hooks/purity
+    const now = Math.floor(Date.now() / 1000);
+    const platformStatus: Record<string, "ok" | "expired" | "session"> = {};
+    for (const line of config.youtubeCookiesContent.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const parts = trimmed.split("\t");
+      if (parts.length < 6) continue;
+      const domain = parts[0].replace(/^\./, "");
+      const expiry = parseInt(parts[4], 10);
+      const platform = Object.entries(PLATFORM_DOMAINS).find(([d]) => domain.endsWith(d))?.[1];
+      if (!platform) continue;
+      if (platformStatus[platform] === "ok") continue;
+      if (expiry === 0) {
+        platformStatus[platform] ??= "session";
+      } else if (expiry < now) {
+        platformStatus[platform] = "expired";
+      } else {
+        platformStatus[platform] = "ok";
+      }
+    }
+    return Object.entries(platformStatus) as [string, "ok" | "expired" | "session"][];
+  }, [config]);
 
   if (config === undefined || setConfig === undefined || botStatus === undefined || t === undefined) return null;
 
@@ -67,37 +105,6 @@ export default function BotTab(props: TabProps) {
   const cookieLineCount = config.youtubeCookiesContent
     ? config.youtubeCookiesContent.split("\n").filter((l) => l.trim() && !l.startsWith("#")).length
     : 0;
-
-  const PLATFORM_DOMAINS: Record<string, string> = {
-    "youtube.com": "YouTube", "youtu.be": "YouTube",
-    "x.com": "X/Twitter", "twitter.com": "X/Twitter",
-    "instagram.com": "Instagram",
-    "tiktok.com": "TikTok",
-    "twitch.tv": "Twitch",
-    "reddit.com": "Reddit",
-    "facebook.com": "Facebook",
-  };
-
-  const cookieDomainStatus = (() => {
-    if (!config.youtubeCookiesContent) return [];
-    const now = Math.floor(Date.now() / 1000);
-    const platformStatus: Record<string, "ok" | "expired" | "session"> = {};
-    for (const line of config.youtubeCookiesContent.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const parts = trimmed.split("\t");
-      if (parts.length < 6) continue;
-      const domain = parts[0].replace(/^\./, "");
-      const expiry = parseInt(parts[4], 10);
-      const platform = Object.entries(PLATFORM_DOMAINS).find(([d]) => domain.endsWith(d))?.[1];
-      if (!platform) continue;
-      if (platformStatus[platform] === "ok") continue;
-      if (expiry === 0) { platformStatus[platform] ??= "session"; }
-      else if (expiry < now) { platformStatus[platform] = "expired"; }
-      else { platformStatus[platform] = "ok"; }
-    }
-    return Object.entries(platformStatus);
-  })();
 
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
@@ -353,13 +360,19 @@ export default function BotTab(props: TabProps) {
               {cookieDomainStatus.map(([platform, status]) => (
                 <span
                   key={platform}
-                  title={status === "expired" ? "Cookies expired — re-export from browser" : status === "session" ? "Session cookie — may expire on browser close" : "Valid"}
+                  title={
+                    status === "expired"
+                      ? "Cookies expired — re-export from browser"
+                      : status === "session"
+                        ? "Session cookie — may expire on browser close"
+                        : "Valid"
+                  }
                   className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${
                     status === "ok"
                       ? "text-emerald-400/70 bg-emerald-950/20 border-emerald-900/30"
                       : status === "expired"
-                      ? "text-rose-400/70 bg-rose-950/20 border-rose-900/30"
-                      : "text-amber-400/60 bg-amber-950/20 border-amber-900/30"
+                        ? "text-rose-400/70 bg-rose-950/20 border-rose-900/30"
+                        : "text-amber-400/60 bg-amber-950/20 border-amber-900/30"
                   }`}
                 >
                   {platform} {status === "ok" ? "✓" : status === "expired" ? "✗" : "~"}
@@ -383,18 +396,33 @@ export default function BotTab(props: TabProps) {
               const raw = e.target.value;
               if (!raw) return;
               const relevantDomains = [
-                "youtube.com", "youtu.be", "google.com", "googleapis.com",
-                "instagram.com", "tiktok.com",
-                "x.com", "twitter.com", "t.co",
-                "twitch.tv", "clips.twitch.tv",
-                "reddit.com", "redd.it",
-                "facebook.com", "fb.com",
-                "vimeo.com", "dailymotion.com",
-                "streamable.com", "kick.com",
-                "bilibili.com", "nicovideo.jp",
-                "soundcloud.com", "bandcamp.com",
-                "rumble.com", "odysee.com",
-                "pinterest.com", "tumblr.com",
+                "youtube.com",
+                "youtu.be",
+                "google.com",
+                "googleapis.com",
+                "instagram.com",
+                "tiktok.com",
+                "x.com",
+                "twitter.com",
+                "t.co",
+                "twitch.tv",
+                "clips.twitch.tv",
+                "reddit.com",
+                "redd.it",
+                "facebook.com",
+                "fb.com",
+                "vimeo.com",
+                "dailymotion.com",
+                "streamable.com",
+                "kick.com",
+                "bilibili.com",
+                "nicovideo.jp",
+                "soundcloud.com",
+                "bandcamp.com",
+                "rumble.com",
+                "odysee.com",
+                "pinterest.com",
+                "tumblr.com",
               ];
               const filtered = raw
                 .split("\n")
@@ -411,6 +439,32 @@ export default function BotTab(props: TabProps) {
         </div>
         <div className="bg-violet-950/15 border border-violet-500/10 rounded-lg p-2.5">
           <span className="text-[10px] text-violet-200/40 font-mono leading-relaxed">{t.bot.cookiesHelp}</span>
+        </div>
+      </div>
+
+      {/* Cobalt */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.cobaltTitle}</span>
+        </div>
+        <div className="flex flex-col gap-2">
+          <input
+            type="url"
+            className="w-full bg-white/4 border border-white/8 rounded-lg px-3 py-2 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-violet-500/50"
+            placeholder="http://localhost:9001/"
+            value={config.cobaltApiUrl || ""}
+            onChange={(e) => setConfig({ ...config, cobaltApiUrl: e.target.value })}
+          />
+          <input
+            type="password"
+            className="w-full bg-white/4 border border-white/8 rounded-lg px-3 py-2 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-violet-500/50"
+            placeholder={t.bot.cobaltKeyPlaceholder}
+            value={config.cobaltApiKey || ""}
+            onChange={(e) => setConfig({ ...config, cobaltApiKey: e.target.value })}
+          />
+        </div>
+        <div className="bg-violet-950/15 border border-violet-500/10 rounded-lg p-2.5">
+          <span className="text-[10px] text-violet-200/40 font-mono leading-relaxed">{t.bot.cobaltHelp}</span>
         </div>
       </div>
     </div>
