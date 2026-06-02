@@ -189,6 +189,8 @@ export default function OBSOverlayView() {
       am.registerGradient("neon", { colorStops: [neonColor, `${neonColor}55`] });
       am.gradient = "neon";
       analyzerRef.current = am;
+      // OBS browser source starts AudioContext suspended (no user gesture); resume explicitly
+      am.audioCtx.resume().catch(() => {});
     } catch {
       // AudioContext blocked or container detached
     }
