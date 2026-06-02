@@ -448,6 +448,7 @@ export default function OBSOverlayView() {
                           activeVideoRef.current = el;
                         }}
                         src={active.mediaUrl}
+                        crossOrigin="anonymous"
                         autoPlay
                         {...videoHandlers}
                       />
