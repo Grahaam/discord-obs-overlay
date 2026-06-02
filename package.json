@@ -1,7 +1,7 @@
 {
   "name": "discord-obs-overlay",
   "private": true,
-  "version": "1.6.0",
+  "version": "1.8.0",
   "type": "module",
   "scripts": {
     "postinstall": "node scripts/setup-yt-dlp.cjs",
