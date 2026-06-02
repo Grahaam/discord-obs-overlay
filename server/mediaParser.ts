@@ -133,20 +133,28 @@ export async function cleanupCache() {
       })
     );
 
-    // Remove TTL-expired files first (skip .tmp — might be in-progress)
+    const { getFrequentMediaFilenames } = await import("./db.js");
+    const threshold = settingsManager.settings.mediaPersistentPlaysThreshold ?? 5;
+    const frequent = getFrequentMediaFilenames(threshold);
+
+    // Remove TTL-expired files first (skip .tmp and frequently-played files)
     for (const f of fileStats) {
       if (f.file.endsWith(".tmp")) continue;
+      if (frequent.has(f.file)) continue;
       if (now - f.atime > CACHE_TTL_MS) {
         await fs.promises.unlink(f.filePath).catch(() => {});
         logger.info({ file: f.file }, "Cache TTL expired");
       }
     }
 
-    // Then enforce max size (oldest-access first)
-    const remaining = fileStats.filter(
-      (f) => !f.file.endsWith(".tmp") && now - f.atime <= CACHE_TTL_MS && fs.existsSync(f.filePath)
-    );
-    remaining.sort((a, b) => a.atime - b.atime);
+    // Then enforce max size — frequent files sorted last (evicted only if necessary)
+    const remaining = fileStats.filter((f) => !f.file.endsWith(".tmp") && fs.existsSync(f.filePath));
+    remaining.sort((a, b) => {
+      const aFreq = frequent.has(a.file) ? 1 : 0;
+      const bFreq = frequent.has(b.file) ? 1 : 0;
+      if (aFreq !== bFreq) return aFreq - bFreq; // non-frequent first
+      return a.atime - b.atime; // then oldest-access first
+    });
     let totalSize = remaining.reduce((sum, f) => sum + f.size, 0);
 
     if (totalSize > MAX_CACHE_SIZE) {
@@ -155,7 +163,7 @@ export async function cleanupCache() {
         if (totalSize <= MAX_CACHE_SIZE) break;
         await fs.promises.unlink(f.filePath).catch(() => {});
         totalSize -= f.size;
-        logger.info({ file: f.file }, "Cache evicted");
+        logger.info({ file: f.file, frequent: frequent.has(f.file) }, "Cache evicted");
       }
     }
   } catch (err) {

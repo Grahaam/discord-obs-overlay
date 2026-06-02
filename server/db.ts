@@ -41,6 +41,10 @@ export function initDb(): void {
           data TEXT NOT NULL,
           created_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS media_plays (
+          filename TEXT PRIMARY KEY,
+          play_count INTEGER NOT NULL DEFAULT 0
+        );
       `);
     }, "initDb");
     logger.info({ path: DB_PATH }, "SQLite ready");
@@ -111,6 +115,25 @@ export function clearPersistedLogs(): void {
   withDb((d) => {
     d.prepare("DELETE FROM logs").run();
   }, "clearPersistedLogs");
+}
+
+export function incrementMediaPlayCount(filename: string): void {
+  withDb((d) => {
+    d.prepare(
+      "INSERT INTO media_plays (filename, play_count) VALUES (?, 1) ON CONFLICT(filename) DO UPDATE SET play_count = play_count + 1"
+    ).run(filename);
+  }, "incrementMediaPlayCount");
+}
+
+export function getFrequentMediaFilenames(minPlays: number): Set<string> {
+  return (
+    withDb((d) => {
+      const rows = d.prepare("SELECT filename FROM media_plays WHERE play_count >= ?").all(minPlays) as {
+        filename: string;
+      }[];
+      return new Set(rows.map((r) => r.filename));
+    }, "getFrequentMediaFilenames") ?? new Set()
+  );
 }
 
 export function updateLogInDb(log: LogEntry): void {

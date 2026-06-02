@@ -14,6 +14,7 @@ import {
   EyeOff,
   Loader2,
   Play,
+  Pause,
   ChevronDown,
 } from "lucide-react";
 
@@ -44,6 +45,7 @@ export default function BotTab(props: TabProps) {
   const [capturingShortcut, setCapturingShortcut] = useState(false);
   const [soundPreviewPlaying, setSoundPreviewPlaying] = useState(false);
   const [cobaltOpen, setCobaltOpen] = useState(false);
+  const [togglingPause, setTogglingPause] = useState(false);
   const soundPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   const cookieDomainStatus = useMemo(() => {
@@ -76,6 +78,17 @@ export default function BotTab(props: TabProps) {
 
   const inputBase =
     "bg-[#08080f] w-full border border-white/[0.07] rounded-lg px-4 py-2.5 text-sm font-mono placeholder:text-white/15 focus:outline-none transition-all";
+
+  const paused = botStatus.overlayPaused ?? false;
+
+  const toggleOverlayPause = async () => {
+    setTogglingPause(true);
+    try {
+      await fetch(paused ? "/api/overlay/resume" : "/api/overlay/pause", { method: "POST" });
+    } finally {
+      setTogglingPause(false);
+    }
+  };
 
   const handleShortcutCapture = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!capturingShortcut) return;
@@ -150,16 +163,53 @@ export default function BotTab(props: TabProps) {
       )}
 
       {botStatus.status === "connected" && (
-        <div className="relative overflow-hidden rounded-xl border border-emerald-500/25 bg-emerald-950/15 p-4">
-          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-emerald-500 rounded-r-full" />
-          <div className="flex gap-3 items-center pl-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <div>
-              <span className="text-xs font-bold font-mono text-emerald-300 uppercase tracking-wider block">
-                {t.bot.connectedHeader}
-              </span>
-              <span className="text-[11px] font-mono text-emerald-400/50">{t.bot.connectedDesc}</span>
+        <div
+          className={`relative overflow-hidden rounded-xl border p-4 transition-colors duration-300 ${
+            paused ? "border-amber-500/25 bg-amber-950/15" : "border-emerald-500/25 bg-emerald-950/15"
+          }`}
+        >
+          <div
+            className={`absolute left-0 top-0 bottom-0 w-0.75 rounded-r-full transition-colors duration-300 ${
+              paused ? "bg-amber-500" : "bg-emerald-500"
+            }`}
+          />
+          <div className="flex items-center justify-between gap-3 pl-2">
+            <div className="flex items-center gap-3">
+              {paused ? (
+                <Pause className="w-4 h-4 shrink-0 text-amber-400" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              )}
+              <div>
+                <span
+                  className={`block text-xs font-bold font-mono uppercase tracking-wider transition-colors ${
+                    paused ? "text-amber-300" : "text-emerald-300"
+                  }`}
+                >
+                  {paused ? "Overlay paused" : t.bot.connectedHeader}
+                </span>
+                <span
+                  className={`text-[11px] font-mono transition-colors ${
+                    paused ? "text-amber-400/50" : "text-emerald-400/50"
+                  }`}
+                >
+                  {paused ? "Media still processing — alerts held" : t.bot.connectedDesc}
+                </span>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={toggleOverlayPause}
+              disabled={togglingPause}
+              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider border transition-all disabled:opacity-40 ${
+                paused
+                  ? "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
+                  : "border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+              }`}
+            >
+              {paused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+              {paused ? "Resume" : "Pause"}
+            </button>
           </div>
         </div>
       )}
@@ -235,6 +285,29 @@ export default function BotTab(props: TabProps) {
             </span>
           </div>
           <span className="text-[10px] text-white/20 font-mono leading-snug">{t.bot.maxSizeHelp}</span>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <HardDrive className="w-3 h-3 text-white/30" />
+            <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">
+              {t.bot.persistentPlays}
+            </label>
+          </div>
+          <div className="relative">
+            <input
+              type="number"
+              placeholder="5"
+              min={1}
+              value={config.mediaPersistentPlaysThreshold ?? 5}
+              onChange={(e) => setConfig({ ...config, mediaPersistentPlaysThreshold: Number(e.target.value) })}
+              className={`${inputBase} text-white/75 pr-14 focus:border-white/20`}
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-white/20 select-none pointer-events-none">
+              plays
+            </span>
+          </div>
+          <span className="text-[10px] text-white/20 font-mono leading-snug">{t.bot.persistentPlaysHelp}</span>
         </div>
 
         <div className="flex flex-col gap-1.5">

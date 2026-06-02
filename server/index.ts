@@ -12,7 +12,7 @@ import { botManager } from "./discordBotManager.js";
 import { setupRoutes } from "./routes.js";
 import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
-import { initDb, loadPersistedAlerts, loadPersistedLogs } from "./db.js";
+import { initDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount } from "./db.js";
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
@@ -152,6 +152,10 @@ async function runServer() {
 
     socket.on("alert_played", (alertId: string) => {
       logger.info({ alertId }, "Alert played");
+      const playedAlert = alertManager.getAlerts().find((a) => a.id === alertId);
+      if (playedAlert?.mediaUrl?.startsWith("/api/media-cache/")) {
+        incrementMediaPlayCount(playedAlert.mediaUrl.replace("/api/media-cache/", ""));
+      }
       alertManager.removeAlert(alertId);
       if (currentlyPlaying?.id === alertId) {
         currentlyPlaying = null;

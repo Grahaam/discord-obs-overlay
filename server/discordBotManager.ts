@@ -24,6 +24,7 @@ export class DiscordBotManager {
   public status: "disconnected" | "connecting" | "connected" | "error" = "disconnected";
   public errorMsg: string = "";
   public botUser: string = "";
+  public overlayPaused: boolean = false;
   private lastUserRequestTimes: Record<string, number> = {};
   private guildId: string = "";
 
@@ -267,15 +268,10 @@ export class DiscordBotManager {
                   ext.endsWith(".m4a") ||
                   ext.endsWith(".aac");
 
-                if (!isVideo && isImage) {
-                  resolvedType = "image";
-                  mediaUrl = attachment.url;
-                } else if (isVideo) {
-                  resolvedType = "video";
-                  mediaUrl = attachment.url;
-                } else if (isAudio) {
-                  resolvedType = "audio";
-                  mediaUrl = attachment.url;
+                if ((!isVideo && isImage) || isVideo || isAudio) {
+                  const resolved = await resolveMediaFromLink(attachment.url);
+                  resolvedType = resolved.type;
+                  mediaUrl = resolved.mediaUrl;
                 } else {
                   logger.warn({ mime }, "Rejected unsupported attachment mimetype");
                   logManager.addLog({
@@ -408,8 +404,12 @@ export class DiscordBotManager {
               alertManager.addAlert(alertPayload);
 
               if (this.io) {
-                this.io.emit("new_alert", alertPayload);
-                logger.info({ author: alertPayload.authorName }, "New Alert broadcasted");
+                if (!this.overlayPaused) {
+                  this.io.emit("new_alert", alertPayload);
+                  logger.info({ author: alertPayload.authorName }, "New Alert broadcasted");
+                } else {
+                  logger.info({ author: alertPayload.authorName }, "Alert queued (overlay paused)");
+                }
               } else {
                 logger.error("Alerts socket not initialized");
               }
