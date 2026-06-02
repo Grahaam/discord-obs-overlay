@@ -32,11 +32,20 @@ jobs:
           npm run build
 
       - name: Package Release Artifact
-        shell: bash
         run: |
-          mkdir -p release_package
-          cp -r dist scripts package.json package-lock.json release_package/
-          cd release_package && zip -r ../discord-obs-overlay-release.zip .
+          python -c "
+          import shutil, os
+          os.makedirs('release_package', exist_ok=True)
+          for item in ['dist', 'scripts', 'package.json', 'package-lock.json']:
+              dst = os.path.join('release_package', os.path.basename(item))
+              if os.path.isdir(item): shutil.copytree(item, dst)
+              else: shutil.copy2(item, dst)
+          shutil.make_archive('discord-obs-overlay-release', 'zip', 'release_package')
+          "
+
+      - name: Validate Docker Compose
+        shell: bash
+        run: docker compose -f docker-compose.cobalt.yml config --quiet
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
