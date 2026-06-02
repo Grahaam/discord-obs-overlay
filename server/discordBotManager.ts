@@ -259,12 +259,26 @@ export class DiscordBotManager {
                   ext.endsWith(".gif") ||
                   ext.endsWith(".webp");
 
+                const isAudio =
+                  mime.startsWith("audio/") ||
+                  ext.endsWith(".mp3") ||
+                  ext.endsWith(".wav") ||
+                  ext.endsWith(".flac") ||
+                  ext.endsWith(".m4a") ||
+                  ext.endsWith(".aac");
+
                 if (!isVideo && isImage) {
                   resolvedType = "image";
                   mediaUrl = attachment.url;
                 } else if (isVideo) {
                   resolvedType = "video";
                   mediaUrl = attachment.url;
+                } else if (isAudio) {
+                  // Cache audio attachment locally — raw Discord CDN URLs are cross-origin
+                  // and cause Web Audio (AudioMotionAnalyzer) to produce no sound in OBS.
+                  const resolved = await resolveMediaFromLink(attachment.url);
+                  resolvedType = resolved.type;
+                  mediaUrl = resolved.mediaUrl;
                 } else {
                   logger.warn({ mime }, "Rejected unsupported attachment mimetype");
                   logManager.addLog({
