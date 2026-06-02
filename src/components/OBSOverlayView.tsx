@@ -440,7 +440,15 @@ export default function OBSOverlayView() {
                       {/* Real-time spectrum analyzer canvas */}
                       <div ref={vizContainerRef} className="mt-7 w-full" style={{ maxWidth: 600, height: 200 }} />
 
-                      <audio ref={audioRef} src={active.mediaUrl} autoPlay {...videoHandlers} />
+                      <audio
+                        ref={(el) => {
+                          audioRef.current = el;
+                          activeVideoRef.current = el;
+                        }}
+                        src={active.mediaUrl}
+                        autoPlay
+                        {...videoHandlers}
+                      />
                     </div>
                   ) : active.type === "video" ? (
                     <>
@@ -458,7 +466,7 @@ export default function OBSOverlayView() {
                         crossOrigin="anonymous"
                       />
                       <video
-                        ref={activeVideoRef}
+                        ref={activeVideoRef as React.RefObject<HTMLVideoElement>}
                         src={active.mediaUrl}
                         className={
                           isVertical

@@ -308,6 +308,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       authorName: log.author,
       authorAvatar: log.authorAvatar || "https://cdn.discordapp.com/embed/avatars/0.png",
       text: log.text,
+      title: log.title,
       mediaUrl: log.mediaUrl,
       type: log.type,
       duration: settingsManager.settings.alertDuration,

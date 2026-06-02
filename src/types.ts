@@ -74,6 +74,7 @@ export interface LogEntry {
   author: string;
   authorAvatar?: string;
   text: string;
+  title?: string;
   type: MediaType;
   mediaUrl: string;
   status: "approved" | "blocked" | "censored" | "error";

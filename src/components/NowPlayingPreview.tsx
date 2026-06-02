@@ -57,7 +57,12 @@ export default function NowPlayingPreview({ alert }: { alert: AlertPayload | nul
             <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest flex items-center gap-1">
               <Flame className="w-3 h-3" /> Now Playing
             </span>
-            <span className="text-sm font-extrabold text-white truncate">{alert.authorName}</span>
+            <span className="text-sm font-extrabold text-white truncate">
+              {alert.title || alert.text || alert.authorName}
+            </span>
+            {alert.title && (
+              <span className="text-[10px] text-white/40 truncate">{alert.authorName}</span>
+            )}
           </div>
           <div className="ml-auto flex items-center gap-1.5 bg-white/5 border border-white/10 px-2 py-1 rounded-lg text-[10px] text-white/40">
             <TypeIcon className="w-3 h-3" />
