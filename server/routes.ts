@@ -240,6 +240,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       status: botManager.status,
       botUser: botManager.botUser,
       errorMsg: botManager.errorMsg,
+      overlayPaused: botManager.overlayPaused,
       health: {
         cache: {
           size: cacheStats.totalSize,
@@ -338,6 +339,20 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     } catch (err: any) {
       res.status(500).json({ error: err.message || "Reconnect triggered failure." });
     }
+  });
+
+  // Overlay pause / resume
+  app.post("/api/overlay/pause", (req, res) => {
+    botManager.overlayPaused = true;
+    logger.info("Overlay paused — alerts queued, not broadcast");
+    res.json({ overlayPaused: true, queued: alertManager.getAlerts().length });
+  });
+
+  app.post("/api/overlay/resume", (req, res) => {
+    botManager.overlayPaused = false;
+    logger.info("Overlay resumed — flushing queued alerts");
+    io.emit("initial_state", alertManager.getAlerts());
+    res.json({ overlayPaused: false, flushed: alertManager.getAlerts().length });
   });
 
   // Test Alerts

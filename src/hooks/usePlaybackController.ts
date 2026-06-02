@@ -283,6 +283,23 @@ export function usePlaybackController({
       return;
     }
 
+    // Preload video/audio before showing alert — avoids blank card while buffering.
+    // Hidden element fetches the URL; browser caches it so the rendered element plays instantly.
+    if (item.type === "video" || item.type === "audio") {
+      await new Promise<void>((resolve) => {
+        const tag = item.type === "audio" ? "audio" : "video";
+        const el = document.createElement(tag) as HTMLMediaElement;
+        el.src = item.mediaUrl;
+        if (item.type === "audio") el.crossOrigin = "anonymous";
+        el.preload = "auto";
+        el.muted = true;
+        const done = () => resolve();
+        el.oncanplay = done;
+        el.onerror = done;
+        setTimeout(done, 8000);
+      });
+    }
+
     const defaultDuration = item.duration || 8000;
     phaseRef.current = "ready";
     dispatch({ type: "START", alert: item, particles: generateParticles(item.neonColor), duration: defaultDuration });

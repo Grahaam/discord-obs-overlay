@@ -37,6 +37,7 @@ export interface UIConfig {
   cobaltApiUrl?: string;
   cobaltApiKey?: string;
   mediaQuality?: "720" | "1080" | "1440" | "2160";
+  mediaPersistentPlaysThreshold?: number;
 }
 
 /** Canonical media type — shared by alerts and logs. "react-player" is not used. */
@@ -103,6 +104,7 @@ export interface BotStatus {
   status: "connected" | "connecting" | "disconnected" | "error";
   botUser: string;
   errorMsg: string;
+  overlayPaused?: boolean;
   health?: {
     cache: {
       size: number;
