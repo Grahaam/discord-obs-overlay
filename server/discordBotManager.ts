@@ -383,6 +383,7 @@ export class DiscordBotManager {
                 author: alertPayload.authorName,
                 authorAvatar: alertPayload.authorAvatar,
                 text: alertPayload.text,
+                title: alertPayload.title,
                 type: alertPayload.type,
                 mediaUrl: alertPayload.mediaUrl,
                 status: textCheck.wasCensored ? "censored" : "approved",

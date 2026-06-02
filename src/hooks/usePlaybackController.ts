@@ -122,7 +122,7 @@ export function usePlaybackController({
 
   // ── Internal refs — never returned ──────────────────────────────────────────
   const phaseRef = useRef<PlaybackPhase>("waiting");
-  const activeVideoRef = useRef<HTMLVideoElement | null>(null);
+  const activeVideoRef = useRef<HTMLMediaElement | null>(null);
   const ytPlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const isLeaderRef = useRef(isLeader);

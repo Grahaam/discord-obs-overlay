@@ -83,7 +83,12 @@ export default function OBSQueueDock() {
           {/* Seek -5s — YouTube-style */}
           <button
             type="button"
-            onClick={() => handleAction("queue/seek", { seconds: -5 })}
+            onClick={() => {
+              const target = Math.max(0, (playback?.currentTime ?? 0) - 5);
+              seekTargetRef.current = target;
+              acceptedTimeRef.current = target;
+              handleAction("queue/seek", { seconds: -5 });
+            }}
             className="bg-white/[0.05] hover:bg-white/10 active:scale-95 p-1.5 rounded-md transition-all relative"
             title="-5s"
           >
@@ -106,7 +111,12 @@ export default function OBSQueueDock() {
           {/* Seek +5s — YouTube-style */}
           <button
             type="button"
-            onClick={() => handleAction("queue/seek", { seconds: 5 })}
+            onClick={() => {
+              const target = Math.min(playback?.duration ?? Infinity, (playback?.currentTime ?? 0) + 5);
+              seekTargetRef.current = target;
+              acceptedTimeRef.current = target;
+              handleAction("queue/seek", { seconds: 5 });
+            }}
             className="bg-white/[0.05] hover:bg-white/10 active:scale-95 p-1.5 rounded-md transition-all relative"
             title="+5s"
           >
