@@ -3,7 +3,7 @@ import { logger } from "./logger.js";
 
 const MAX_QUEUE_SIZE = 50;
 
-const mediaQueue = new PQueue({ concurrency: 2 });
+const mediaQueue = new PQueue({ concurrency: 4 });
 
 // Per-type file size limits in bytes
 export const SIZE_LIMITS = {

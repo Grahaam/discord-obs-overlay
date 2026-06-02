@@ -14,7 +14,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "playwright test",
-    "test:ui": "playwright test --ui"
+    "test:ui": "playwright test --ui",
+    "test:media": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts",
+    "test:media:filter": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts --filter"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

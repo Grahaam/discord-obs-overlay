@@ -614,6 +614,24 @@ export async function resolveMediaFromLink(url: string): Promise<{
 
   const { url: normalizedUrl, audioOnly: isAudioOrigin } = normalizeForExtraction(cleanedUrl);
 
+  // Fast path: direct media by file extension — skip yt-dlp/Cobalt overhead
+  const directImgExt = getImageExt(normalizedUrl);
+  if (directImgExt) {
+    const cached = await cacheMedia(normalizedUrl, cleanedUrl, directImgExt);
+    if (cached) return { type: "image", mediaUrl: `/api/media-cache/${cached}`, title: "Image", provider: urlProvider };
+  }
+  const directAudioExt = getAudioExt(normalizedUrl);
+  if (directAudioExt) {
+    const cached = await cacheMedia(normalizedUrl, cleanedUrl, directAudioExt);
+    if (cached) return { type: "audio", mediaUrl: `/api/media-cache/${cached}`, title: "Audio", provider: urlProvider };
+  }
+  const directVideoMatch = normalizedUrl.match(/\.(mp4|webm|mov)(\?|$)/i);
+  if (directVideoMatch) {
+    const ext = directVideoMatch[1].toLowerCase();
+    const cached = await cacheMedia(normalizedUrl, cleanedUrl, ext);
+    if (cached) return { type: "video", mediaUrl: `/api/media-cache/${cached}`, title: "Video", provider: urlProvider };
+  }
+
   // Reddit pre-resolver: extract direct media URL before hitting yt-dlp
   let downloadUrl = normalizedUrl;
   if (/reddit\.com\/r\/[^/]+\/comments\//.test(url)) {
