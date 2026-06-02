@@ -1,3 +1,4 @@
+import mime from "mime";
 import express from "express";
 import fs from "fs";
 import path from "path";
@@ -137,6 +138,9 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         alertScale: z.number().min(0.5).max(2).optional(),
         alertBgOpacity: z.number().min(0).max(1).optional(),
         alertAnimation: z.enum(["slide-up", "fade", "zoom", "bounce"]).optional(),
+        cobaltApiUrl: z.string().optional(),
+        cobaltApiKey: z.string().optional(),
+        mediaQuality: z.enum(["720", "1080", "1440", "2160"]).optional(),
       });
       const incoming = SettingsSchema.parse(req.body);
       const originalToken = settingsManager.settings.discordToken;
@@ -149,7 +153,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         alertDuration: incoming.alertDuration || 8000,
         syncDurationWithMedia: incoming.syncDurationWithMedia ?? true,
         bannedWords: incoming.bannedWords || [],
-        mediaMaxSizeMB: incoming.mediaMaxSizeMB || 8,
+        mediaMaxSizeMB: incoming.mediaMaxSizeMB || 50,
         neonColor: incoming.neonColor || "#6366f1",
         alertStyle: incoming.alertStyle || "neon",
         bannedWordsAction: incoming.bannedWordsAction || "censor",
@@ -166,6 +170,9 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         alertScale: incoming.alertScale ?? 1,
         alertBgOpacity: incoming.alertBgOpacity ?? 0.9,
         alertAnimation: incoming.alertAnimation || "slide-up",
+        cobaltApiUrl: incoming.cobaltApiUrl ?? settingsManager.settings.cobaltApiUrl ?? "",
+        cobaltApiKey: incoming.cobaltApiKey ?? settingsManager.settings.cobaltApiKey ?? "",
+        mediaQuality: incoming.mediaQuality ?? settingsManager.settings.mediaQuality ?? "1080",
       };
 
       settingsManager.saveSettings(updatedSettings);
@@ -489,16 +496,9 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
     const stat = fs.statSync(filepath);
     const fileSize = stat.size;
+    if (fileSize === 0) return res.status(404).send("Empty file");
     const range = req.headers.range;
-    const extMap: Record<string, string> = {
-      ".jpg": "image/jpeg",
-      ".jpeg": "image/jpeg",
-      ".png": "image/png",
-      ".gif": "image/gif",
-      ".webp": "image/webp",
-    };
-    const fileExt = path.extname(filename).toLowerCase();
-    const contentType = extMap[fileExt] ?? "video/mp4";
+    const contentType = mime.getType(filename) ?? "application/octet-stream";
 
     // Set CORS and other headers
     res.header("Access-Control-Allow-Origin", "*");
@@ -509,7 +509,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const end = Math.min(parts[1] ? parseInt(parts[1], 10) : fileSize - 1, fileSize - 1);
+      if (isNaN(start) || isNaN(end) || start > end || start >= fileSize) {
+        res.setHeader("Content-Range", `bytes */${fileSize}`);
+        return res.status(416).send("Range Not Satisfiable");
+      }
       const chunksize = end - start + 1;
       const file = fs.createReadStream(filepath, { start, end });
       const head = {

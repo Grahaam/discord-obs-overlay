@@ -24,7 +24,7 @@ export const locales = {
         'Faites un clic droit sur le nom du salon puis "Copier l\'identifiant" (le Mode Développeur doit être activé sur Discord).',
       maxSize: "Taille maximale des fichiers",
       maxSizeHelp:
-        "Afin de limiter l'utilisation de la bande passante, les fichiers excédant cette limite seront ignorés.",
+        "S'applique uniquement aux fichiers joints directement dans Discord. Les liens URL ne sont pas affectés.",
       duration: "Durée d'affichage (ms)",
       durationHelp: "Le laps de temps durant lequel l'alerte restera à l'écran (ex: 8000 pour 8 secondes).",
       syncDuration: "Synchroniser avec la durée de la vidéo",
@@ -40,6 +40,7 @@ export const locales = {
       cobaltKeyPlaceholder: "Clé API (si requise)",
       cobaltHelp:
         "Extracteur média alternatif open-source. Laissez URL vide pour désactiver. Auto-hébergez avec Docker : docker compose up -d (à http://localhost:9001/)",
+      mediaQuality: "Qualité maximale",
       save: "Enregistrer les modifications",
       saveWorking: "Sauvegarde en cours...",
       reconnect: "Reconnecter",
@@ -185,7 +186,7 @@ export const locales = {
       channelHelp:
         'Right-click a channel name and select "Copy ID" (Requires Developer Mode to be enabled in Discord).',
       maxSize: "Max File Size",
-      maxSizeHelp: "To restrict bandwidth usage, files exceeding this limit will be ignored.",
+      maxSizeHelp: "Applies to files attached directly in Discord only. URL links are not affected.",
       duration: "Display Duration (ms)",
       durationHelp: "The amount of time the alert will remain on screen (e.g., 8000 for 8 seconds).",
       syncDuration: "Synchronize with Video Length",
@@ -201,6 +202,7 @@ export const locales = {
       cobaltKeyPlaceholder: "API key (if required)",
       cobaltHelp:
         "Alternative open-source media extractor. Leave URL empty to disable. Self-host with Docker: docker compose up -d (at http://localhost:9001/)",
+      mediaQuality: "Max quality",
       save: "Save changes",
       saveWorking: "Saving configuration...",
       reconnect: "Reconnect",
@@ -345,7 +347,7 @@ export const locales = {
       channelPlaceholder: "Exampwe: 121528642398457810",
       channelHelp: 'Wight cwick youw Discowd text channew to "Copy ID" (Discowd Devewopew Mode wequiwed) >w<',
       maxSize: "Media Size Wimit",
-      maxSizeHelp: "To westwict bandwidth, fiwes wawgew than this wiww be ignowed :3",
+      maxSizeHelp: "Onwy fow fiwes attached in Discowd~ Won't affect URL winks :3",
       duration: "Awewt Wength UwU",
       durationHelp: "Time on scween (eg: 8000 fow 8 secondss)",
       syncDuration: "Sync Wif Videow Wength UwU",
@@ -360,6 +362,7 @@ export const locales = {
       cobaltKeyPlaceholder: "API key (if wequiwed)",
       cobaltHelp:
         "Awtewnativ media extwawtow~ Weave empty to disabwe. Self-host wif Dockew: docker compose up -d (at http://localhost:9001/)",
+      mediaQuality: "Max quawity~",
       save: "Save Configuwations~",
       saveWorking: "Saving to memowy... *sweats*",
       reconnect: "Weconnect Bawt",
@@ -506,7 +509,7 @@ export const locales = {
       channelHelp:
         'Faites un cwic dwoit suw votwe sawon textuew Discowd pouw "Copiew w\'identifiant" (Mode Dévewoppeuw wequis) >w<',
       maxSize: "Wimite de taiwwe média",
-      maxSizeHelp: "Pouw souwagew wa bande passante, ignowe wes fichiews pwus wouwds :3",
+      maxSizeHelp: "S'appwique uniquement aux pièces jointes Discowd~ Les liens URL ne sont pas affectés :3",
       duration: "Temps d'affichage Awewte UwU",
       durationHelp: "Duwée à w'écwan (ex: 8000 pouw 8 secondes)",
       syncDuration: "Synchwonizow avec wa Vidéow",
@@ -522,6 +525,7 @@ export const locales = {
       cobaltKeyPlaceholder: "Cwé API (si wequise)",
       cobaltHelp:
         "Extwawteur média awtewnativ open-source~ Waisser vide pour désactiwer. Auto-hébergez avec Dockew : docker compose up -d (à http://localhost:9001/)",
+      mediaQuality: "Quawité maximawe~",
       save: "Sauvewgwawdew wes configuwations~",
       saveWorking: "Inscwiption en mémoiwe... *sweats*",
       reconnect: "Weconnect Bawt",

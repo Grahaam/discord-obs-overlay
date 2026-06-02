@@ -216,7 +216,7 @@ export class DiscordBotManager {
 
           addJob(`discord-msg-${message.id}`, async () => {
             try {
-              let resolvedType: "image" | "video" | "iframe" | "link" = "image";
+              let resolvedType: "image" | "video" | "audio" | "iframe" | "link" = "image";
               let mediaUrl = "";
               let mediaTitle: string | undefined;
               let mediaDuration: number | undefined;

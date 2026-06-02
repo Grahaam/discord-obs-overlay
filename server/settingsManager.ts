@@ -30,6 +30,7 @@ export interface Settings {
   // Cobalt (optional self-hosted media extractor)
   cobaltApiUrl?: string;
   cobaltApiKey?: string;
+  mediaQuality?: "720" | "1080" | "1440" | "2160";
 
   // Visual customization
   alertFont?: "sans" | "mono" | "serif" | "display" | "rounded";
@@ -71,6 +72,7 @@ export const defaultSettings: Settings = {
   alertScale: 1,
   alertBgOpacity: 0.9,
   alertAnimation: "slide-up",
+  mediaQuality: "1080",
 };
 
 export class SettingsManager {

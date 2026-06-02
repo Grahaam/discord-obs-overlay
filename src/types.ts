@@ -36,10 +36,11 @@ export interface UIConfig {
   alertAnimation?: AlertAnimation;
   cobaltApiUrl?: string;
   cobaltApiKey?: string;
+  mediaQuality?: "720" | "1080" | "1440" | "2160";
 }
 
 /** Canonical media type — shared by alerts and logs. "react-player" is not used. */
-export type MediaType = "image" | "video" | "iframe" | "link";
+export type MediaType = "image" | "video" | "audio" | "iframe" | "link";
 
 export interface AlertPayload {
   id: string;
