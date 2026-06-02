@@ -46,12 +46,19 @@ export async function normalizeToMp4(inputPath: string, inputHash: string): Prom
       "128k",
       "-max_muxing_queue_size",
       "1024",
+      "-f",
+      "mp4",
       "-y",
       tempOutput,
     ];
 
     const ffmpeg = spawn(FFMPEG_BIN, args, { stdio: ["ignore", "ignore", "pipe"] });
     let done = false;
+    let stderrTail = "";
+
+    ffmpeg.stderr!.on("data", (chunk: Buffer) => {
+      stderrTail = (stderrTail + chunk.toString()).slice(-2000);
+    });
 
     const timer = setTimeout(() => {
       done = true;
@@ -78,7 +85,10 @@ export async function normalizeToMp4(inputPath: string, inputHash: string): Prom
         }
       } else {
         fs.promises.unlink(tempOutput).catch(() => {});
-        logger.warn({ code, file: path.basename(inputPath) }, "FFmpeg exit code non-zero");
+        logger.warn(
+          { code, file: path.basename(inputPath), stderr: stderrTail.trim().split("\n").slice(-5).join(" | ") },
+          "FFmpeg exit code non-zero"
+        );
         resolve(null);
       }
     });
