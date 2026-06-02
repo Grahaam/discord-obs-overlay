@@ -36,6 +36,10 @@ export const locales = {
       cookies: "Cookies de Session (Optionnel)",
       cookiesHelp:
         "Nécessaires pour contourner les restrictions d'accès (ex: Instagram, TikTok). Utilisez l'extension 'Get cookies.txt LOCALLY' dans votre navigateur pour exporter vos cookies au format Netscape et collez-les ici.",
+      cobaltTitle: "Cobalt (Optionnel)",
+      cobaltKeyPlaceholder: "Clé API (si requise)",
+      cobaltHelp:
+        "Extracteur média alternatif open-source. Laissez URL vide pour désactiver. Auto-hébergez avec Docker : docker compose up -d (à http://localhost:9001/)",
       save: "Enregistrer les modifications",
       saveWorking: "Sauvegarde en cours...",
       reconnect: "Reconnecter",
@@ -193,6 +197,10 @@ export const locales = {
       cookies: "Session Cookies (Optional)",
       cookiesHelp:
         "Required for platforms that block anonymous access. Use a browser extension like 'Get cookies.txt LOCALLY' to extract your cookies in Netscape format and paste them here.",
+      cobaltTitle: "Cobalt (Optional)",
+      cobaltKeyPlaceholder: "API key (if required)",
+      cobaltHelp:
+        "Alternative open-source media extractor. Leave URL empty to disable. Self-host with Docker: docker compose up -d (at http://localhost:9001/)",
       save: "Save changes",
       saveWorking: "Saving configuration...",
       reconnect: "Reconnect",
@@ -348,6 +356,10 @@ export const locales = {
       alertSoundHelp: "UWL to an audio fiwe pwayed at da stawt of each awewt. Weave empty to disabwe~ nyaa",
       cookies: "TikTok/Instagwam Session Cookies (Optionaw, nya~)",
       cookiesHelp: "Standawd cookie text content to bypass connection bwockages fow sum netwowks.",
+      cobaltTitle: "Cobawt (Optionaw, nya~)",
+      cobaltKeyPlaceholder: "API key (if wequiwed)",
+      cobaltHelp:
+        "Awtewnativ media extwawtow~ Weave empty to disabwe. Self-host wif Dockew: docker compose up -d (at http://localhost:9001/)",
       save: "Save Configuwations~",
       saveWorking: "Saving to memowy... *sweats*",
       reconnect: "Weconnect Bawt",
@@ -506,6 +518,10 @@ export const locales = {
       cookies: "Cookies Vidéo (YouTube, Instagwam, TikTok, nya~)",
       cookiesHelp:
         "Cewa pewmet awwa pwatefowme de téwéchawgew des médias comme si ewwe était connectée à votwe compte.",
+      cobaltTitle: "Cobawt (Optionnew, nya~)",
+      cobaltKeyPlaceholder: "Cwé API (si wequise)",
+      cobaltHelp:
+        "Extwawteur média awtewnativ open-source~ Waisser vide pour désactiwer. Auto-hébergez avec Dockew : docker compose up -d (à http://localhost:9001/)",
       save: "Sauvewgwawdew wes configuwations~",
       saveWorking: "Inscwiption en mémoiwe... *sweats*",
       reconnect: "Weconnect Bawt",

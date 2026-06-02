@@ -76,6 +76,7 @@ async function runServer() {
     `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com ${isDev ? "*" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
+    "worker-src 'self' blob:",
     "img-src 'self' data: blob: https:",
     "media-src 'self' data: blob: https:",
     `connect-src 'self' ws: wss: ${isDev ? "*" : ""}`,

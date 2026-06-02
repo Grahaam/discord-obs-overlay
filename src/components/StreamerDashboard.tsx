@@ -31,11 +31,7 @@ import SimulatorTab from "./tabs/SimulatorTab";
 import HealthTab from "./tabs/HealthTab";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableQueueItem } from "./SortableQueueItem";
 import { useQueueStore } from "../store/queueStore";
 
