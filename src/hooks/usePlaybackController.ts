@@ -344,6 +344,13 @@ export function usePlaybackController({
         timeoutId = setTimeout(() => finishAlert("timeout-fixed"), defaultDuration);
       }
       onVideoErrorRef.current = () => finishAlert("video-error");
+    } else if (item.type === "audio") {
+      // Follow actual audio duration — ended event fires via videoHandlers.onEnded
+      onVideoEndedRef.current = () => finishAlert("audio-ended");
+      onVideoLoadedMetaRef.current = (ms) => extendTimeoutRef.current?.(ms);
+      onVideoErrorRef.current = () => finishAlert("audio-error");
+      timeoutEndRef.current = Date.now() + 300_000;
+      timeoutId = setTimeout(() => finishAlert("timeout-audio-cap"), 300_000);
     } else if ((item.type === "iframe" || item.type === "link") && item.syncDurationWithMedia) {
       // All iframe/link types use the same timeout (including youtube.com/embed)
       timeoutEndRef.current = Date.now() + 240_000;
@@ -398,10 +405,12 @@ export function usePlaybackController({
 
       onCanPlay: (e: React.SyntheticEvent<HTMLVideoElement>) => {
         const vid = e.currentTarget;
-        // OBS browser source autoplay: mute then immediately unmute
+        // OBS browser source autoplay: mute then immediately unmute, then explicit play
+        // (audio elements require explicit .play() — autoPlay attr alone is blocked by OBS)
         vid.muted = true;
         vid.muted = false;
         vid.volume = volumeRef.current;
+        vid.play().catch(() => {});
       },
 
       onLoadedMetadata: (e: React.SyntheticEvent<HTMLVideoElement>) => {
