@@ -33,10 +33,10 @@ media_cache/
 test-results/
 bin_test/
 
-# Loose test scripts (root-level only; tests/ dir is tracked)
-test-*.ts
-test_*.ts
-testdl.ts
+# Loose test scripts (root-level only; tests/ and scripts/ dirs are tracked)
+/test-*.ts
+/test_*.ts
+/testdl.ts
 
 # IDE & AI tool configs (machine-local)
 .vscode/

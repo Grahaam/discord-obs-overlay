@@ -301,7 +301,15 @@ async function cacheMedia(url: string, originalUrl: string, ext = "mp4"): Promis
     if (!fs.existsSync(rawFilepath)) {
       logger.info({ rawFilename }, "Downloading to cache");
       await resolveDNSHost(url);
-      const response = await axios({ method: "get", url, responseType: "stream" });
+      const response = await axios({
+        method: "get",
+        url,
+        responseType: "stream",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      });
 
       const contentLength = response.headers["content-length"];
       if (contentLength && Number(contentLength) > sizeLimit) {
@@ -614,27 +622,37 @@ export async function resolveMediaFromLink(url: string): Promise<{
 
   const { url: normalizedUrl, audioOnly: isAudioOrigin } = normalizeForExtraction(cleanedUrl);
 
-  // Fast path: direct media by file extension — skip yt-dlp/Cobalt overhead
+  // Fast path: direct media by file extension — skip yt-dlp/Cobalt overhead.
+  // Track image/audio to prevent fallthrough into yt-dlp: its generic extractor downloads
+  // images and ffmpeg wraps them in .mp4, producing type:"video" for an image URL.
   const directImgExt = getImageExt(normalizedUrl);
   if (directImgExt) {
     const cached = await cacheMedia(normalizedUrl, cleanedUrl, directImgExt);
     if (cached) return { type: "image", mediaUrl: `/api/media-cache/${cached}`, title: "Image", provider: urlProvider };
+    // cacheMedia failed (403, 404, etc.) — skip yt-dlp/Cobalt, fall to link-preview below
   }
-  const directAudioExt = getAudioExt(normalizedUrl);
+  const directAudioExt = !directImgExt ? getAudioExt(normalizedUrl) : null;
   if (directAudioExt) {
     const cached = await cacheMedia(normalizedUrl, cleanedUrl, directAudioExt);
     if (cached) return { type: "audio", mediaUrl: `/api/media-cache/${cached}`, title: "Audio", provider: urlProvider };
+    // cacheMedia failed — skip yt-dlp/Cobalt, fall to link-preview below
   }
-  const directVideoMatch = normalizedUrl.match(/\.(mp4|webm|mov)(\?|$)/i);
-  if (directVideoMatch) {
-    const ext = directVideoMatch[1].toLowerCase();
-    const cached = await cacheMedia(normalizedUrl, cleanedUrl, ext);
-    if (cached) return { type: "video", mediaUrl: `/api/media-cache/${cached}`, title: "Video", provider: urlProvider };
+  const isDirectMediaUrl = !!(directImgExt || directAudioExt);
+
+  if (!isDirectMediaUrl) {
+    const directVideoMatch = normalizedUrl.match(/\.(mp4|webm|mov)(\?|$)/i);
+    if (directVideoMatch) {
+      const ext = directVideoMatch[1].toLowerCase();
+      const cached = await cacheMedia(normalizedUrl, cleanedUrl, ext);
+      if (cached)
+        return { type: "video", mediaUrl: `/api/media-cache/${cached}`, title: "Video", provider: urlProvider };
+      // cacheMedia failed for direct video — allow yt-dlp fallthrough (may handle auth/redirects)
+    }
   }
 
   // Reddit pre-resolver: extract direct media URL before hitting yt-dlp
   let downloadUrl = normalizedUrl;
-  if (/reddit\.com\/r\/[^/]+\/comments\//.test(url)) {
+  if (!isDirectMediaUrl && /reddit\.com\/r\/[^/]+\/comments\//.test(url)) {
     const redditMediaUrl = await resolveRedditPostMediaUrl(cleanedUrl, cookiesPath);
     if (redditMediaUrl) {
       logger.info({ redditMediaUrl }, "Reddit post pre-resolved to direct media URL");
