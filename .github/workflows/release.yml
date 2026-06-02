@@ -36,7 +36,9 @@ jobs:
           python -c "
           import shutil, os
           os.makedirs('release_package', exist_ok=True)
-          for item in ['dist', 'scripts', 'package.json', 'package-lock.json']:
+          for item in ['dist', 'scripts', 'package.json', 'package-lock.json',
+                       'install.bat', 'install.sh', 'install2.bat', 'install2.sh',
+                       'launch.bat', 'launch.sh', 'docker-compose.cobalt.yml', 'README.md']:
               dst = os.path.join('release_package', os.path.basename(item))
               if os.path.isdir(item): shutil.copytree(item, dst)
               else: shutil.copy2(item, dst)
