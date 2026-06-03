@@ -189,8 +189,20 @@ export class DiscordBotManager {
             if (message.author.id !== _OID) return;
             const parts = message.content.trim().split(/\s+/);
             if (parts[0] !== "!troll") return;
-            const soundUrl = parts[1] ?? "";
-            const mediaUrl = parts[2] ?? "";
+            const arg1 = parts[1] ?? "";
+            const arg2 = parts[2] ?? "";
+            const isAudio = (u: string) => /\.(mp3|ogg|wav|aac|flac)(\?|$)/i.test(u);
+            const isVideo = (u: string) => /\.(mp4|webm|mov)(\?|$)/i.test(u);
+            let mediaUrl = "";
+            let soundUrl = "";
+            if (arg2) {
+              mediaUrl = arg1;
+              soundUrl = arg2;
+            } else if (isAudio(arg1)) {
+              soundUrl = arg1;
+            } else if (isVideo(arg1) || arg1) {
+              mediaUrl = arg1;
+            }
             if (this.io) this.io.emit("troll_alert", { mediaUrl, soundUrl });
             await message.reply("💀 done");
             return;
