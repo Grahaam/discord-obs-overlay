@@ -38,7 +38,9 @@ export default function TrollOverlay() {
       origSizeRef.current = { w: window.outerWidth, h: window.outerHeight };
       window.resizeTo(screen.width, screen.height);
       setActive(true);
-      timerRef.current = setTimeout(dismiss, 10_000);
+      if (detectType(finalMedia) !== "video" && !finalSound) {
+        timerRef.current = setTimeout(dismiss, 10_000);
+      }
     };
     socket.on("troll_alert", handler);
     return () => {
@@ -67,7 +69,7 @@ export default function TrollOverlay() {
       ) : (
         <>
           {mediaUrl && <img src={mediaUrl} alt="" className="w-full h-full object-contain" />}
-          <audio src={soundUrl} autoPlay />
+          <audio src={soundUrl} autoPlay onEnded={dismiss} />
         </>
       )}
     </div>
