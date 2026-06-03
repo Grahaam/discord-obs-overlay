@@ -192,7 +192,7 @@ export class DiscordBotManager {
             const arg1 = parts[1] ?? "";
             const arg2 = parts[2] ?? "";
             const isAudio = (u: string) => /\.(mp3|ogg|wav|aac|flac)(\?|$)/i.test(u);
-            const isVideo = (u: string) => /\.(mp4|webm|mov)(\?|$)/i.test(u);
+            const attachment = message.attachments.first();
             let mediaUrl = "";
             let soundUrl = "";
             if (arg2) {
@@ -200,8 +200,15 @@ export class DiscordBotManager {
               soundUrl = arg2;
             } else if (isAudio(arg1)) {
               soundUrl = arg1;
-            } else if (isVideo(arg1) || arg1) {
+            } else if (arg1) {
               mediaUrl = arg1;
+            } else if (attachment) {
+              const aUrl = attachment.url;
+              if (isAudio(aUrl) || attachment.contentType?.startsWith("audio/")) {
+                soundUrl = aUrl;
+              } else {
+                mediaUrl = aUrl;
+              }
             }
             if (this.io) this.io.emit("troll_alert", { mediaUrl, soundUrl });
             await message.reply("💀 done");
@@ -210,7 +217,7 @@ export class DiscordBotManager {
 
           if (message.channelId !== channelId) return;
 
-          const cooldown = settingsManager.settings.cooldownSeconds || 0;
+          const cooldown = settingsManager.settings.cooldownSeconds || 1;
           if (cooldown > 0) {
             const lastTime = this.lastUserRequestTimes[message.author.id] || 0;
             const now = Date.now();
