@@ -41,6 +41,8 @@ if exist ".git" (
             echo.
             echo [OK] Update applied.
             echo.
+        ) else (
+            echo [OK] Already up to date.
         )
     )
 )

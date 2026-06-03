@@ -22,6 +22,8 @@ if [ -d ".git" ] && command -v git &>/dev/null; then
         echo ""
         echo "[OK] Update applied."
         echo ""
+    else
+        echo "[OK] Already up to date."
     fi
 fi
 
