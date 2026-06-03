@@ -40,7 +40,9 @@ export default function TrollOverlay() {
       timerRef.current = setTimeout(dismiss, 10_000);
     };
     socket.on("troll_alert", handler);
-    return () => { socket.off("troll_alert", handler); };
+    return () => {
+      socket.off("troll_alert", handler);
+    };
   }, [socket]);
 
   function dismiss() {
@@ -60,14 +62,7 @@ export default function TrollOverlay() {
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
       {type === "video" ? (
-        <video
-          src={mediaUrl}
-          autoPlay
-          muted
-          playsInline
-          className="w-full h-full object-contain"
-          onEnded={dismiss}
-        />
+        <video src={mediaUrl} autoPlay muted playsInline className="w-full h-full object-contain" onEnded={dismiss} />
       ) : (
         <img src={mediaUrl} alt="" className="w-full h-full object-contain" />
       )}
