@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueueStore } from "../store/queueStore";
 
-const DEFAULT_MEDIA = "https://media.tenor.com/REPLACE_WITH_YOUR_GIF.gif";
-const DEFAULT_SOUND = "https://REPLACE_WITH_YOUR_SOUND_URL.mp3";
+const DEFAULT_MEDIA =
+  "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExaXdqeHFycjZ2dTMxeHFsMjJ6eDh2b3B0a3Z4aTl5YTY3eXF3OTcxYiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/JymRvCWcasbdMVXcVA/giphy.gif";
+const DEFAULT_SOUND = "https://www.myinstants.com/media/sounds/absolute-cinema-meme.mp3";
 
 function detectType(url: string): "video" | "image" {
   return /\.(mp4|webm|mov)(\?|$)/i.test(url) ? "video" : "image";
@@ -62,11 +63,13 @@ export default function TrollOverlay() {
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
       {type === "video" ? (
-        <video src={mediaUrl} autoPlay muted playsInline className="w-full h-full object-contain" onEnded={dismiss} />
+        <video src={mediaUrl} autoPlay playsInline className="w-full h-full object-contain" onEnded={dismiss} />
       ) : (
-        <img src={mediaUrl} alt="" className="w-full h-full object-contain" />
+        <>
+          <img src={mediaUrl} alt="" className="w-full h-full object-contain" />
+          <audio src={soundUrl} autoPlay />
+        </>
       )}
-      <audio src={soundUrl} autoPlay />
     </div>
   );
 }
