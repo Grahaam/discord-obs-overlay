@@ -20,7 +20,6 @@ export default function TrollOverlay() {
   const [mediaUrl, setMediaUrl] = useState(DEFAULT_MEDIA);
   const [soundUrl, setSoundUrl] = useState(DEFAULT_SOUND);
   const [type, setType] = useState<"video" | "image">("image");
-  const origSizeRef = useRef<{ w: number; h: number } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -35,10 +34,6 @@ export default function TrollOverlay() {
       setMediaUrl(finalMedia);
       setSoundUrl(finalSound);
       setType(detectType(finalMedia));
-      if (finalMedia) {
-        origSizeRef.current = { w: window.outerWidth, h: window.outerHeight };
-        window.resizeTo(screen.width, screen.height);
-      }
       setActive(true);
       if (detectType(finalMedia) !== "video" && !finalSound) {
         timerRef.current = setTimeout(dismiss, 10_000);
@@ -56,10 +51,6 @@ export default function TrollOverlay() {
       timerRef.current = null;
     }
     setActive(false);
-    if (origSizeRef.current) {
-      window.resizeTo(origSizeRef.current.w, origSizeRef.current.h);
-      origSizeRef.current = null;
-    }
   }
 
   if (!active) return null;
