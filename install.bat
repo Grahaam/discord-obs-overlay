@@ -9,28 +9,6 @@ echo   Discord OBS Overlay - Setup
 echo =============================================
 echo.
 
-:: ── Pull latest changes from GitHub ───────────────────────────────────────
-if exist ".git" (
-    where git >nul 2>&1
-    if errorlevel 1 (
-        echo [WARN] Git not found — skipping update check.
-        echo  Install Git from https://git-scm.com to enable auto-updates.
-        echo.
-    ) else (
-        echo Checking for updates...
-        git pull
-        if errorlevel 1 (
-            echo [WARN] git pull failed — continuing with current version.
-        )
-        echo.
-    )
-) else (
-    echo [WARN] No .git folder found — auto-update disabled.
-    echo  For auto-updates, clone the repo instead of downloading the ZIP:
-    echo    git clone https://github.com/Grahaam/discord-obs-overlay.git
-    echo.
-)
-
 :: ── Check Node.js ──────────────────────────────────────────────────────────
 where node >nul 2>&1
 if errorlevel 1 (
