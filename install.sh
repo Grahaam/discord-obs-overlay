@@ -88,6 +88,11 @@ echo "[OK] Dependencies installed."
 echo ""
 echo "[2/2] Building the app..."
 echo ""
+if [ -d dist ] && ! rm -rf dist 2>/dev/null; then
+    echo "[ERROR] Cannot remove old dist/ directory (owned by root from a previous sudo run)."
+    echo "  Fix: sudo rm -rf dist && bash install.sh"
+    exit 1
+fi
 npm run build
 echo ""
 echo "[OK] App built."
