@@ -117,20 +117,21 @@ echo ""
 
 DOCKER_OK=0
 COMPOSE_CMD=""
+RUNTIME_FOUND=0  # set to 1 if docker or podman is in PATH (skip auto-install when true)
 
 if command -v docker &>/dev/null; then
+    RUNTIME_FOUND=1
     DOCKER_OK=1
     COMPOSE_CMD="docker compose"
     echo "[OK] Docker found."
 elif command -v podman &>/dev/null; then
-    DOCKER_OK=1
+    RUNTIME_FOUND=1
     COMPOSE_CMD="podman compose"
     echo "[OK] Podman found."
     # Podman machines are per-user; sudo breaks the SSH tunnel on macOS
     if [ "$(uname)" = "Darwin" ] && [ "${EUID:-$(id -u)}" -eq 0 ]; then
         echo "[WARN] Running as root — Podman machines are per-user on macOS."
         echo "  Re-run without sudo for Cobalt setup: bash install.sh"
-        DOCKER_OK=0
     # On macOS/Windows, Podman requires a running VM; podman info can succeed as root
     # even when the user machine is down, so check machine list directly
     elif ! podman machine ls --format "{{.Running}}" 2>/dev/null | grep -qi "true"; then
@@ -140,16 +141,18 @@ elif command -v podman &>/dev/null; then
             podman machine start
             if ! podman machine ls --format "{{.Running}}" 2>/dev/null | grep -qi "true"; then
                 echo "[ERROR] Could not start Podman machine. Start it manually: podman machine start"
-                DOCKER_OK=0
+            else
+                DOCKER_OK=1
             fi
         else
             echo "[SKIP] Podman machine not started — Cobalt won't run."
-            DOCKER_OK=0
         fi
+    else
+        DOCKER_OK=1
     fi
 fi
 
-if [ "$DOCKER_OK" -eq 0 ]; then
+if [ "$DOCKER_OK" -eq 0 ] && [ "$RUNTIME_FOUND" -eq 0 ]; then
     if [ "$(uname)" = "Darwin" ]; then
         echo "[!!] Docker not found. Attempting install via Homebrew..."
         if command -v brew &>/dev/null; then
