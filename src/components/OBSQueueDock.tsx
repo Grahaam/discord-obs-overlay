@@ -3,6 +3,7 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SkipForward, Trash2, Play, Pause, RotateCcw, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { locales, Language } from "../locales";
 import { useQueueStore } from "../store/queueStore";
 import { SortableQueueItem } from "./SortableQueueItem";
 
@@ -13,6 +14,7 @@ export default function OBSQueueDock() {
   const scrubRef = useRef<HTMLInputElement>(null);
   const isDraggingRef = useRef(false);
   const [scrubDisplayTime, setScrubDisplayTime] = useState(0);
+  const [t, setT] = useState(locales["fr"]);
 
   // Tracks the last currentTime we accepted — used to reject stale streams from a second overlay.
   // Two overlay instances (OBS + browser tab) each emit playback_state independently; their
@@ -26,6 +28,13 @@ export default function OBSQueueDock() {
     acceptedTimeRef.current = 0;
     seekTargetRef.current = null;
   }, [nowPlaying]);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((s) => setT(locales[(s.language as Language) ?? "fr"]))
+      .catch(() => {});
+  }, []);
 
   // Imperatively sync scrubber position from socket — skip while user is dragging
   useEffect(() => {
@@ -103,7 +112,7 @@ export default function OBSQueueDock() {
             type="button"
             onClick={() => handleAction(playback?.isPaused ? "queue/resume" : "queue/pause")}
             className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 p-2 rounded-md flex items-center justify-center transition-all"
-            title={playback?.isPaused ? "Resume" : "Pause"}
+            title={playback?.isPaused ? t.dock.resume : t.dock.pause}
           >
             {playback?.isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
           </button>
@@ -133,7 +142,7 @@ export default function OBSQueueDock() {
             type="button"
             onClick={() => handleAction("skip-alert")}
             className="bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 active:scale-95 p-2 rounded-md transition-all"
-            title="Passer l'alerte"
+            title={t.dock.skip}
           >
             <SkipForward className="w-3.5 h-3.5 text-indigo-400" />
           </button>
@@ -143,7 +152,7 @@ export default function OBSQueueDock() {
             type="button"
             onClick={() => handleAction("queue/clear")}
             className="bg-white/[0.05] hover:bg-red-900/40 active:scale-95 p-2 rounded-md transition-all"
-            title="Vider la file"
+            title={t.dock.clearQueue}
           >
             <Trash2 className="w-3.5 h-3.5 text-white/40" />
           </button>
@@ -152,7 +161,7 @@ export default function OBSQueueDock() {
 
           {/* Volume */}
           <input
-            aria-label="Volume"
+            aria-label={t.dock.volume}
             type="range"
             min={0}
             max={1}
@@ -191,7 +200,7 @@ export default function OBSQueueDock() {
               handleAction("queue/seek-absolute", { seconds: seekTo });
             }}
             className="flex-1 accent-indigo-500 h-1"
-            aria-label="Seek"
+            aria-label={t.dock.seek}
           />
           <span className="text-[10px] text-white/35 tabular-nums w-8 text-right">
             {formatTime(playback?.duration ?? 0)}
@@ -204,7 +213,7 @@ export default function OBSQueueDock() {
         <div className="px-3 py-2 border-b border-indigo-500/20 bg-indigo-950/20 flex items-center gap-2">
           <Play className="w-2.5 h-2.5 text-indigo-400 shrink-0 animate-pulse" />
           <div className="flex-1 min-w-0">
-            <div className="text-indigo-200 text-[9px] font-bold uppercase tracking-widest mb-0.5">En cours</div>
+            <div className="text-indigo-200 text-[9px] font-bold uppercase tracking-widest mb-0.5">{t.dock.nowPlaying}</div>
             <div className="text-white/80 text-[10px] font-semibold truncate">
               {nowPlaying.title || nowPlaying.text || nowPlaying.authorName}
             </div>
@@ -215,7 +224,7 @@ export default function OBSQueueDock() {
 
       {/* ── Queue header ── */}
       <div className="px-3 py-1.5 border-b border-white/[0.05] flex items-center gap-2">
-        <span className="text-[9px] font-bold text-white/15 uppercase tracking-widest">File d&apos;attente</span>
+        <span className="text-[9px] font-bold text-white/15 uppercase tracking-widest">{t.dock.queue}</span>
         {queue.length > 0 && (
           <span className="ml-auto bg-indigo-600/20 text-indigo-300 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
             {queue.length}
@@ -228,7 +237,7 @@ export default function OBSQueueDock() {
         {queue.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
             <SkipForward className="w-5 h-5 text-white/10" />
-            <span className="text-[10px] text-white/15">File vide</span>
+            <span className="text-[10px] text-white/15">{t.dock.queueEmpty}</span>
           </div>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
