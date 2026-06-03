@@ -35,8 +35,10 @@ export default function TrollOverlay() {
       setMediaUrl(finalMedia);
       setSoundUrl(finalSound);
       setType(detectType(finalMedia));
-      origSizeRef.current = { w: window.outerWidth, h: window.outerHeight };
-      window.resizeTo(screen.width, screen.height);
+      if (finalMedia) {
+        origSizeRef.current = { w: window.outerWidth, h: window.outerHeight };
+        window.resizeTo(screen.width, screen.height);
+      }
       setActive(true);
       if (detectType(finalMedia) !== "video" && !finalSound) {
         timerRef.current = setTimeout(dismiss, 10_000);
@@ -62,13 +64,17 @@ export default function TrollOverlay() {
 
   if (!active) return null;
 
+  if (!mediaUrl && type !== "video") {
+    return <audio src={soundUrl} autoPlay onEnded={dismiss} />;
+  }
+
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
       {type === "video" ? (
         <video src={mediaUrl} autoPlay playsInline className="w-full h-full object-contain" onEnded={dismiss} />
       ) : (
         <>
-          {mediaUrl && <img src={mediaUrl} alt="" className="w-full h-full object-contain" />}
+          <img src={mediaUrl} alt="" className="w-full h-full object-contain" />
           <audio src={soundUrl} autoPlay onEnded={dismiss} />
         </>
       )}
