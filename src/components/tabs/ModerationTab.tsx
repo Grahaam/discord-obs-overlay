@@ -126,7 +126,7 @@ export default function ModerationTab(props: TabProps) {
               type="number"
               min="0"
               max="300"
-              value={config.cooldownSeconds ?? 0}
+              value={config.cooldownSeconds ?? 1}
               onChange={(e) => setConfig({ ...config, cooldownSeconds: Number(e.target.value) })}
               className="w-20 bg-[#08080f] border border-white/[0.07] rounded-lg px-2.5 py-2 text-xs font-mono text-indigo-200 focus:outline-none focus:border-indigo-500/40 text-right pr-7 transition-all"
             />

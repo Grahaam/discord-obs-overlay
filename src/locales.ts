@@ -26,7 +26,8 @@ export const locales = {
       maxSizeHelp:
         "S'applique uniquement aux fichiers joints directement dans Discord. Les liens URL ne sont pas affectés.",
       persistentPlays: "Conserver en cache après",
-      persistentPlaysHelp: "Les fichiers joués au moins ce nombre de fois sont exclus de la suppression automatique du cache.",
+      persistentPlaysHelp:
+        "Les fichiers joués au moins ce nombre de fois sont exclus de la suppression automatique du cache.",
       duration: "Durée d'affichage (ms)",
       durationHelp: "Le laps de temps durant lequel l'alerte restera à l'écran (ex: 8000 pour 8 secondes).",
       syncDuration: "Synchroniser avec la durée de la vidéo",
