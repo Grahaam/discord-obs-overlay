@@ -25,6 +25,10 @@ export default function TrollOverlay() {
   useEffect(() => {
     if (!socket) return;
     const handler = ({ mediaUrl: m, soundUrl: s }: TrollPayload) => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
       const finalMedia = m || DEFAULT_MEDIA;
       const finalSound = s || DEFAULT_SOUND;
       setMediaUrl(finalMedia);
@@ -59,6 +63,8 @@ export default function TrollOverlay() {
         <video
           src={mediaUrl}
           autoPlay
+          muted
+          playsInline
           className="w-full h-full object-contain"
           onEnded={dismiss}
         />
