@@ -6,16 +6,14 @@ const isDev = env.NODE_ENV === "development";
 
 const _pino = pino({
   level: isDev ? "debug" : "info",
-  transport: isDev
-    ? {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          ignore: "pid,hostname",
-          translateTime: "HH:MM:ss Z",
-        },
-      }
-    : undefined,
+  transport: {
+    target: "pino-pretty",
+    options: {
+      colorize: true,
+      ignore: "pid,hostname",
+      translateTime: "HH:MM:ss Z",
+    },
+  },
 });
 
 function capture(level: "warn" | "error" | "fatal", arg1: object | string, arg2?: string) {
