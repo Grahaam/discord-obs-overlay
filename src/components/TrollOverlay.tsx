@@ -51,6 +51,7 @@ export default function TrollOverlay() {
       timerRef.current = null;
     }
     setActive(false);
+    socket?.emit("troll_dismissed");
   }
 
   if (!active) return null;

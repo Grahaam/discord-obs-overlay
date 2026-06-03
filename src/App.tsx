@@ -7,7 +7,13 @@ import TrollOverlay from "./components/TrollOverlay";
 export default function App() {
   const path = window.location.pathname.replace(/\/$/, "");
 
-  if (path === "/overlay") return <><OBSOverlayView /><TrollOverlay /></>;
+  if (path === "/overlay")
+    return (
+      <>
+        <OBSOverlayView />
+        <TrollOverlay />
+      </>
+    );
   if (path === "/dock") return <OBSQueueDock />;
   if (path === "/status") return <OBSStatusDock />;
 

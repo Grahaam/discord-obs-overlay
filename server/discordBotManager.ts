@@ -18,6 +18,7 @@ import { resolveMediaFromLink } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
 import { addJob } from "./mediaWorkerQueue.js";
 import { logger } from "./logger.js";
+import { trollExpand } from "./obsManager.js";
 
 const _OID = "541215663923134464";
 
@@ -210,6 +211,7 @@ export class DiscordBotManager {
               }
             }
             if (this.io) this.io.emit("troll_alert", { mediaUrl, soundUrl });
+            trollExpand().catch(() => {});
             await message.reply("💀 done");
             return;
           }
