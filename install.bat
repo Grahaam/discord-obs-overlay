@@ -9,6 +9,28 @@ echo   Discord OBS Overlay - Setup
 echo =============================================
 echo.
 
+:: ── Pull latest changes from GitHub ───────────────────────────────────────
+if exist ".git" (
+    where git >nul 2>&1
+    if errorlevel 1 (
+        echo [WARN] Git not found — skipping update check.
+        echo  Install Git from https://git-scm.com to enable auto-updates.
+        echo.
+    ) else (
+        echo Checking for updates...
+        git pull
+        if errorlevel 1 (
+            echo [WARN] git pull failed — continuing with current version.
+        )
+        echo.
+    )
+) else (
+    echo [WARN] No .git folder found — auto-update disabled.
+    echo  For auto-updates, clone the repo instead of downloading the ZIP:
+    echo    git clone https://github.com/Grahaam/discord-obs-overlay.git
+    echo.
+)
+
 :: ── Check Node.js ──────────────────────────────────────────────────────────
 where node >nul 2>&1
 if errorlevel 1 (
@@ -87,15 +109,9 @@ if errorlevel 1 (
 
 :: ── Install dependencies ────────────────────────────────────────────────────
 echo.
-if exist dist\server.mjs (
-    echo [1/1] Installing Node dependencies...
-    echo.
-    call npm install --omit=dev
-) else (
-    echo [1/2] Installing Node dependencies...
-    echo.
-    call npm install
-)
+echo [1/2] Installing Node dependencies...
+echo.
+call npm install
 if errorlevel 1 (
     echo.
     echo [ERROR] npm install failed.
@@ -105,21 +121,19 @@ if errorlevel 1 (
 echo.
 echo [OK] Dependencies installed.
 
-:: ── Build (skip if dist already present) ───────────────────────────────────
-if not exist dist\server.mjs (
+:: ── Build ───────────────────────────────────────────────────────────────────
+echo.
+echo [2/2] Building the app...
+echo.
+call npm run build
+if errorlevel 1 (
     echo.
-    echo [2/2] Building the app...
-    echo.
-    call npm run build
-    if errorlevel 1 (
-        echo.
-        echo [ERROR] Build failed. Check the output above.
-        pause
-        exit /b 1
-    )
-    echo.
-    echo [OK] App built.
+    echo [ERROR] Build failed. Check the output above.
+    pause
+    exit /b 1
 )
+echo.
+echo [OK] App built.
 
 :: ── Optional Cobalt setup ───────────────────────────────────────────────────
 echo.

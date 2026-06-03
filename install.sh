@@ -8,6 +8,24 @@ echo "  Discord OBS Overlay - Setup"
 echo "============================================="
 echo ""
 
+# ── Pull latest changes from GitHub ──────────────────────────────────────────
+if [ -d ".git" ]; then
+    if command -v git &>/dev/null; then
+        echo "Checking for updates..."
+        git pull || echo "[WARN] git pull failed — continuing with current version."
+        echo ""
+    else
+        echo "[WARN] Git not found — skipping update check."
+        echo "  Install Git to enable auto-updates."
+        echo ""
+    fi
+else
+    echo "[WARN] No .git folder found — auto-update disabled."
+    echo "  For auto-updates, clone the repo instead of downloading the ZIP:"
+    echo "    git clone https://github.com/Grahaam/discord-obs-overlay.git"
+    echo ""
+fi
+
 # ── Check Node.js ─────────────────────────────────────────────────────────────
 if ! command -v node &>/dev/null; then
     echo "[ERROR] Node.js is not installed."
@@ -79,26 +97,18 @@ fi
 
 # ── Install dependencies ───────────────────────────────────────────────────────
 echo ""
-if [ -f dist/server.mjs ]; then
-    echo "[1/1] Installing Node dependencies..."
-    echo ""
-    npm install --omit=dev --silent
-else
-    echo "[1/2] Installing Node dependencies..."
-    echo ""
-    npm install --silent
-fi
+echo "[1/2] Installing Node dependencies..."
+echo ""
+npm install --silent
 echo "[OK] Dependencies installed."
 
-# ── Build (skip if dist already present) ──────────────────────────────────────
-if [ ! -f dist/server.mjs ]; then
-    echo ""
-    echo "[2/2] Building the app..."
-    echo ""
-    npm run build
-    echo ""
-    echo "[OK] App built."
-fi
+# ── Build ──────────────────────────────────────────────────────────────────────
+echo ""
+echo "[2/2] Building the app..."
+echo ""
+npm run build
+echo ""
+echo "[OK] App built."
 
 # ── Optional Cobalt setup ──────────────────────────────────────────────────────
 echo ""
