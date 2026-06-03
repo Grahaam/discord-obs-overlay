@@ -142,6 +142,22 @@ if !DOCKER_OK!==0 (
         set DOCKER_OK=1
         set COMPOSE_CMD=podman compose
         echo [OK] Podman found.
+        podman info >nul 2>&1
+        if errorlevel 1 (
+            echo [!!] Podman machine not running.
+            set /p START_MACHINE="  Start Podman machine now? (Y/N): "
+            if /i "!START_MACHINE!"=="Y" (
+                podman machine start
+                podman info >nul 2>&1
+                if errorlevel 1 (
+                    echo [ERROR] Could not start Podman machine. Run: podman machine start
+                    set DOCKER_OK=0
+                )
+            ) else (
+                echo [SKIP] Podman machine not started — Cobalt won't run.
+                set DOCKER_OK=0
+            )
+        )
     )
 )
 
