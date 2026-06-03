@@ -16,6 +16,7 @@ import { initDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
+import { trollRestore } from "./obsManager.js";
 
 dotenv.config();
 
@@ -162,6 +163,10 @@ async function runServer() {
         io.emit("now_playing", null);
       }
       io.emit("remove_queue_item", alertId);
+    });
+
+    socket.on("troll_dismissed", () => {
+      trollRestore().catch(() => {});
     });
 
     socket.on("disconnect", () => {});

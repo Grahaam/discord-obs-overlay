@@ -349,7 +349,7 @@ async function runTest(tc: TestCase, index: number): Promise<Result> {
     const data = await post(
       "/api/trigger-test",
       { mediaUrl: tc.url, authorName: `test-runner`, text: `[${index}] ${tc.description}` },
-      controller.signal,
+      controller.signal
     );
     clearTimeout(timer);
     const elapsed = Date.now() - t0;
@@ -371,13 +371,16 @@ async function runTest(tc: TestCase, index: number): Promise<Result> {
       status = "WARN";
     }
     if (tc.expectCached && !cached) {
-      issues.push(`not cached (got ${C.dim}${typeof mediaUrl === "string" ? mediaUrl.slice(0, 60) : mediaUrl}${C.reset})`);
+      issues.push(
+        `not cached (got ${C.dim}${typeof mediaUrl === "string" ? mediaUrl.slice(0, 60) : mediaUrl}${C.reset})`
+      );
       if (status === "PASS") status = "WARN";
     }
 
     const elapsedStr = `${C.dim}${(elapsed / 1000).toFixed(1)}s${C.reset}`;
     const cacheStr = cached ? `${C.green}cached${C.reset}` : `${C.yellow}uncached${C.reset}`;
-    const typeStr = actualType === tc.expectedType ? `${C.green}${actualType}${C.reset}` : `${C.yellow}${actualType}${C.reset}`;
+    const typeStr =
+      actualType === tc.expectedType ? `${C.green}${actualType}${C.reset}` : `${C.yellow}${actualType}${C.reset}`;
 
     process.stdout.write(`     ${statusTag(status)} ${typeStr} · ${cacheStr} · ${elapsedStr}\n`);
     if (issues.length) {
@@ -393,7 +396,9 @@ async function runTest(tc: TestCase, index: number): Promise<Result> {
     const elapsed = Date.now() - t0;
 
     if (err.name === "AbortError" || err.message?.includes("aborted")) {
-      process.stdout.write(`     ${statusTag("TIMEOUT")} ${C.cyan}resolve exceeded ${TIMEOUT_S}s — skipping${C.reset}\n`);
+      process.stdout.write(
+        `     ${statusTag("TIMEOUT")} ${C.cyan}resolve exceeded ${TIMEOUT_S}s — skipping${C.reset}\n`
+      );
       return { index, tc, status: "TIMEOUT", elapsed, error: `timeout after ${TIMEOUT_S}s` };
     }
 
@@ -416,7 +421,7 @@ function printSummary(results: Result[]): void {
       `${C.red}FAIL${C.reset} ${counts.FAIL}  ` +
       `${C.cyan}TIMEOUT${C.reset} ${counts.TIMEOUT}  ` +
       `${C.red}ERROR${C.reset} ${counts.ERROR}  ` +
-      `${C.dim}/ ${total} total${C.reset}`,
+      `${C.dim}/ ${total} total${C.reset}`
   );
 
   const nonPass = results.filter((r) => r.status !== "PASS");
@@ -424,7 +429,9 @@ function printSummary(results: Result[]): void {
     console.log(`\n${C.bold}Non-passing cases:${C.reset}`);
     for (const r of nonPass) {
       const elapsed = `${(r.elapsed / 1000).toFixed(1)}s`;
-      console.log(`  ${statusTag(r.status)} [${r.index.toString().padStart(2, "0")}] ${r.tc.platform} — ${r.tc.description} (${elapsed})`);
+      console.log(
+        `  ${statusTag(r.status)} [${r.index.toString().padStart(2, "0")}] ${r.tc.platform} — ${r.tc.description} (${elapsed})`
+      );
       if (r.error) console.log(`       ${C.dim}${r.error}${C.reset}`);
       if (r.actualType && r.actualType !== r.tc.expectedType) {
         console.log(`       ${C.dim}expected type:${r.tc.expectedType} got:${r.actualType}${C.reset}`);
@@ -444,7 +451,9 @@ function printSummary(results: Result[]): void {
 async function main(): Promise<void> {
   // Filter
   const cases = FILTER
-    ? TESTS.filter((tc) => tc.platform.toLowerCase().includes(FILTER!) || tc.description.toLowerCase().includes(FILTER!))
+    ? TESTS.filter(
+        (tc) => tc.platform.toLowerCase().includes(FILTER!) || tc.description.toLowerCase().includes(FILTER!)
+      )
     : TESTS;
 
   if (cases.length === 0) {
@@ -463,7 +472,9 @@ async function main(): Promise<void> {
   }
 
   console.log(`${C.bold}${C.magenta}Media queue test runner${C.reset}`);
-  console.log(`${C.dim}Server: ${BASE_URL} · Timeout: ${TIMEOUT_S}s · Cases: ${cases.length} · Auto-skip: ${AUTO_SKIP}${C.reset}`);
+  console.log(
+    `${C.dim}Server: ${BASE_URL} · Timeout: ${TIMEOUT_S}s · Cases: ${cases.length} · Auto-skip: ${AUTO_SKIP}${C.reset}`
+  );
   if (FILTER) console.log(`${C.dim}Filter: "${FILTER}"${C.reset}`);
   console.log();
 

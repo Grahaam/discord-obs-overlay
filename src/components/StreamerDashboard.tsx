@@ -54,7 +54,7 @@ export default function StreamerDashboard() {
     bannedWordsAction: "censor",
     stopAlertShortcut: "Escape",
     youtubeCookiesContent: "",
-    cooldownSeconds: 0,
+    cooldownSeconds: 1,
     blockLinks: false,
     blockNSFW: false,
     language: "fr",
