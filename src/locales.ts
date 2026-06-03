@@ -180,6 +180,7 @@ export const locales = {
       volume: "Volume",
       seek: "Seek",
       reconnect: "Reconnecter",
+      andMore: "et {n} de plus",
     },
   },
   en: {
@@ -361,6 +362,7 @@ export const locales = {
       volume: "Volume",
       seek: "Seek",
       reconnect: "Reconnect",
+      andMore: "+{n} more",
     },
   },
   "uwu-en": {
@@ -541,6 +543,7 @@ export const locales = {
       volume: "Vowume",
       seek: "Seek~",
       reconnect: "Weconnect Bawt",
+      andMore: "+{n} mowe~",
     },
   },
   "uwu-fr": {
@@ -723,6 +726,7 @@ export const locales = {
       volume: "Vowume",
       seek: "Seek~",
       reconnect: "Weconnect Bawt",
+      andMore: "et {n} de pwus~",
     },
   },
 };
