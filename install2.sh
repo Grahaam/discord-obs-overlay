@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+cd "$(dirname "$0")"
 
 echo ""
 echo "============================================="
@@ -10,11 +11,7 @@ echo ""
 # ── Run base installer ────────────────────────────────────────────────────────
 echo "[1/2] Running base installer..."
 echo ""
-bash "$(dirname "$0")/setup-yt-dlp.sh" || true
-npm install
-if [ ! -f dist/server.mjs ]; then
-    npm run build
-fi
+bash install.sh
 
 echo ""
 echo "[2/2] Setting up Cobalt media extractor..."
