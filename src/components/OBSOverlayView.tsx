@@ -6,6 +6,7 @@ import { locales, Language } from "../locales";
 import { useQueueStore } from "../store/queueStore";
 import { usePlaybackController } from "../hooks/usePlaybackController";
 import { useLeaderElection } from "../hooks/useLeaderElection";
+import TrollOverlay from "./TrollOverlay";
 
 const FONT_MAP: Record<string, string> = {
   sans: "system-ui, -apple-system, sans-serif",
@@ -576,6 +577,7 @@ export default function OBSOverlayView() {
             </div>
           </div>
         )}
+        <TrollOverlay />
       </div>
     </div>
   );
