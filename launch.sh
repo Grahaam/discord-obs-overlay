@@ -9,6 +9,22 @@ if [ ! -f dist/server.mjs ]; then
     exit 1
 fi
 
+# ── Auto-update ───────────────────────────────────────────────────────────────
+if [ -d ".git" ] && command -v git &>/dev/null; then
+    BEFORE=$(git rev-parse HEAD 2>/dev/null || echo "")
+    git pull --quiet 2>/dev/null || echo "[WARN] Update check failed — launching current version."
+    AFTER=$(git rev-parse HEAD 2>/dev/null || echo "")
+    if [ -n "$BEFORE" ] && [ "$BEFORE" != "$AFTER" ]; then
+        echo "[UPDATE] New version detected — rebuilding..."
+        echo ""
+        npm install --silent
+        npm run build
+        echo ""
+        echo "[OK] Update applied."
+        echo ""
+    fi
+fi
+
 # Add ~/.local/bin to PATH in case yt-dlp was downloaded there by install.sh
 if [ -d "$HOME/.local/bin" ]; then
     export PATH="$HOME/.local/bin:$PATH"

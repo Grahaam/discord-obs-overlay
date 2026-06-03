@@ -8,24 +8,6 @@ echo "  Discord OBS Overlay - Setup"
 echo "============================================="
 echo ""
 
-# ── Pull latest changes from GitHub ──────────────────────────────────────────
-if [ -d ".git" ]; then
-    if command -v git &>/dev/null; then
-        echo "Checking for updates..."
-        git pull || echo "[WARN] git pull failed — continuing with current version."
-        echo ""
-    else
-        echo "[WARN] Git not found — skipping update check."
-        echo "  Install Git to enable auto-updates."
-        echo ""
-    fi
-else
-    echo "[WARN] No .git folder found — auto-update disabled."
-    echo "  For auto-updates, clone the repo instead of downloading the ZIP:"
-    echo "    git clone https://github.com/Grahaam/discord-obs-overlay.git"
-    echo ""
-fi
-
 # ── Check Node.js ─────────────────────────────────────────────────────────────
 if ! command -v node &>/dev/null; then
     echo "[ERROR] Node.js is not installed."
