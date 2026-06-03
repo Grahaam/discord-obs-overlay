@@ -5,7 +5,7 @@ title Discord OBS Overlay - Installer
 
 echo.
 echo =============================================
-echo   Discord OBS Overlay - First-time Setup
+echo   Discord OBS Overlay - Setup
 echo =============================================
 echo.
 
@@ -43,7 +43,6 @@ if errorlevel 1 (
 
     set YTDLP_OK=0
 
-    :: 1. winget (Windows 10 1709+)
     where winget >nul 2>&1
     if not errorlevel 1 (
         echo   Trying winget...
@@ -52,7 +51,6 @@ if errorlevel 1 (
         if not errorlevel 1 set YTDLP_OK=1
     )
 
-    :: 2. pip (if Python installed)
     if !YTDLP_OK!==0 (
         where pip >nul 2>&1
         if not errorlevel 1 (
@@ -63,7 +61,6 @@ if errorlevel 1 (
         )
     )
 
-    :: 3. Download .exe into .\bin\ and add to PATH for this session
     if !YTDLP_OK!==0 (
         echo   Downloading yt-dlp.exe...
         if not exist bin mkdir bin
@@ -88,7 +85,7 @@ if errorlevel 1 (
     echo [OK] yt-dlp found.
 )
 
-:: ── Install dependencies ───────────────────────────────────────────────────
+:: ── Install dependencies ────────────────────────────────────────────────────
 echo.
 if exist dist\server.mjs (
     echo [1/1] Installing Node dependencies...
@@ -108,7 +105,7 @@ if errorlevel 1 (
 echo.
 echo [OK] Dependencies installed.
 
-:: ── Build (skip if dist already present — e.g. release zip) ────────────────
+:: ── Build (skip if dist already present) ───────────────────────────────────
 if not exist dist\server.mjs (
     echo.
     echo [2/2] Building the app...
@@ -124,6 +121,118 @@ if not exist dist\server.mjs (
     echo [OK] App built.
 )
 
+:: ── Optional Cobalt setup ───────────────────────────────────────────────────
+echo.
+echo =============================================
+echo   Cobalt is an optional media extractor
+echo   that improves video/audio downloads.
+echo   Requires Docker or Podman.
+echo =============================================
+echo.
+set /p SETUP_COBALT="Set up Cobalt now? (Y/N): "
+if /i "!SETUP_COBALT!" NEQ "Y" goto :done
+
+echo.
+
+set DOCKER_OK=0
+set COMPOSE_CMD=
+
+where docker >nul 2>&1
+if not errorlevel 1 (
+    set DOCKER_OK=1
+    set COMPOSE_CMD=docker compose
+    echo [OK] Docker found.
+)
+
+if !DOCKER_OK!==0 (
+    where podman >nul 2>&1
+    if not errorlevel 1 (
+        set DOCKER_OK=1
+        set COMPOSE_CMD=podman compose
+        echo [OK] Podman found.
+    )
+)
+
+if !DOCKER_OK!==0 (
+    net session >nul 2>&1
+    if errorlevel 1 (
+        echo [SKIP] Docker/Podman not found and not running as admin.
+        echo  Right-click install.bat and choose "Run as administrator" to auto-install Docker.
+        echo  Or install Docker manually: https://docs.docker.com/desktop/install/windows-install/
+        goto :done
+    )
+
+    echo [!!] Docker/Podman not found — installing Docker Desktop...
+    echo  This may take 5-15 minutes. A live timer will appear in the title bar.
+    echo.
+
+    where winget >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] winget not available. Install Docker manually:
+        echo  https://docs.docker.com/desktop/install/windows-install/
+        goto :done
+    )
+
+    set DONE_FLAG=%TEMP%\docker_install_done.tmp
+    if exist "!DONE_FLAG!" del "!DONE_FLAG!"
+
+    start "" cmd /c "winget install Docker.DockerDesktop --silent --accept-package-agreements --accept-source-agreements >nul 2>&1 & echo done > \"!DONE_FLAG!\""
+
+    set /a SECS=0
+    :wait_docker
+    if exist "!DONE_FLAG!" goto :docker_done
+    set /a SECS+=1
+    set /a MINS=!SECS! / 60
+    set /a RSECS=!SECS! %% 60
+    title Discord OBS Overlay - Installing Docker... Time elapsed: !MINS!m !RSECS!s
+    timeout /t 1 >nul
+    goto :wait_docker
+
+    :docker_done
+    del "!DONE_FLAG!" >nul 2>&1
+    title Discord OBS Overlay - Installer
+
+    where docker >nul 2>&1
+    if errorlevel 1 (
+        echo.
+        echo [OK] Docker Desktop installed.
+        echo.
+        echo  !! A system RESTART is required before Docker can run.
+        echo.
+        reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\RunOnce" /v "DiscordOBSInstall" /t REG_SZ /d "\"%~dpnx0\"" /f >nul 2>&1
+        echo  [OK] Script registered to auto-resume after restart.
+        echo.
+        set /p REBOOT="  Restart now? (Y/N): "
+        if /i "!REBOOT!"=="Y" (
+            echo.
+            echo  Restarting in 5 seconds... Press Ctrl+C to cancel.
+            shutdown /r /t 5
+        ) else (
+            echo  Run install.bat again after restarting manually.
+            pause
+        )
+        exit /b 0
+    )
+
+    set COMPOSE_CMD=docker compose
+    echo [OK] Docker Desktop ready.
+)
+
+if not exist docker-compose.cobalt.yml (
+    echo [ERROR] docker-compose.cobalt.yml not found.
+    goto :done
+)
+
+echo Starting Cobalt container with: !COMPOSE_CMD!
+!COMPOSE_CMD! -f docker-compose.cobalt.yml up -d
+if errorlevel 1 (
+    echo [WARN] Could not start Cobalt. Make sure Docker/Podman is running.
+    goto :done
+)
+echo [OK] Cobalt running at http://localhost:9000/
+echo  Set this URL in the dashboard under Cobalt API URL.
+
+:done
 echo.
 echo =============================================
 echo   Setup complete!
