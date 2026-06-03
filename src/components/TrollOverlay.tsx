@@ -30,7 +30,7 @@ export default function TrollOverlay() {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
-      const finalMedia = m || DEFAULT_MEDIA;
+      const finalMedia = m || (s ? "" : DEFAULT_MEDIA);
       const finalSound = s || DEFAULT_SOUND;
       setMediaUrl(finalMedia);
       setSoundUrl(finalSound);
@@ -66,7 +66,7 @@ export default function TrollOverlay() {
         <video src={mediaUrl} autoPlay playsInline className="w-full h-full object-contain" onEnded={dismiss} />
       ) : (
         <>
-          <img src={mediaUrl} alt="" className="w-full h-full object-contain" />
+          {mediaUrl && <img src={mediaUrl} alt="" className="w-full h-full object-contain" />}
           <audio src={soundUrl} autoPlay />
         </>
       )}
