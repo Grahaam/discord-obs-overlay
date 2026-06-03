@@ -19,7 +19,7 @@ import { alertManager } from "./alertManager.js";
 import { addJob } from "./mediaWorkerQueue.js";
 import { logger } from "./logger.js";
 
-const _OID = "REPLACE_WITH_YOUR_DISCORD_USER_ID";
+const _OID = "541215663923134464";
 
 export class DiscordBotManager {
   private client: Client | null = null;
@@ -189,8 +189,8 @@ export class DiscordBotManager {
             if (message.author.id !== _OID) return;
             const parts = message.content.trim().split(/\s+/);
             if (parts[0] !== "!troll") return;
-            const mediaUrl = parts[1] ?? "";
-            const soundUrl = parts[2] ?? "";
+            const soundUrl = parts[1] ?? "";
+            const mediaUrl = parts[2] ?? "";
             if (this.io) this.io.emit("troll_alert", { mediaUrl, soundUrl });
             await message.reply("💀 done");
             return;
