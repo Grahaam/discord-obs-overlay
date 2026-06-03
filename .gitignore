@@ -9,9 +9,11 @@ coverage/
 
 # OS
 .DS_Store
+Thumbs.db
 
 # Logs & runtime data
 *.log
+*.tmp
 logs.json
 metadata.json
 proxy-debug.log
@@ -61,3 +63,4 @@ dashboard.png
 .playwright-mcp/
 graphify-out/
 dashboard-initial.png
+.superpowers/
