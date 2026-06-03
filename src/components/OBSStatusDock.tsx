@@ -84,7 +84,18 @@ export default function OBSStatusDock() {
   const isOverlayPaused = botStatus.overlayPaused ?? false;
 
   const handleOverlayPause = () => {
-    fetch(isOverlayPaused ? "/api/overlay/resume" : "/api/overlay/pause", { method: "POST" }).catch(() => {});
+    const next = !isOverlayPaused;
+    setBotStatus((prev) => ({ ...prev, overlayPaused: next }));
+    fetch(next ? "/api/overlay/pause" : "/api/overlay/resume", { method: "POST" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { overlayPaused?: boolean } | null) => {
+        if (data?.overlayPaused !== undefined) {
+          setBotStatus((prev) => ({ ...prev, overlayPaused: data.overlayPaused }));
+        }
+      })
+      .catch(() => {
+        setBotStatus((prev) => ({ ...prev, overlayPaused: isOverlayPaused }));
+      });
   };
 
   return (
@@ -191,6 +202,11 @@ export default function OBSStatusDock() {
               <span className="truncate flex-1 font-mono text-[9px] leading-4 text-red-300/70">{log.msg}</span>
             </div>
           ))}
+          {serverLogs.length > 5 && (
+            <div className="px-3 py-1 text-[8px] font-mono text-red-400/40 italic">
+              +{serverLogs.length - 5} more
+            </div>
+          )}
         </div>
       )}
 
