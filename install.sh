@@ -126,6 +126,21 @@ elif command -v podman &>/dev/null; then
     DOCKER_OK=1
     COMPOSE_CMD="podman compose"
     echo "[OK] Podman found."
+    # On macOS/Windows, Podman requires a running VM; check and offer to start it
+    if ! podman info &>/dev/null 2>&1; then
+        echo "[!!] Podman machine not running."
+        read -r -p "  Start Podman machine now? (Y/N): " START_MACHINE
+        if [[ "$START_MACHINE" =~ ^[Yy]$ ]]; then
+            podman machine start
+            if ! podman info &>/dev/null 2>&1; then
+                echo "[ERROR] Could not start Podman machine. Start it manually: podman machine start"
+                DOCKER_OK=0
+            fi
+        else
+            echo "[SKIP] Podman machine not started — Cobalt won't run."
+            DOCKER_OK=0
+        fi
+    fi
 fi
 
 if [ "$DOCKER_OK" -eq 0 ]; then
