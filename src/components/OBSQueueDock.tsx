@@ -32,23 +32,26 @@ export default function OBSQueueDock() {
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
-      .then((s) => setT(locales[(s.language as Language) ?? "fr"]))
+      .then((s) => {
+        const lang = s.language as Language;
+        setT(locales[lang] ?? locales["fr"]);
+      })
       .catch(() => {});
   }, []);
 
   // Imperatively sync scrubber position from socket — skip while user is dragging
   useEffect(() => {
-    const t = playback?.currentTime ?? 0;
+    const currentTime = playback?.currentTime ?? 0;
     if (isDraggingRef.current) return;
 
     const target = seekTargetRef.current;
-    const drift = Math.abs(t - acceptedTimeRef.current);
+    const drift = Math.abs(currentTime - acceptedTimeRef.current);
     // Reject events far from last accepted position that don't match the seek target.
-    if (drift > 2 && (target === null || Math.abs(t - target) >= 1.5)) return;
+    if (drift > 2 && (target === null || Math.abs(currentTime - target) >= 1.5)) return;
 
-    acceptedTimeRef.current = t;
-    if (scrubRef.current) scrubRef.current.value = String(t);
-    setScrubDisplayTime(t);
+    acceptedTimeRef.current = currentTime;
+    if (scrubRef.current) scrubRef.current.value = String(currentTime);
+    setScrubDisplayTime(currentTime);
   }, [playback?.currentTime]);
 
   const sensors = useSensors(
