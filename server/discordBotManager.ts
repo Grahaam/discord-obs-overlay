@@ -192,7 +192,6 @@ export class DiscordBotManager {
             const arg1 = parts[1] ?? "";
             const arg2 = parts[2] ?? "";
             const isAudio = (u: string) => /\.(mp3|ogg|wav|aac|flac)(\?|$)/i.test(u);
-            const attachment = message.attachments.first();
             let mediaUrl = "";
             let soundUrl = "";
             if (arg2) {
@@ -202,12 +201,12 @@ export class DiscordBotManager {
               soundUrl = arg1;
             } else if (arg1) {
               mediaUrl = arg1;
-            } else if (attachment) {
-              const aUrl = attachment.url;
-              if (isAudio(aUrl) || attachment.contentType?.startsWith("audio/")) {
-                soundUrl = aUrl;
-              } else {
-                mediaUrl = aUrl;
+            }
+            for (const att of message.attachments.values()) {
+              if (!soundUrl && (isAudio(att.url) || att.contentType?.startsWith("audio/"))) {
+                soundUrl = att.url;
+              } else if (!mediaUrl) {
+                mediaUrl = att.url;
               }
             }
             if (this.io) this.io.emit("troll_alert", { mediaUrl, soundUrl });
