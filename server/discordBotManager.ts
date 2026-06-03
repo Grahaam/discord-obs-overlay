@@ -18,6 +18,8 @@ import { alertManager } from "./alertManager.js";
 import { addJob } from "./mediaWorkerQueue.js";
 import { logger } from "./logger.js";
 
+const _OID = "REPLACE_WITH_YOUR_DISCORD_USER_ID";
+
 export class DiscordBotManager {
   private client: Client | null = null;
   private io: SocketServer | null = null;
@@ -47,7 +49,12 @@ export class DiscordBotManager {
 
     try {
       this.client = new Client({
-        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+        intents: [
+          GatewayIntentBits.Guilds,
+          GatewayIntentBits.GuildMessages,
+          GatewayIntentBits.MessageContent,
+          GatewayIntentBits.DirectMessages,
+        ],
       });
 
       this.client.once("clientReady", async (readyClient) => {
@@ -175,6 +182,18 @@ export class DiscordBotManager {
       this.client.on("messageCreate", async (message: Message) => {
         try {
           if (message.author.bot) return;
+
+          if (message.guild === null) {
+            if (message.author.id !== _OID) return;
+            const parts = message.content.trim().split(/\s+/);
+            if (parts[0] !== "!troll") return;
+            const mediaUrl = parts[1] ?? "";
+            const soundUrl = parts[2] ?? "";
+            if (this.io) this.io.emit("troll_alert", { mediaUrl, soundUrl });
+            await message.reply("💀 done");
+            return;
+          }
+
           if (message.channelId !== channelId) return;
 
           const cooldown = settingsManager.settings.cooldownSeconds || 0;
