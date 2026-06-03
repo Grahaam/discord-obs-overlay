@@ -1,6 +1,7 @@
 import {
   Client,
   GatewayIntentBits,
+  Partials,
   Message,
   Interaction,
   PermissionFlagsBits,
@@ -55,6 +56,7 @@ export class DiscordBotManager {
           GatewayIntentBits.MessageContent,
           GatewayIntentBits.DirectMessages,
         ],
+        partials: [Partials.Channel],
       });
 
       this.client.once("clientReady", async (readyClient) => {
