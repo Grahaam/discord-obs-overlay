@@ -126,13 +126,19 @@ elif command -v podman &>/dev/null; then
     DOCKER_OK=1
     COMPOSE_CMD="podman compose"
     echo "[OK] Podman found."
-    # On macOS/Windows, Podman requires a running VM; check and offer to start it
-    if ! podman info &>/dev/null 2>&1; then
+    # Podman machines are per-user; sudo breaks the SSH tunnel on macOS
+    if [ "$(uname)" = "Darwin" ] && [ "${EUID:-$(id -u)}" -eq 0 ]; then
+        echo "[WARN] Running as root — Podman machines are per-user on macOS."
+        echo "  Re-run without sudo for Cobalt setup: bash install.sh"
+        DOCKER_OK=0
+    # On macOS/Windows, Podman requires a running VM; podman info can succeed as root
+    # even when the user machine is down, so check machine list directly
+    elif ! podman machine ls --format "{{.Running}}" 2>/dev/null | grep -qi "true"; then
         echo "[!!] Podman machine not running."
         read -r -p "  Start Podman machine now? (Y/N): " START_MACHINE
         if [[ "$START_MACHINE" =~ ^[Yy]$ ]]; then
             podman machine start
-            if ! podman info &>/dev/null 2>&1; then
+            if ! podman machine ls --format "{{.Running}}" 2>/dev/null | grep -qi "true"; then
                 echo "[ERROR] Could not start Podman machine. Start it manually: podman machine start"
                 DOCKER_OK=0
             fi
