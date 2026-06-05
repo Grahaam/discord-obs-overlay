@@ -9,7 +9,7 @@ echo   Discord OBS Overlay - Setup
 echo =============================================
 echo.
 
-:: ── Check Node.js ──────────────────────────────────────────────────────────
+:: -- Check Node.js --
 where node >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Node.js is not installed.
@@ -27,18 +27,18 @@ for /f "tokens=1 delims=." %%i in ('node -v 2^>^&1') do (
     set MAJOR=!RAW:~1!
 )
 if !MAJOR! LSS 18 (
-    echo [ERROR] Node.js !MAJOR! found — need 18 or higher.
+    echo [ERROR] Node.js !MAJOR! found - need 18 or higher.
     echo  Go to https://nodejs.org and download the LTS version.
     pause
     exit /b 1
 )
 echo [OK] Node.js !MAJOR! found.
 
-:: ── Check / install yt-dlp ─────────────────────────────────────────────────
+:: -- Check / install yt-dlp --
 where yt-dlp >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo [!!] yt-dlp not found — attempting to install...
+    echo [!!] yt-dlp not found - attempting to install...
     echo.
 
     set YTDLP_OK=0
@@ -85,7 +85,7 @@ if errorlevel 1 (
     echo [OK] yt-dlp found.
 )
 
-:: ── Install dependencies ────────────────────────────────────────────────────
+:: -- Install dependencies --
 echo.
 echo [1/2] Installing Node dependencies...
 echo.
@@ -99,7 +99,7 @@ if errorlevel 1 (
 echo.
 echo [OK] Dependencies installed.
 
-:: ── Build ───────────────────────────────────────────────────────────────────
+:: -- Build --
 echo.
 echo [2/2] Building the app...
 echo.
@@ -113,7 +113,7 @@ if errorlevel 1 (
 echo.
 echo [OK] App built.
 
-:: ── Optional Cobalt setup ───────────────────────────────────────────────────
+:: -- Optional Cobalt setup --
 echo.
 echo =============================================
 echo   Cobalt is an optional media extractor
@@ -154,7 +154,7 @@ if !DOCKER_OK!==0 (
                     set DOCKER_OK=0
                 )
             ) else (
-                echo [SKIP] Podman machine not started — Cobalt won't run.
+                echo [SKIP] Podman machine not started - Cobalt won't run.
                 set DOCKER_OK=0
             )
         )
@@ -170,7 +170,7 @@ if !DOCKER_OK!==0 (
         goto :done
     )
 
-    echo [!!] Docker/Podman not found — installing Docker Desktop...
+    echo [!!] Docker/Podman not found - installing Docker Desktop...
     echo  This may take 5-15 minutes. A live timer will appear in the title bar.
     echo.
 

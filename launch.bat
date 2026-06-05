@@ -3,7 +3,7 @@ cd /d "%~dp0"
 setlocal EnableDelayedExpansion
 title Discord OBS Overlay
 
-:: ── Sanity check ───────────────────────────────────────────────────────────
+:: -- Sanity check --
 if not exist dist\server.mjs (
     echo [ERROR] App not installed yet.
     echo  Run install.bat first.
@@ -11,20 +11,20 @@ if not exist dist\server.mjs (
     exit /b 1
 )
 
-:: ── Auto-update ─────────────────────────────────────────────────────────────
+:: -- Auto-update --
 if exist ".git" (
     where git >nul 2>&1
     if not errorlevel 1 (
         for /f %%i in ('git rev-parse HEAD 2^>nul') do set BEFORE=%%i
         git pull --quiet 2>nul
         if errorlevel 1 (
-            echo [WARN] Update check failed — launching current version.
+            echo [WARN] Update check failed - launching current version.
             echo.
             goto :launch
         )
         for /f %%i in ('git rev-parse HEAD 2^>nul') do set AFTER=%%i
         if not "!BEFORE!"=="!AFTER!" (
-            echo [UPDATE] New version detected — rebuilding...
+            echo [UPDATE] New version detected - rebuilding...
             echo.
             call npm install --silent
             if errorlevel 1 (
@@ -51,7 +51,7 @@ if exist bin\yt-dlp.exe (
 )
 
 :launch
-:: ── Launch ─────────────────────────────────────────────────────────────────
+:: -- Launch --
 set NODE_ENV=production
 
 echo.
