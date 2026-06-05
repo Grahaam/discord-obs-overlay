@@ -33,10 +33,17 @@ function findPython() {
   return null;
 }
 
+// If yt-dlp is already on PATH, no venv needed.
+try {
+  execFileSync("yt-dlp", ["--version"], { stdio: "ignore" });
+  console.log("[Setup] yt-dlp found on PATH - skipping venv setup.");
+  process.exit(0);
+} catch {}
+
 console.log("[Setup] yt-dlp venv setup...");
 const found = findPython();
 if (!found) {
-  console.warn("[Setup] Python 3.10+ not found — skipping venv.");
+  console.warn("[Setup] Python 3.10+ not found - skipping venv.");
   console.warn("[Setup] App will use youtube-dl-exec bundled binary instead.");
   process.exit(0);
 }
