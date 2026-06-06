@@ -131,9 +131,15 @@ set COMPOSE_CMD=
 
 where docker >nul 2>&1
 if not errorlevel 1 (
-    set DOCKER_OK=1
     set COMPOSE_CMD=docker compose
-    echo [OK] Docker found.
+    docker info >nul 2>&1
+    if not errorlevel 1 (
+        set DOCKER_OK=1
+        echo [OK] Docker found and running.
+    ) else (
+        echo [WARN] Docker is installed but not running.
+        echo  Try opening Docker Desktop, or restart your PC if it was recently installed.
+    )
 )
 
 if !DOCKER_OK!==0 (
@@ -248,7 +254,9 @@ if not exist docker-compose.cobalt.yml (
 echo Starting Cobalt container with: !COMPOSE_CMD!
 !COMPOSE_CMD! -f docker-compose.cobalt.yml up -d
 if errorlevel 1 (
-    echo [WARN] Could not start Cobalt. Make sure Docker/Podman is running.
+    echo [WARN] Could not start Cobalt.
+    echo  Make sure Docker Desktop is open and running.
+    echo  If it was recently installed, a PC restart may be required.
     goto :done
 )
 echo [OK] Cobalt running at http://localhost:9000/
