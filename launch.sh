@@ -12,7 +12,13 @@ fi
 # ── Auto-update ───────────────────────────────────────────────────────────────
 if [ -d ".git" ] && command -v git &>/dev/null; then
     BEFORE=$(git rev-parse HEAD 2>/dev/null || echo "")
-    git pull --quiet 2>/dev/null || echo "[WARN] Update check failed — launching current version."
+    if ! git pull --quiet 2>/dev/null; then
+        if git fetch origin main --quiet 2>/dev/null; then
+            git reset --hard origin/main >/dev/null 2>&1 || echo "[WARN] Update check failed - launching current version."
+        else
+            echo "[WARN] Update check failed - launching current version."
+        fi
+    fi
     AFTER=$(git rev-parse HEAD 2>/dev/null || echo "")
     if [ -n "$BEFORE" ] && [ "$BEFORE" != "$AFTER" ]; then
         echo "[UPDATE] New version detected — rebuilding..."

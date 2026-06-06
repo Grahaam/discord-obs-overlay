@@ -18,9 +18,19 @@ if exist ".git" (
         for /f %%i in ('git rev-parse HEAD 2^>nul') do set BEFORE=%%i
         git pull --quiet 2>nul
         if errorlevel 1 (
-            echo [WARN] Update check failed - launching current version.
-            echo.
-            goto :launch
+            git fetch origin main --quiet 2>nul
+            if not errorlevel 1 (
+                git reset --hard origin/main >nul 2>&1
+                if errorlevel 1 (
+                    echo [WARN] Update check failed - launching current version.
+                    echo.
+                    goto :launch
+                )
+            ) else (
+                echo [WARN] Update check failed - launching current version.
+                echo.
+                goto :launch
+            )
         )
         for /f %%i in ('git rev-parse HEAD 2^>nul') do set AFTER=%%i
         if not "!BEFORE!"=="!AFTER!" (
