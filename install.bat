@@ -144,7 +144,7 @@ if !DOCKER_OK!==0 (
         echo [OK] Podman found.
         podman info >nul 2>&1
         if errorlevel 1 (
-            echo [!!] Podman machine not running.
+            echo [WARN] Podman machine not running.
             set /p START_MACHINE="  Start Podman machine now? (Y/N): "
             if /i "!START_MACHINE!"=="Y" (
                 podman machine start
@@ -161,91 +161,90 @@ if !DOCKER_OK!==0 (
     )
 )
 
-if !DOCKER_OK!==0 (
-    echo [!!] Docker/Podman not found.
-    echo.
-    echo  Docker Desktop is needed to run Cobalt, which handles media
-    echo  extraction as a fallback when yt-dlp cannot process a link.
-    echo  Without it, some links may fail or behave unexpectedly.
-    echo.
-    echo  1. Install in background  (silent, via winget)
-    echo  2. Install with GUI       (opens installer window)
-    echo  3. Skip
-    echo.
-    set /p DOCKER_CHOICE="  Choice (1/2/3): "
+if !DOCKER_OK!==0 goto :docker_menu
+goto :cobalt_start
 
-    if "!DOCKER_CHOICE!"=="1" (
-        echo.
-        where winget >nul 2>&1
-        if errorlevel 1 (
-            echo  [ERROR] winget not available. Choose option 2 to download manually.
-            pause
-            goto :done
-        )
-        echo  Installing Docker Desktop in background - this may take 5-15 minutes...
-        set DONE_FLAG=%TEMP%\docker_install_done.tmp
-        if exist "!DONE_FLAG!" del "!DONE_FLAG!"
-        start "" cmd /c "winget install Docker.DockerDesktop --silent --accept-package-agreements --accept-source-agreements >nul 2>&1 & echo done > \"!DONE_FLAG!\""
-        set /a SECS=0
-        :wait_docker
-        if exist "!DONE_FLAG!" goto :docker_done
-        set /a SECS+=1
-        set /a MINS=!SECS! / 60
-        set /a RSECS=!SECS! %% 60
-        title Discord OBS Overlay - Installing Docker... !MINS!m !RSECS!s elapsed
-        timeout /t 1 >nul
-        goto :wait_docker
-        :docker_done
-        del "!DONE_FLAG!" >nul 2>&1
-        title Discord OBS Overlay - Installer
-        echo  [OK] Docker Desktop installed. A restart may be required.
-        echo  Re-run install.bat after restarting to finish Cobalt setup.
-        echo.
-        pause
-        goto :done
-    )
+:docker_menu
+echo [WARN] Docker/Podman not found.
+echo.
+echo  Docker Desktop is needed to run Cobalt, which handles media
+echo  extraction as a fallback when yt-dlp cannot process a link.
+echo  Without it, some links may fail or behave unexpectedly.
+echo.
+echo  1. Install in background  (silent, via winget)
+echo  2. Install with GUI       (opens installer window)
+echo  3. Skip
+echo.
+set /p DOCKER_CHOICE="  Choice (1/2/3): "
+if "!DOCKER_CHOICE!"=="1" goto :docker_bg
+if "!DOCKER_CHOICE!"=="2" goto :docker_gui
+if "!DOCKER_CHOICE!"=="3" goto :docker_skip
+goto :done
 
-    if "!DOCKER_CHOICE!"=="2" (
-        echo.
-        where winget >nul 2>&1
-        if not errorlevel 1 (
-            echo  Launching Docker Desktop installer...
-            start "" winget install Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
-        ) else (
-            echo  winget not available - opening download page instead...
-            start https://docs.docker.com/desktop/install/windows-install/
-        )
-        echo.
-        echo  Once Docker Desktop is installed and running, re-run install.bat to finish Cobalt setup.
-        echo.
-        pause
-        goto :done
-    )
-
-    if "!DOCKER_CHOICE!"=="3" (
-        echo.
-        echo  [WARN] Skipping Cobalt setup.
-        echo.
-        echo  Without Cobalt, the app falls back to yt-dlp only. Some links
-        echo  (e.g. Twitter/X, Instagram, TikTok) may fail to load media.
-        echo  You can set up Cobalt later by re-running install.bat.
-        echo.
-        set /p SKIP_CONFIRM="  Are you sure you want to skip? (Y/N): "
-        if /i "!SKIP_CONFIRM!"=="Y" goto :done
-        echo.
-        echo  Returning to Docker install options...
-        echo.
-        goto :done
-    )
-
+:docker_bg
+echo.
+where winget >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] winget not available. Choose option 2 to download manually.
+    pause
     goto :done
 )
+echo Installing Docker Desktop in background - this may take 5-15 minutes...
+set DONE_FLAG=%TEMP%\docker_install_done.tmp
+if exist "!DONE_FLAG!" del "!DONE_FLAG!"
+start "" cmd /c "winget install Docker.DockerDesktop --silent --accept-package-agreements --accept-source-agreements >nul 2>&1 & echo done > \"!DONE_FLAG!\""
+set /a SECS=0
+:docker_wait
+if exist "!DONE_FLAG!" goto :docker_wait_done
+set /a SECS+=1
+set /a MINS=!SECS! / 60
+set /a RSECS=!SECS! %% 60
+title Discord OBS Overlay - Installing Docker... !MINS!m !RSECS!s elapsed
+timeout /t 1 >nul
+goto :docker_wait
+:docker_wait_done
+del "!DONE_FLAG!" >nul 2>&1
+title Discord OBS Overlay - Installer
+echo [OK] Docker Desktop installed. A restart may be required.
+echo Re-run install.bat after restarting to finish Cobalt setup.
+echo.
+pause
+goto :done
 
+:docker_gui
+echo.
+where winget >nul 2>&1
+if not errorlevel 1 (
+    echo Launching Docker Desktop installer...
+    start "" winget install Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
+) else (
+    echo winget not available - opening download page instead...
+    start https://docs.docker.com/desktop/install/windows-install/
+)
+echo.
+echo Once Docker Desktop is installed and running, re-run install.bat to finish Cobalt setup.
+echo.
+pause
+goto :done
+
+:docker_skip
+echo.
+echo [WARN] Skipping Cobalt setup.
+echo.
+echo  Without Cobalt, the app falls back to yt-dlp only. Some links
+echo  (e.g. Twitter/X, Instagram, TikTok) may fail to load media.
+echo  You can set up Cobalt later by re-running install.bat.
+echo.
+set /p SKIP_CONFIRM="  Are you sure you want to skip? (Y/N): "
+if /i "!SKIP_CONFIRM!"=="Y" goto :done
+echo.
+goto :docker_menu
+
+:cobalt_start
 if not exist docker-compose.cobalt.yml (
     echo [ERROR] docker-compose.cobalt.yml not found.
     goto :done
 )
-
 echo Starting Cobalt container with: !COMPOSE_CMD!
 !COMPOSE_CMD! -f docker-compose.cobalt.yml up -d
 if errorlevel 1 (
