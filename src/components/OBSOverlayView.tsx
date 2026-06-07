@@ -369,7 +369,17 @@ export default function OBSOverlayView() {
                         }}
                       />
 
-                      {/* Signal rings + avatar */}
+                      {/* Album art blur backdrop (only when albumArt available) */}
+                      {active.albumArt && (
+                        <img
+                          src={active.albumArt}
+                          className="absolute inset-0 w-full h-full object-cover scale-110 pointer-events-none"
+                          style={{ filter: "blur(60px)", opacity: 0.18 }}
+                          alt=""
+                        />
+                      )}
+
+                      {/* Signal rings + album art (or avatar fallback) */}
                       <div
                         className="relative flex items-center justify-center shrink-0"
                         style={{ width: 140, height: 140 }}
@@ -389,17 +399,18 @@ export default function OBSOverlayView() {
                           />
                         ))}
                         <div
-                          className="relative z-10 overflow-hidden rounded-full shrink-0"
+                          className="relative z-10 overflow-hidden shrink-0"
                           style={{
                             width: 96,
                             height: 96,
+                            borderRadius: active.albumArt ? "0.75rem" : "50%",
                             border: `2px solid ${active.neonColor}88`,
                             boxShadow: `0 0 28px ${active.neonColor}44, 0 0 60px ${active.neonColor}1a`,
                           }}
                         >
                           <img
-                            src={active.authorAvatar}
-                            alt="Avatar"
+                            src={active.albumArt ?? active.authorAvatar}
+                            alt={active.albumArt ? "Album Art" : "Avatar"}
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
                           />
@@ -424,7 +435,7 @@ export default function OBSOverlayView() {
                         {active.title || "Audio Track"}
                       </h2>
 
-                      {/* Metadata */}
+                      {/* Metadata: artist · provider · requester */}
                       <div
                         className="flex items-center gap-3 mt-2.5"
                         style={{
@@ -434,6 +445,12 @@ export default function OBSOverlayView() {
                           textTransform: "uppercase",
                         }}
                       >
+                        {active.artist && (
+                          <>
+                            <span style={{ color: "#fff" }}>{active.artist}</span>
+                            <span style={{ color: "rgba(255,255,255,0.22)" }}>·</span>
+                          </>
+                        )}
                         <span style={{ color: `${active.neonColor}dd` }}>{active.provider ?? "audio"}</span>
                         <span style={{ color: "rgba(255,255,255,0.22)" }}>—</span>
                         <span style={{ color: "rgba(255,255,255,0.52)" }}>{active.authorName}</span>

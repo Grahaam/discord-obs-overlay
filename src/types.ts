@@ -51,6 +51,8 @@ export interface AlertPayload {
   mediaUrl: string;
   type: MediaType;
   title?: string;
+  artist?: string;
+  albumArt?: string;
   provider?: string;
   /** Set when yt-dlp failed and the alert fell back to an iframe embed. */
   ytDlpError?: string;

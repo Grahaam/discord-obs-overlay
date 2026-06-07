@@ -1,6 +1,6 @@
 import { getLinkPreview } from "link-preview-js";
 import youtubedl, { create as ytDlpCreate, update as ytDlpUpdateRaw } from "youtube-dl-exec";
-import { execFileSync } from "child_process";
+import { execFileSync, spawn } from "child_process";
 import { createRequire } from "module";
 import { logger } from "./logger.js";
 import { CACHE_DIR } from "./binaries.js";
@@ -71,6 +71,37 @@ function findBestYtDlpPath(): string | null {
 
 export const _ytDlpCustomPath = findBestYtDlpPath();
 const ytDlp = _ytDlpCustomPath ? ytDlpCreate(_ytDlpCustomPath) : youtubedl;
+
+function findSpotDlPath(): string | null {
+  const isWin = process.platform === "win32";
+  const venvBin = path.join(process.cwd(), ".venv", isWin ? "Scripts" : "bin", isWin ? "spotdl.exe" : "spotdl");
+  if (fs.existsSync(venvBin)) {
+    try {
+      execFileSync(venvBin, ["--version"], { stdio: "ignore" });
+      logger.info({ venvBin }, "Using venv spotdl binary");
+      return venvBin;
+    } catch {
+      /* not executable */
+    }
+  }
+  try {
+    const cmd = isWin ? "where" : "which";
+    const found = execFileSync(cmd, ["spotdl"], { encoding: "utf8" }).trim().split("\n")[0].trim();
+    if (found) {
+      execFileSync(found, ["--version"], { stdio: "ignore" });
+      logger.info({ systemBin: found }, "Using system spotdl binary");
+      return found;
+    }
+  } catch {
+    /* spotdl not on PATH */
+  }
+  return null;
+}
+
+export const _spotDlPath = findSpotDlPath();
+if (!_spotDlPath) {
+  logger.info("spotdl not found — Spotify downloads will use yt-dlp (30s previews for free accounts)");
+}
 
 const _ffmpegBin: string | null = (() => {
   if (_ffmpegStatic) return _ffmpegStatic;
@@ -238,6 +269,8 @@ export function parseMediaUrl(url: string): {
   if (lowercaseUrl.includes("facebook.com") || lowercaseUrl.includes("fb.watch")) providerDefault = "facebook";
   if (lowercaseUrl.includes("loom.com")) providerDefault = "loom";
   if (lowercaseUrl.includes("pinterest.com") || lowercaseUrl.includes("pin.it")) providerDefault = "pinterest";
+  if (lowercaseUrl.includes("open.spotify.com")) providerDefault = "spotify";
+  if (lowercaseUrl.includes("deezer.com")) providerDefault = "deezer";
   if (lowercaseUrl.includes("soundcloud.com")) providerDefault = "soundcloud";
   if (lowercaseUrl.includes("streamable.com")) providerDefault = "streamable";
   if (lowercaseUrl.includes("tumblr.com")) providerDefault = "tumblr";
@@ -497,6 +530,105 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
   }
 }
 
+async function fetchWithSpotDl(url: string): Promise<{ filename: string; info: any } | null> {
+  if (!_spotDlPath) return null;
+
+  const hash = hashUrl(url);
+  const finalFilename = `${hash}.mp3`;
+  const finalPath = path.join(CACHE_DIR, finalFilename);
+  const metaPath = `${finalPath}.info.json`;
+
+  if (fs.existsSync(finalPath)) {
+    logger.info({ finalFilename }, "Cache hit (spotdl)");
+    let info: any = {};
+    if (fs.existsSync(metaPath)) {
+      try {
+        info = JSON.parse(await fs.promises.readFile(metaPath, "utf8"));
+      } catch {
+        /* ignore malformed metadata */
+      }
+    }
+    return { filename: finalFilename, info };
+  }
+
+  return new Promise((resolve) => {
+    logger.info({ url }, "spotdl downloading");
+
+    // spotdl appends the format extension to the output template path
+    const outputTemplate = path.join(CACHE_DIR, hash);
+    const tmpPath = `${outputTemplate}.mp3`;
+
+    const args = [
+      "download",
+      url,
+      "--output",
+      outputTemplate,
+      "--format",
+      "mp3",
+      "--no-config",
+      "--print-errors",
+    ];
+
+    const proc = spawn(_spotDlPath!, args, { stdio: ["ignore", "pipe", "pipe"] });
+
+    let stdout = "";
+    let stderr = "";
+    proc.stdout?.on("data", (d: any) => (stdout += d.toString()));
+    proc.stderr?.on("data", (d: any) => (stderr += d.toString()));
+
+    const killTimer = setTimeout(() => {
+      proc.kill();
+      logger.warn({ url }, "spotdl timed out");
+      resolve(null);
+    }, 120_000);
+
+    proc.on("close", async (code: number | null) => {
+      clearTimeout(killTimer);
+
+      if (code !== 0 || !fs.existsSync(tmpPath)) {
+        logger.warn({ url, code, stderr: stderr.slice(-300) }, "spotdl failed or produced no file");
+        resolve(null);
+        return;
+      }
+
+      // Parse artist and title from spotdl stdout: "Downloaded "{title}" by {artist}"
+      let title: string | undefined;
+      let artist: string | undefined;
+      const dlMatch = stdout.match(/Downloaded\s+"([^"]+?)"\s+by\s+(.+?)[\r\n]/i);
+      if (dlMatch) {
+        title = dlMatch[1].trim();
+        artist = dlMatch[2].trim();
+      } else {
+        // Fallback: "Downloaded "{title}""
+        const titleMatch = stdout.match(/Downloaded\s+"([^"]+?)"/i);
+        if (titleMatch) title = titleMatch[1].trim();
+      }
+
+      try {
+        await fs.promises.rename(tmpPath, finalPath);
+        const info = { title, artist, provider: "spotify", vcodec: "none" };
+        await fs.promises.writeFile(metaPath, JSON.stringify(info), "utf8").catch(() => {});
+        logger.info({ finalFilename, title, artist }, "spotdl download complete");
+        resolve({ filename: finalFilename, info });
+      } catch (err: any) {
+        logger.error({ err: err.message, url }, "spotdl post-processing failed");
+        resolve(null);
+      }
+    });
+  });
+}
+
+async function cacheAlbumArt(thumbnailUrl: string | undefined, cacheKey: string): Promise<string | undefined> {
+  if (!thumbnailUrl) return undefined;
+  try {
+    const ext = getImageExt(thumbnailUrl) || "jpg";
+    const cached = await cacheMedia(thumbnailUrl, `${cacheKey}_albumart`, ext);
+    return cached ? `/api/media-cache/${cached}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function updateYtDlp(): Promise<void> {
   try {
     logger.info("yt-dlp checking for updates");
@@ -620,6 +752,8 @@ export async function resolveMediaFromLink(url: string): Promise<{
   type: "image" | "video" | "audio" | "iframe" | "link";
   mediaUrl: string;
   title?: string;
+  artist?: string;
+  albumArt?: string;
   duration?: number;
   provider?: string;
   ytDlpError?: string;
@@ -678,6 +812,45 @@ export async function resolveMediaFromLink(url: string): Promise<{
       }
       downloadUrl = redditMediaUrl;
     }
+  }
+
+  // Spotify / Deezer: audio-only download with spotdl (Spotify) or yt-dlp bestaudio (Deezer)
+  const isSpotify = /open\.spotify\.com\/(track|album|playlist)\//.test(normalizedUrl);
+  const isDeezer = /(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?(?:track|album|playlist)\//.test(normalizedUrl);
+
+  if (isSpotify || isDeezer) {
+    const musicProvider = isSpotify ? "spotify" : "deezer";
+    let musicResult: { filename: string; info: any } | null = null;
+
+    if (isSpotify) {
+      musicResult = await fetchWithSpotDl(normalizedUrl);
+    }
+
+    if (!musicResult) {
+      musicResult = await fetchWithYtDlp(normalizedUrl, true);
+    }
+
+    if (musicResult) {
+      const { filename, info } = musicResult;
+      const artist: string | undefined = info.artist || info.uploader || undefined;
+      const albumArt = await cacheAlbumArt(info.thumbnail || info.cover_url, cleanedUrl);
+      return {
+        type: "audio",
+        mediaUrl: `/api/media-cache/${filename}`,
+        title: info.title || "Music Track",
+        artist,
+        albumArt,
+        provider: musicProvider,
+      };
+    }
+
+    return {
+      type: "link",
+      mediaUrl: normalizedUrl,
+      title: "",
+      provider: musicProvider,
+      ytDlpError: "Music download failed — try adding cookies or installing spotdl for Spotify",
+    };
   }
 
   const ytdlResult = await fetchWithYtDlp(downloadUrl, isAudioOrigin);

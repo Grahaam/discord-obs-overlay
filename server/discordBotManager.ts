@@ -263,6 +263,8 @@ export class DiscordBotManager {
               let resolvedType: "image" | "video" | "audio" | "iframe" | "link" = "image";
               let mediaUrl = "";
               let mediaTitle: string | undefined;
+              let mediaArtist: string | undefined;
+              let mediaAlbumArt: string | undefined;
               let mediaDuration: number | undefined;
               let mediaProvider: string | undefined;
               let mediaYtDlpError: string | undefined;
@@ -342,6 +344,8 @@ export class DiscordBotManager {
                 mediaProvider = resolved.provider;
                 mediaYtDlpError = resolved.ytDlpError;
                 mediaTitle = resolved.title;
+                mediaArtist = resolved.artist;
+                mediaAlbumArt = resolved.albumArt;
                 if (resolved.duration) {
                   mediaDuration = resolved.duration;
                 }
@@ -413,6 +417,8 @@ export class DiscordBotManager {
                 mediaUrl: mediaUrl,
                 type: resolvedType,
                 title: mediaTitle,
+                artist: mediaArtist,
+                albumArt: mediaAlbumArt,
                 provider: mediaProvider,
                 ytDlpError: mediaYtDlpError,
                 duration: mediaDuration || settingsManager.settings.alertDuration,
