@@ -24,15 +24,11 @@ export default function OBSStatusDock() {
   const [serverLogs, setServerLogs] = useState<ServerLogEntry[]>([]);
   const [t, setT] = useState(locales["fr"]);
 
+  const socket = useQueueStore((s) => s.socket);
+
+  // Always fetch initial state via HTTP — no socket dependency
   useEffect(() => {
-    const { socketRef } = useQueueStore.getState();
-    const socket = socketRef.current;
-
-    if (!socket) {
-      console.warn("[OBSStatusDock] Socket not initialized in queue store");
-      return;
-    }
-
+    useQueueStore.getState().ensureSocketConnected();
     const fetchInitial = async () => {
       try {
         const [botRes, logRes, srvLogRes, settingsRes] = await Promise.all([
@@ -54,6 +50,11 @@ export default function OBSStatusDock() {
       }
     };
     fetchInitial();
+  }, []);
+
+  // Subscribe to socket events reactively — re-runs when socket becomes available
+  useEffect(() => {
+    if (!socket) return;
 
     socket.on("bot_status_update", (update: Partial<BotStatus>) => setBotStatus((prev) => ({ ...prev, ...update })));
     socket.on("initial_logs", (incoming: LogEntry[]) => setLogs(incoming));
@@ -76,7 +77,7 @@ export default function OBSStatusDock() {
       socket.off("initial_server_logs");
       socket.off("server_logs_cleared");
     };
-  }, []);
+  }, [socket]);
 
   const isConnected = botStatus.status === "connected";
   const isConnecting = botStatus.status === "connecting";

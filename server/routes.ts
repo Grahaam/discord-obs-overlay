@@ -345,6 +345,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
   app.post("/api/overlay/pause", (req, res) => {
     botManager.overlayPaused = true;
     logger.info("Overlay paused — alerts queued, not broadcast");
+    io.emit("bot_status_update", { overlayPaused: true });
     res.json({ overlayPaused: true, queued: alertManager.getAlerts().length });
   });
 
@@ -352,6 +353,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     botManager.overlayPaused = false;
     logger.info("Overlay resumed — flushing queued alerts");
     io.emit("initial_state", alertManager.getAlerts());
+    io.emit("bot_status_update", { overlayPaused: false });
     res.json({ overlayPaused: false, flushed: alertManager.getAlerts().length });
   });
 
@@ -557,27 +559,32 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
     const client = targetUrl.startsWith("https") ? https : http;
 
-    let headersFromUrl: any = {};
+    const headersFromUrl: Record<string, string> = {};
     if (req.query.headers) {
       try {
         const decoded = Buffer.from(req.query.headers as string, "base64").toString("utf-8");
-        headersFromUrl = JSON.parse(decoded);
+        const parsed = JSON.parse(decoded);
+        for (const [k, v] of Object.entries(parsed)) {
+          if (typeof v === "string") headersFromUrl[k] = v;
+        }
       } catch {
         logger.warn("Failed to parse headers from proxy-media URL");
       }
     }
 
+    const referer = targetUrl.includes("tiktok")
+      ? "https://www.tiktok.com/"
+      : targetUrl.includes("instagram")
+        ? "https://www.instagram.com/"
+        : null;
+
     const options: any = {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-        Referer: targetUrl.includes("tiktok")
-          ? "https://www.tiktok.com/"
-          : targetUrl.includes("instagram")
-            ? "https://www.instagram.com/"
-            : undefined,
         Accept: "*/*",
         Connection: "keep-alive",
+        ...(referer ? { Referer: referer } : {}),
         ...headersFromUrl,
       },
     };

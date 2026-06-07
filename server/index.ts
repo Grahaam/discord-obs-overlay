@@ -141,6 +141,12 @@ async function runServer() {
       socket.emit("now_playing", currentlyPlaying);
       socket.emit("initial_logs", logManager.getLogs());
       socket.emit("initial_server_logs", serverLogManager.getLogs());
+      socket.emit("bot_status_update", {
+        status: botManager.status,
+        botUser: botManager.botUser,
+        errorMsg: botManager.errorMsg,
+        overlayPaused: botManager.overlayPaused,
+      });
     });
 
     socket.on("alert_started", (alertId: string) => {

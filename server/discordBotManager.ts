@@ -31,6 +31,7 @@ export class DiscordBotManager {
   public overlayPaused: boolean = false;
   private lastUserRequestTimes: Record<string, number> = {};
   private guildId: string = "";
+  private handledMessageIds = new Set<string>();
 
   public setIo(io: SocketServer) {
     this.io = io;
@@ -65,6 +66,7 @@ export class DiscordBotManager {
         this.botUser = readyClient.user.tag;
         this.errorMsg = "";
         logger.info({ botUser: this.botUser }, "Discord bot connected");
+        this.io?.emit("bot_status_update", { status: this.status, botUser: this.botUser, errorMsg: this.errorMsg });
         await this.registerSlashCommands(readyClient.user.id, token, channelId);
       });
 
@@ -72,6 +74,7 @@ export class DiscordBotManager {
         logger.error({ err }, "Discord WebSocket exception");
         this.status = "error";
         this.errorMsg = err.message || "Discord WebSocket exception";
+        this.io?.emit("bot_status_update", { status: this.status, botUser: this.botUser, errorMsg: this.errorMsg });
       });
 
       this.client.on("interactionCreate", async (interaction: Interaction) => {
@@ -258,6 +261,12 @@ export class DiscordBotManager {
             }
           }
 
+          this.handledMessageIds.add(message.id);
+          if (this.handledMessageIds.size > 500) {
+            const oldest = this.handledMessageIds.values().next().value!;
+            this.handledMessageIds.delete(oldest);
+          }
+
           addJob(`discord-msg-${message.id}`, async () => {
             try {
               let resolvedType: "image" | "video" | "audio" | "iframe" | "link" = "image";
@@ -328,22 +337,38 @@ export class DiscordBotManager {
                   return;
                 }
               } else {
-                const urlRegex = /(https?:\/\/[^\s]+?)(?=[.,;:!?)]*(?:\s|$))/gi;
-                const matches = message.content.match(urlRegex);
-                if (!matches || matches.length === 0) {
-                  return;
-                }
+                const mediaEmbed = message.embeds.find((e) => e.video?.url || e.image?.url);
+                if (mediaEmbed) {
+                  const embedUrl = (mediaEmbed.video?.url ?? mediaEmbed.image?.url)!;
+                  const resolved = await resolveMediaFromLink(embedUrl);
+                  logger.info({ resolved }, "Media resolved from embed");
+                  resolvedType = resolved.type;
+                  mediaUrl = resolved.mediaUrl;
+                  mediaProvider = resolved.provider;
+                  mediaYtDlpError = resolved.ytDlpError;
+                  mediaTitle = resolved.title;
+                  if (resolved.duration) {
+                    mediaDuration = resolved.duration;
+                  }
+                } else {
+                  const urlRegex = /(https?:\/\/[^\s]+?)(?=[.,;:!?)]*(?:\s|$))/gi;
+                  const matches = message.content.match(urlRegex);
+                  if (!matches || matches.length === 0) {
+                    this.handledMessageIds.delete(message.id);
+                    return;
+                  }
 
-                const url = matches[0];
-                const resolved = await resolveMediaFromLink(url);
-                logger.info({ resolved }, "Media resolved from link");
-                resolvedType = resolved.type;
-                mediaUrl = resolved.mediaUrl;
-                mediaProvider = resolved.provider;
-                mediaYtDlpError = resolved.ytDlpError;
-                mediaTitle = resolved.title;
-                if (resolved.duration) {
-                  mediaDuration = resolved.duration;
+                  const url = matches[0];
+                  const resolved = await resolveMediaFromLink(url);
+                  logger.info({ resolved }, "Media resolved from link");
+                  resolvedType = resolved.type;
+                  mediaUrl = resolved.mediaUrl;
+                  mediaProvider = resolved.provider;
+                  mediaYtDlpError = resolved.ytDlpError;
+                  mediaTitle = resolved.title;
+                  if (resolved.duration) {
+                    mediaDuration = resolved.duration;
+                  }
                 }
               }
 
@@ -463,6 +488,116 @@ export class DiscordBotManager {
           });
         } catch (msgErr) {
           logger.error({ err: msgErr }, "Exception inside messageCreate handler");
+        }
+      });
+
+      this.client.on("messageUpdate", async (oldMessage, newMessage) => {
+        try {
+          if (!newMessage.author || newMessage.author.bot) return;
+          if (newMessage.channelId !== channelId) return;
+          if (this.handledMessageIds.has(newMessage.id)) return;
+          if ((oldMessage.embeds?.length ?? 0) > 0) return;
+
+          let fullMessage = newMessage;
+          if (newMessage.partial) {
+            try {
+              fullMessage = await newMessage.fetch();
+            } catch {
+              return;
+            }
+          }
+
+          const mediaEmbed = fullMessage.embeds.find((e) => e.video?.url || e.image?.url);
+          if (!mediaEmbed) return;
+
+          const allowedRoles = settingsManager.settings.allowedRoleIds || [];
+          if (allowedRoles.length > 0) {
+            const memberRoles = fullMessage.member?.roles.cache;
+            const hasRole = allowedRoles.some((id) => memberRoles?.has(id));
+            if (!hasRole) return;
+          }
+
+          this.handledMessageIds.add(newMessage.id);
+          if (this.handledMessageIds.size > 500) {
+            const oldest = this.handledMessageIds.values().next().value!;
+            this.handledMessageIds.delete(oldest);
+          }
+
+          const embedUrl = (mediaEmbed.video?.url ?? mediaEmbed.image?.url)!;
+
+          addJob(`discord-embed-${newMessage.id}`, async () => {
+            try {
+              const resolved = await resolveMediaFromLink(embedUrl);
+              if (!resolved.mediaUrl) return null;
+
+              const textCheck = processBannedWords(fullMessage.content);
+              if (textCheck.wasBlocked) {
+                logManager.addLog({
+                  author: fullMessage.author.username,
+                  text: fullMessage.content,
+                  type: resolved.type,
+                  mediaUrl: resolved.mediaUrl,
+                  status: "blocked",
+                  reason: "Blocked by text filtering rules (banned words matches).",
+                });
+                return null;
+              }
+
+              const alertId = crypto.randomUUID();
+              const alertPayload = {
+                id: alertId,
+                authorName:
+                  fullMessage.member?.displayName || fullMessage.author.globalName || fullMessage.author.username,
+                authorAvatar:
+                  fullMessage.author.displayAvatarURL({ forceStatic: false }) ||
+                  "https://cdn.discordapp.com/embed/avatars/0.png",
+                text: textCheck.processed,
+                mediaUrl: resolved.mediaUrl,
+                type: resolved.type,
+                title: resolved.title,
+                provider: resolved.provider,
+                ytDlpError: resolved.ytDlpError,
+                duration: settingsManager.settings.alertDuration,
+                syncDurationWithMedia: settingsManager.settings.syncDurationWithMedia,
+                neonColor: settingsManager.settings.neonColor,
+                alertStyle: settingsManager.settings.alertStyle,
+                stopAlertShortcut: settingsManager.settings.stopAlertShortcut || "Escape",
+                alertSoundUrl: settingsManager.settings.alertSoundUrl || "",
+                alertFont: settingsManager.settings.alertFont || "sans",
+                alertPosition: settingsManager.settings.alertPosition || "bottom-left",
+                alertScale: settingsManager.settings.alertScale ?? 1,
+                alertBgOpacity: settingsManager.settings.alertBgOpacity ?? 0.9,
+                alertAnimation: settingsManager.settings.alertAnimation || "slide-up",
+                timestamp: Date.now(),
+              };
+
+              logManager.addLog({
+                author: alertPayload.authorName,
+                authorAvatar: alertPayload.authorAvatar,
+                text: alertPayload.text,
+                type: alertPayload.type,
+                mediaUrl: alertPayload.mediaUrl,
+                status: textCheck.wasCensored ? "censored" : "approved",
+                reason: textCheck.wasCensored ? "Contenu censuré par filtre de mots" : "Approuvé par filtre de mots",
+              });
+
+              alertManager.addAlert(alertPayload);
+
+              if (this.io) {
+                if (!this.overlayPaused) {
+                  this.io.emit("new_alert", alertPayload);
+                  logger.info({ author: alertPayload.authorName }, "New Alert broadcasted (embed update)");
+                } else {
+                  logger.info({ author: alertPayload.authorName }, "Alert queued (overlay paused, embed update)");
+                }
+              }
+            } catch (jobErr) {
+              logger.error({ err: jobErr }, "Exception inside embed update job");
+            }
+            return null;
+          });
+        } catch (err) {
+          logger.error({ err }, "Exception in messageUpdate handler");
         }
       });
 

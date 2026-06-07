@@ -440,7 +440,7 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
               noWarnings: true,
               noCheckCertificates: true,
               userAgent: dlOptions.userAgent,
-              referer: dlOptions.referer,
+              ...(dlOptions.referer ? { referer: dlOptions.referer } : {}),
               geoBypass: dlOptions.geoBypass,
               forceIpv4: dlOptions.forceIpv4,
               printJson: true,
@@ -655,6 +655,24 @@ export async function resolveMediaFromLink(url: string): Promise<{
       if (cached)
         return { type: "video", mediaUrl: `/api/media-cache/${cached}`, title: "Video", provider: urlProvider };
       // cacheMedia failed for direct video — allow yt-dlp fallthrough (may handle auth/redirects)
+    }
+  }
+
+  // Giphy pre-resolver: extract GIF ID and use direct CDN URL before hitting yt-dlp.
+  // Pattern: giphy.com/gifs/some-slug-GIPHYID → https://media.giphy.com/media/GIPHYID/giphy.gif
+  if (!isDirectMediaUrl && /giphy\.com\/(?:gifs|clips)\//.test(normalizedUrl)) {
+    try {
+      const slug = new URL(normalizedUrl).pathname.split("/").filter(Boolean).pop() ?? "";
+      const giphyId = slug.includes("-") ? slug.split("-").pop()! : slug;
+      if (giphyId) {
+        const directGifUrl = `https://media.giphy.com/media/${giphyId}/giphy.gif`;
+        const cachedFilename = await cacheMedia(directGifUrl, cleanedUrl, "gif");
+        if (cachedFilename) {
+          return { type: "image", mediaUrl: `/api/media-cache/${cachedFilename}`, title: "GIF", provider: "giphy" };
+        }
+      }
+    } catch {
+      /* fallthrough to yt-dlp */
     }
   }
 
