@@ -4,6 +4,31 @@
   "version": "1.9.5",
   "type": "module",
   "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.discord-obs-overlay",
+    "productName": "Discord OBS Overlay",
+    "asar": true,
+    "asarUnpack": ["**/*.node", "**/ffmpeg-static/**"],
+    "npmRebuild": true,
+    "directories": { "output": "dist-electron" },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "node_modules/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
+    },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [{ "target": "AppImage", "arch": ["x64"] }],
+      "category": "Utility"
+    }
+  },
   "scripts": {
     "postinstall": "node scripts/setup-yt-dlp.cjs",
     "dev": "node scripts/run-with-venv.cjs tsx server/index.ts",
