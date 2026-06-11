@@ -7,10 +7,11 @@
   "build": {
     "appId": "com.discord-obs-overlay",
     "productName": "Discord OBS Overlay",
-    "asar": true,
-    "asarUnpack": ["**/*.node", "**/ffmpeg-static/**"],
+    "asar": false,
     "npmRebuild": true,
-    "directories": { "output": "dist-electron" },
+    "directories": {
+      "output": "dist-electron"
+    },
     "files": [
       "dist/**",
       "electron/**",
@@ -18,14 +19,36 @@
       "package.json"
     ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
       "category": "public.app-category.utilities"
     },
     "linux": {
-      "target": [{ "target": "AppImage", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "category": "Utility"
     }
   },
@@ -43,7 +66,8 @@
     "test:ui": "playwright test --ui",
     "test:media": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts",
     "test:media:filter": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts --filter",
-    "electron:dev": "npm run build && electron .",
+    "electron:rebuild": "node -e \"require('@electron/rebuild').rebuild({buildPath:process.cwd(),electronVersion:require('./node_modules/electron/package.json').version,force:true,onlyModules:['better-sqlite3']}).then(()=>console.log('rebuild ok')).catch(e=>{console.error(e.message);process.exit(1)})\"",
+    "electron:dev": "npm run build && npm run electron:rebuild && electron .",
     "electron:build": "npm run build && electron-builder",
     "electron:build:win": "npm run build && electron-builder --win",
     "electron:build:mac": "npm run build && electron-builder --mac",
@@ -117,5 +141,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.0",
     "vite": "^8.0.14"
+  },
+  "allowScripts": {
+    "electron@35.7.5": true
   }
 }
