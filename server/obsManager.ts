@@ -1,8 +1,8 @@
 import OBSWebSocket from "obs-websocket-js";
+import { env } from "./env.js";
 
-const _OP = "4455"; // OBS WebSocket port
-const _OPW = ""; // OBS WebSocket password (leave empty if auth disabled)
-const _OSN = "LiveChat"; // exact name of the browser source in OBS scene
+const _OP = "4455";
+const _OPW = "";
 
 interface SavedTransform {
   sceneName: string;
@@ -13,18 +13,35 @@ interface SavedTransform {
 
 let _saved: SavedTransform | null = null;
 
-export async function trollExpand(): Promise<void> {
-  if (!_OSN) return;
+async function findOverlaySourceId(obs: OBSWebSocket, sceneName: string): Promise<number | null> {
+  const { sceneItems } = await obs.call("GetSceneItemList", { sceneName });
 
+  for (const item of sceneItems) {
+    if (item.inputKind !== "browser_source") continue;
+    try {
+      const { inputSettings } = await obs.call("GetInputSettings", {
+        inputName: item.sourceName as string,
+      });
+      const url = (inputSettings as Record<string, unknown>).url as string | undefined;
+      if (url?.includes("/overlay") && url.includes(`:${env.PORT}`)) {
+        return item.sceneItemId as number;
+      }
+    } catch {
+      // skip inaccessible sources
+    }
+  }
+  return null;
+}
+
+export async function trollExpand(): Promise<void> {
   const obs = new OBSWebSocket();
   try {
     await obs.connect(`ws://localhost:${_OP}`, _OPW || undefined);
 
     const { currentProgramSceneName } = await obs.call("GetCurrentProgramScene");
-    const { sceneItemId } = await obs.call("GetSceneItemId", {
-      sceneName: currentProgramSceneName,
-      sourceName: _OSN,
-    });
+    const sceneItemId = await findOverlaySourceId(obs, currentProgramSceneName);
+    if (sceneItemId === null) return;
+
     const { sceneItemTransform } = await obs.call("GetSceneItemTransform", {
       sceneName: currentProgramSceneName,
       sceneItemId,
