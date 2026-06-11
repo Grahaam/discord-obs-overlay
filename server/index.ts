@@ -1,4 +1,5 @@
 import express from "express";
+import fs from "fs";
 import { createServer as createHttpServer } from "http";
 import { Server as SocketServer } from "socket.io";
 import { createServer as createViteServer } from "vite";
@@ -194,6 +195,23 @@ async function runServer() {
   }
 
   setupRoutes(app, io);
+
+  // New update check endpoint
+  app.get("/api/check-update", async (req, res) => {
+    try {
+        const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
+        const response = await fetch("https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest");
+        const latest = await response.json();
+        res.json({
+            current: pkg.version,
+            latest: latest.tag_name.replace('v', ''),
+            updateAvailable: latest.tag_name.replace('v', '') !== pkg.version,
+            downloadUrl: latest.html_url
+        });
+    } catch (e) {
+        res.status(500).json({ error: "Update check failed" });
+    }
+  });
 
   if (env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");

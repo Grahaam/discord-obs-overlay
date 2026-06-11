@@ -34,6 +34,7 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { SortableQueueItem } from "./SortableQueueItem";
 import { useQueueStore } from "../store/queueStore";
+import UpdateNotification from "./UpdateNotification";
 
 export default function StreamerDashboard() {
   const [activeTab, setActiveTab] = useState<"credentials" | "styling" | "moderation" | "simulator" | "health">(
@@ -936,6 +937,7 @@ export default function StreamerDashboard() {
               </div>
             )}
           </div>
+          <UpdateNotification />
         </section>
       </main>
     </div>
