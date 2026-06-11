@@ -1,6 +1,6 @@
 import { getLinkPreview } from "link-preview-js";
 import youtubedl, { create as ytDlpCreate, update as ytDlpUpdateRaw } from "youtube-dl-exec";
-import { execFileSync, spawn } from "child_process";
+import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { logger } from "./logger.js";
 import { CACHE_DIR } from "./binaries.js";
@@ -72,36 +72,6 @@ function findBestYtDlpPath(): string | null {
 export const _ytDlpCustomPath = findBestYtDlpPath();
 const ytDlp = _ytDlpCustomPath ? ytDlpCreate(_ytDlpCustomPath) : youtubedl;
 
-function findSpotDlPath(): string | null {
-  const isWin = process.platform === "win32";
-  const venvBin = path.join(process.cwd(), ".venv", isWin ? "Scripts" : "bin", isWin ? "spotdl.exe" : "spotdl");
-  if (fs.existsSync(venvBin)) {
-    try {
-      execFileSync(venvBin, ["--version"], { stdio: "ignore" });
-      logger.info({ venvBin }, "Using venv spotdl binary");
-      return venvBin;
-    } catch {
-      /* not executable */
-    }
-  }
-  try {
-    const cmd = isWin ? "where" : "which";
-    const found = execFileSync(cmd, ["spotdl"], { encoding: "utf8" }).trim().split("\n")[0].trim();
-    if (found) {
-      execFileSync(found, ["--version"], { stdio: "ignore" });
-      logger.info({ systemBin: found }, "Using system spotdl binary");
-      return found;
-    }
-  } catch {
-    /* spotdl not on PATH */
-  }
-  return null;
-}
-
-export const _spotDlPath = findSpotDlPath();
-if (!_spotDlPath) {
-  logger.info("spotdl not found — Spotify downloads will use yt-dlp (30s previews for free accounts)");
-}
 
 const _ffmpegBin: string | null = (() => {
   if (_ffmpegStatic) return _ffmpegStatic;
@@ -530,92 +500,155 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
   }
 }
 
-async function fetchWithSpotDl(url: string): Promise<{ filename: string; info: any } | null> {
-  if (!_spotDlPath) return null;
+interface MusicMeta {
+  title: string;
+  artist: string;
+  durationSecs?: number;
+  albumArtUrl?: string;
+  provider: "spotify" | "deezer";
+}
 
-  const hash = hashUrl(url);
-  const finalFilename = `${hash}.mp3`;
-  const finalPath = path.join(CACHE_DIR, finalFilename);
-  const metaPath = `${finalPath}.info.json`;
+async function fetchSpotifyMeta(url: string): Promise<MusicMeta | null> {
+  try {
+    const resp = await axios.get(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`, {
+      timeout: 8000,
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    const { title, author_name, thumbnail_url } = resp.data;
+    if (!title) return null;
+    return { title, artist: author_name || "", albumArtUrl: thumbnail_url, provider: "spotify" };
+  } catch (err: any) {
+    logger.warn({ err: err.message, url }, "Spotify oEmbed fetch failed");
+    return null;
+  }
+}
 
-  if (fs.existsSync(finalPath)) {
-    logger.info({ finalFilename }, "Cache hit (spotdl)");
-    let info: any = {};
+async function fetchDeezerMeta(url: string): Promise<MusicMeta | null> {
+  try {
+    const m = url.match(/\/track\/(\d+)/);
+    if (!m) return null;
+    const resp = await axios.get(`https://api.deezer.com/track/${m[1]}`, { timeout: 8000 });
+    const { title, artist, album, duration } = resp.data;
+    if (!title) return null;
+    return {
+      title,
+      artist: artist?.name || "",
+      durationSecs: typeof duration === "number" ? duration : undefined,
+      albumArtUrl: album?.cover_xl || album?.cover_big || album?.cover,
+      provider: "deezer",
+    };
+  } catch (err: any) {
+    logger.warn({ err: err.message, url }, "Deezer API fetch failed");
+    return null;
+  }
+}
+
+async function fetchMusicViaYTSearch(
+  originalUrl: string,
+  meta: MusicMeta
+): Promise<{ filename: string; info: any } | null> {
+  const hash = hashUrl(originalUrl);
+  const rawFilename = `${hash}.mp4`;
+  const rawFilepath = path.join(CACHE_DIR, rawFilename);
+  const metaPath = `${rawFilepath}.info.json`;
+
+  // Cache hit: already downloaded for this Spotify/Deezer URL
+  if (fs.existsSync(rawFilepath)) {
+    logger.info({ rawFilename }, "Cache hit (music search)");
+    let cachedInfo: any = { title: meta.title, artist: meta.artist, vcodec: "none" };
     if (fs.existsSync(metaPath)) {
       try {
-        info = JSON.parse(await fs.promises.readFile(metaPath, "utf8"));
+        cachedInfo = JSON.parse(await fs.promises.readFile(metaPath, "utf8"));
       } catch {
-        /* ignore malformed metadata */
+        /* use defaults */
       }
     }
-    return { filename: finalFilename, info };
+    return { filename: fs.existsSync(path.join(CACHE_DIR, `${hash}_norm.mp4`)) ? `${hash}_norm.mp4` : rawFilename, info: cachedInfo };
   }
 
-  return new Promise((resolve) => {
-    logger.info({ url }, "spotdl downloading");
+  // Step 1: search YouTube for the best matching track
+  const query = `${meta.artist} ${meta.title}`.trim();
+  logger.info({ query }, "Searching YouTube for music track");
 
-    // spotdl appends the format extension to the output template path
-    const outputTemplate = path.join(CACHE_DIR, hash);
-    const tmpPath = `${outputTemplate}.mp3`;
+  let candidates: any[] = [];
+  try {
+    const searchResult: any = await withTimeout(
+      ytDlp(`ytsearch5:${query}`, {
+        flatPlaylist: true,
+        dumpSingleJson: true,
+        noWarnings: true,
+        noCheckCertificates: true,
+        forceIpv4: true,
+      }),
+      30_000,
+      `ytsearch:${query}`
+    );
+    candidates = Array.isArray(searchResult?.entries) ? searchResult.entries : [];
+  } catch (err: any) {
+    logger.warn({ err: err.message, query }, "YouTube search failed");
+    return null;
+  }
 
-    const args = [
-      "download",
-      url,
-      "--output",
-      outputTemplate,
-      "--format",
-      "mp3",
-      "--no-config",
-      "--print-errors",
-    ];
+  if (candidates.length === 0) return null;
 
-    const proc = spawn(_spotDlPath!, args, { stdio: ["ignore", "pipe", "pipe"] });
+  // Step 2: pick best duration match (±15%) or fall back to the top result
+  let best = candidates[0];
+  if (meta.durationSecs && candidates.length > 1) {
+    const tol = meta.durationSecs * 0.15;
+    const match = candidates.find(
+      (c) => typeof c.duration === "number" && Math.abs(c.duration - meta.durationSecs!) <= tol
+    );
+    if (match) best = match;
+  }
 
-    let stdout = "";
-    let stderr = "";
-    proc.stdout?.on("data", (d: any) => (stdout += d.toString()));
-    proc.stderr?.on("data", (d: any) => (stderr += d.toString()));
+  const ytUrl = best?.url || (best?.id ? `https://www.youtube.com/watch?v=${best.id}` : null);
+  if (!ytUrl) return null;
+  logger.info({ ytUrl, candidateTitle: best.title }, "YouTube track matched");
 
-    const killTimer = setTimeout(() => {
-      proc.kill();
-      logger.warn({ url }, "spotdl timed out");
-      resolve(null);
-    }, 120_000);
+  // Step 3: download the matched YouTube track, keyed under the original URL hash
+  const tempFilepath = path.join(CACHE_DIR, `${hash}.tmp.mp4`);
 
-    proc.on("close", async (code: number | null) => {
-      clearTimeout(killTimer);
+  const dlOptions: any = {
+    noWarnings: true,
+    noCheckCertificates: true,
+    format: `bestaudio[ext=m4a]/bestaudio[ext=opus]/bestaudio`,
+    output: tempFilepath,
+    geoBypass: true,
+    forceIpv4: true,
+    maxFilesize: "150M",
+    ...(_ffmpegBin && { ffmpegLocation: path.dirname(_ffmpegBin) }),
+  };
 
-      if (code !== 0 || !fs.existsSync(tmpPath)) {
-        logger.warn({ url, code, stderr: stderr.slice(-300) }, "spotdl failed or produced no file");
-        resolve(null);
-        return;
-      }
+  try {
+    await withTimeout(ytDlp(ytUrl, { ...dlOptions, printJson: true }), YTDLP_TIMEOUT_MS, ytUrl);
 
-      // Parse artist and title from spotdl stdout: "Downloaded "{title}" by {artist}"
-      let title: string | undefined;
-      let artist: string | undefined;
-      const dlMatch = stdout.match(/Downloaded\s+"([^"]+?)"\s+by\s+(.+?)[\r\n]/i);
-      if (dlMatch) {
-        title = dlMatch[1].trim();
-        artist = dlMatch[2].trim();
-      } else {
-        // Fallback: "Downloaded "{title}""
-        const titleMatch = stdout.match(/Downloaded\s+"([^"]+?)"/i);
-        if (titleMatch) title = titleMatch[1].trim();
-      }
+    if (!fs.existsSync(tempFilepath)) {
+      throw new Error("yt-dlp produced no output file");
+    }
 
-      try {
-        await fs.promises.rename(tmpPath, finalPath);
-        const info = { title, artist, provider: "spotify", vcodec: "none" };
-        await fs.promises.writeFile(metaPath, JSON.stringify(info), "utf8").catch(() => {});
-        logger.info({ finalFilename, title, artist }, "spotdl download complete");
-        resolve({ filename: finalFilename, info });
-      } catch (err: any) {
-        logger.error({ err: err.message, url }, "spotdl post-processing failed");
-        resolve(null);
-      }
-    });
-  });
+    await fs.promises.rename(tempFilepath, rawFilepath);
+
+    // Normalize audio to mp4 container (sets isAudioOnly=true)
+    const normFilename = await normalizeToMp4(rawFilepath, hash, true);
+    const finalFilename = normFilename ?? rawFilename;
+
+    // Persist Spotify/Deezer metadata (not yt-dlp's generic info) so title/artist are accurate
+    const savedInfo = {
+      title: meta.title,
+      artist: meta.artist,
+      thumbnail: meta.albumArtUrl,
+      vcodec: "none",
+      duration: meta.durationSecs,
+      provider: meta.provider,
+    };
+    await fs.promises.writeFile(metaPath, JSON.stringify(savedInfo), "utf8").catch(() => {});
+    logger.info({ finalFilename, title: meta.title, artist: meta.artist }, "Music search download complete");
+    return { filename: finalFilename, info: savedInfo };
+  } catch (err: any) {
+    logger.warn({ err: err.message, ytUrl }, "Music search download failed");
+    fs.promises.unlink(tempFilepath).catch(() => {});
+    return null;
+  }
 }
 
 async function cacheAlbumArt(thumbnailUrl: string | undefined, cacheKey: string): Promise<string | undefined> {
@@ -814,32 +847,45 @@ export async function resolveMediaFromLink(url: string): Promise<{
     }
   }
 
-  // Spotify / Deezer: audio-only download with spotdl (Spotify) or yt-dlp bestaudio (Deezer)
+  // Spotify / Deezer: fetch metadata from the platform, then search + download from YouTube.
+  // This avoids dealing with Spotify/Deezer's auth-gated audio streams entirely.
   const isSpotify = /open\.spotify\.com\/(track|album|playlist)\//.test(normalizedUrl);
   const isDeezer = /(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?(?:track|album|playlist)\//.test(normalizedUrl);
 
   if (isSpotify || isDeezer) {
     const musicProvider = isSpotify ? "spotify" : "deezer";
-    let musicResult: { filename: string; info: any } | null = null;
 
-    if (isSpotify) {
-      musicResult = await fetchWithSpotDl(normalizedUrl);
+    // Step 1 — fetch title/artist/duration/albumArt from the platform's public API
+    const meta = isSpotify ? await fetchSpotifyMeta(cleanedUrl) : await fetchDeezerMeta(cleanedUrl);
+
+    if (meta) {
+      // Step 2 — search YouTube for the track and download the best match
+      const musicResult = await fetchMusicViaYTSearch(cleanedUrl, meta);
+
+      if (musicResult) {
+        const albumArt = await cacheAlbumArt(meta.albumArtUrl, cleanedUrl);
+        return {
+          type: "audio",
+          mediaUrl: `/api/media-cache/${musicResult.filename}`,
+          title: meta.title,
+          artist: meta.artist || undefined,
+          albumArt,
+          provider: musicProvider,
+        };
+      }
     }
 
-    if (!musicResult) {
-      musicResult = await fetchWithYtDlp(normalizedUrl, true);
-    }
-
-    if (musicResult) {
-      const { filename, info } = musicResult;
-      const artist: string | undefined = info.artist || info.uploader || undefined;
-      const albumArt = await cacheAlbumArt(info.thumbnail || info.cover_url, cleanedUrl);
+    // Fallback — let yt-dlp try directly (30 s preview for Spotify free, full track for Deezer with cookies)
+    const ytdlFallback = await fetchWithYtDlp(normalizedUrl, true);
+    if (ytdlFallback) {
+      const fbArtist = ytdlFallback.info.artist || ytdlFallback.info.uploader || meta?.artist || undefined;
+      const fbAlbumArt = await cacheAlbumArt(ytdlFallback.info.thumbnail || meta?.albumArtUrl, cleanedUrl);
       return {
         type: "audio",
-        mediaUrl: `/api/media-cache/${filename}`,
-        title: info.title || "Music Track",
-        artist,
-        albumArt,
+        mediaUrl: `/api/media-cache/${ytdlFallback.filename}`,
+        title: ytdlFallback.info.title || meta?.title || "Music Track",
+        artist: fbArtist,
+        albumArt: fbAlbumArt,
         provider: musicProvider,
       };
     }
@@ -847,9 +893,9 @@ export async function resolveMediaFromLink(url: string): Promise<{
     return {
       type: "link",
       mediaUrl: normalizedUrl,
-      title: "",
+      title: meta?.title || "",
       provider: musicProvider,
-      ytDlpError: "Music download failed — try adding cookies or installing spotdl for Spotify",
+      ytDlpError: "Music metadata fetch or YouTube search failed",
     };
   }
 
