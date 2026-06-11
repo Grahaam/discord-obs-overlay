@@ -18,6 +18,7 @@ import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
 import { trollRestore } from "./obsManager.js";
+import { APP_PATHS } from "./paths.js";
 
 dotenv.config();
 
@@ -199,7 +200,7 @@ async function runServer() {
   // New update check endpoint
   app.get("/api/check-update", async (req, res) => {
     try {
-        const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
+        const pkg = JSON.parse(fs.readFileSync(APP_PATHS.packageJson, 'utf8'));
         const response = await fetch("https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest");
         const latest = await response.json();
         res.json({
@@ -214,7 +215,7 @@ async function runServer() {
   });
 
   if (env.NODE_ENV === "production") {
-    const distPath = path.join(process.cwd(), "dist");
+    const distPath = APP_PATHS.distDir;
     app.use(express.static(distPath));
     app.get("/{*splat}", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
