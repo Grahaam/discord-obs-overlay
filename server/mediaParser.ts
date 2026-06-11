@@ -1,5 +1,14 @@
-import { getLinkPreview } from "link-preview-js";
 import youtubedl, { create as ytDlpCreate, update as ytDlpUpdateRaw } from "youtube-dl-exec";
+import createMetascraper from "metascraper";
+import metascraperTitle from "metascraper-title";
+import metascraperDescription from "metascraper-description";
+import metascraperImage from "metascraper-image";
+import metascraperSpotify from "metascraper-spotify";
+import metascraperYoutube from "metascraper-youtube";
+import metascraperAmazon from "metascraper-amazon";
+import metascraperUrl from "metascraper-url";
+import metascraperLogo from "metascraper-logo";
+import metascraperAuthor from "metascraper-author";
 import { execFileSync } from "child_process";
 import { createRequire } from "module";
 import { logger } from "./logger.js";
@@ -71,6 +80,35 @@ function findBestYtDlpPath(): string | null {
 
 export const _ytDlpCustomPath = findBestYtDlpPath();
 const ytDlp = _ytDlpCustomPath ? ytDlpCreate(_ytDlpCustomPath) : youtubedl;
+
+const metascraper = createMetascraper([
+  metascraperSpotify(),
+  metascraperYoutube(),
+  metascraperAmazon(),
+  metascraperAuthor(),
+  metascraperTitle(),
+  metascraperDescription(),
+  metascraperImage(),
+  metascraperUrl(),
+  metascraperLogo(),
+]);
+
+async function fetchMetadata(targetUrl: string) {
+  try {
+    const response = await axios.get(targetUrl, {
+      headers: {
+        "user-agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      },
+      timeout: 10000,
+    });
+    const finalUrl = response.request?.res?.responseUrl || response.config.url || targetUrl;
+    return await metascraper({ html: response.data, url: finalUrl });
+  } catch (err: any) {
+    logger.warn({ err: err.message, targetUrl }, "Metadata extraction failed");
+    return null;
+  }
+}
 
 const _ffmpegBin: string | null = (() => {
   if (_ffmpegStatic) return _ffmpegStatic;
@@ -243,6 +281,10 @@ export function parseMediaUrl(url: string): {
   if (lowercaseUrl.includes("tumblr.com")) providerDefault = "tumblr";
   if (lowercaseUrl.includes("vimeo.com")) providerDefault = "vimeo";
   if (lowercaseUrl.includes("vk.com")) providerDefault = "vk";
+  if (lowercaseUrl.includes("spotify.com")) providerDefault = "spotify";
+  if (lowercaseUrl.includes("deezer.com")) providerDefault = "deezer";
+  if (lowercaseUrl.includes("apple.com/music")) providerDefault = "apple-music";
+  if (lowercaseUrl.includes("tidal.com")) providerDefault = "tidal";
 
   return { type: "link", mediaUrl: url, provider: providerDefault };
 }
@@ -379,93 +421,99 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filename: string; info: any } | null> {
   const cookiesPath = path.join(process.cwd(), "cookies.txt");
   const hasCookies = fs.existsSync(cookiesPath);
-  const hash = hashUrl(url);
+
+  const isYouTube = /youtube\.com|youtu\.be|ytsearch/.test(url);
+
+  // Step 1: Resolve metadata and canonical URL first (fast, skip download)
+  // This handles search-to-video resolution and ensures we have the real URL for hashing.
+  let metadata: any = null;
+  try {
+    const rawMetadata = await withTimeout(
+      ytDlp(url, {
+        dumpSingleJson: true,
+        noWarnings: true,
+        noCheckCertificates: true,
+        userAgent:
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        geoBypass: true,
+        forceIpv4: true,
+        skipDownload: true,
+        ...(isYouTube && { extractorArgs: "youtube:player-client=android_vr", noCookies: true }),
+        ...(!isYouTube && hasCookies && { cookies: cookiesPath }),
+      }),
+      YTDLP_TIMEOUT_MS,
+      `metadata:${url}`
+    );
+
+    if (typeof rawMetadata === "string") {
+      metadata = JSON.parse(rawMetadata);
+    } else {
+      metadata = rawMetadata;
+    }
+
+    // Playlist handling: if it's a playlist (common for ytsearch), extract the first entry
+    if (metadata?._type === "playlist" && metadata.entries?.length > 0) {
+      metadata = metadata.entries[0];
+    }
+  } catch (err: any) {
+    logger.warn({ err: err.message, url }, "yt-dlp metadata extraction failed");
+    return null;
+  }
+
+  if (!metadata) return null;
+
+  // Use the canonical URL for hashing to share cache between searches/redirects
+  const downloadUrl = metadata.webpage_url || metadata.original_url || url;
+  const hash = hashUrl(downloadUrl);
   const rawFilename = `${hash}.mp4`;
   const rawFilepath = path.join(CACHE_DIR, rawFilename);
-  // .tmp.mp4 — ends in .mp4 so yt-dlp doesn't append another extension after merging
   const tempFilepath = path.join(CACHE_DIR, `${hash}.tmp.mp4`);
 
-  // 5000 MB cap for both yt-dlp and Cobalt downloads
-  const maxMB = 5000;
+  if (fs.existsSync(rawFilepath)) {
+    logger.info({ rawFilename, title: metadata.title }, "Cache hit (yt-dlp)");
+    const normFilename = `${hash}_norm.mp4`;
+    const finalFilename = fs.existsSync(path.join(CACHE_DIR, normFilename)) ? normFilename : rawFilename;
+    return { filename: finalFilename, info: metadata };
+  }
 
+  // Step 2: Download the resolved URL
+  const maxMB = 5000;
   const quality = settingsManager.settings.mediaQuality ?? "1080";
   const dlOptions: any = {
     noWarnings: true,
     noCheckCertificates: true,
     format: audioOnly
-      ? `bestaudio[ext=m4a]/bestaudio[ext=opus]/bestaudio`
+      ? `bestaudio[ext=m4a]/bestaudio/best`
       : _ffmpegBin
         ? `bestvideo[height<=${quality}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]/best`
         : `best[height<=${quality}][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best`,
     userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    // Twitter/X rejects google.com referer when downloading from video.twimg.com
-    ...(!url.includes("x.com") && !url.includes("twitter.com") && { referer: "https://www.google.com/" }),
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    ...(!downloadUrl.includes("x.com") && !downloadUrl.includes("twitter.com") && { referer: "https://www.google.com/" }),
     geoBypass: true,
     forceIpv4: true,
     output: tempFilepath,
     maxFilesize: `${maxMB}M`,
+    noPart: true, // Avoid rename issues
+    noSimulate: true, // Ensure download happens
     ...(_ffmpegBin && { mergeOutputFormat: "mp4", ffmpegLocation: path.dirname(_ffmpegBin) }),
+    ...(isYouTube && { extractorArgs: "youtube:player-client=android_vr", noCookies: true }),
+    ...(!isYouTube && hasCookies && { cookies: cookiesPath }),
   };
 
-  // YouTube clients that support cookies require a GVS PO Token (not available here).
-  // ANDROID_VR (the working fallback) explicitly rejects cookies. Skip for YouTube.
-  const isYouTube = /youtube\.com|youtu\.be/.test(url);
-  if (hasCookies && !isYouTube) {
-    dlOptions.cookies = cookiesPath;
-  }
-
   try {
-    logger.info({ url }, "yt-dlp extracting");
+    logger.info({ downloadUrl, title: metadata.title }, "yt-dlp downloading");
 
-    if (fs.existsSync(rawFilepath)) {
-      logger.info({ rawFilename }, "Cache hit (yt-dlp)");
-      const normFilename = `${hash}_norm.mp4`;
-      const finalFilename = fs.existsSync(path.join(CACHE_DIR, normFilename)) ? normFilename : rawFilename;
-      const infoFilepath = `${rawFilepath}.info.json`;
-      let cachedInfo: any = {};
+    // Ensure CACHE_DIR exists and clean up any stale temp file
+    if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+    if (fs.existsSync(tempFilepath)) await fs.promises.unlink(tempFilepath).catch(() => {});
 
-      if (fs.existsSync(infoFilepath)) {
-        try {
-          cachedInfo = JSON.parse(await fs.promises.readFile(infoFilepath, "utf8"));
-        } catch (err: any) {
-          logger.warn({ err: err.message, infoFilepath }, "Failed to read cached yt-dlp metadata");
-        }
-      }
-
-      if (!cachedInfo.title) {
-        try {
-          cachedInfo = await withTimeout(
-            ytDlp(url, {
-              noWarnings: true,
-              noCheckCertificates: true,
-              userAgent: dlOptions.userAgent,
-              ...(dlOptions.referer ? { referer: dlOptions.referer } : {}),
-              geoBypass: dlOptions.geoBypass,
-              forceIpv4: dlOptions.forceIpv4,
-              printJson: true,
-              skipDownload: true,
-            }),
-            YTDLP_TIMEOUT_MS,
-            url
-          );
-        } catch (err: any) {
-          logger.warn({ err: err.message, url }, "yt-dlp metadata fetch failed for cached video");
-        }
-      }
-
-      return { filename: finalFilename, info: cachedInfo };
-    }
-
-    const info: any = await withTimeout(ytDlp(url, { ...dlOptions, printJson: true }), YTDLP_TIMEOUT_MS, url);
-    logger.info({ infoTitle: info?.title }, "yt-dlp download complete");
+    await withTimeout(ytDlp(downloadUrl, dlOptions), YTDLP_TIMEOUT_MS, `download:${downloadUrl}`);
 
     if (!fs.existsSync(tempFilepath)) {
-      // yt-dlp exited 0 but created no file — typically means --max-filesize was exceeded
-      throw new Error(`yt-dlp produced no output file (video likely exceeds ${maxMB}MB limit)`);
+      throw new Error(`yt-dlp produced no output file (likely exceeds ${maxMB}MB limit)`);
     }
 
-    // Validate actual size before accepting
     const stat = await fs.promises.stat(tempFilepath);
     if (stat.size > maxMB * 1024 * 1024) {
       await fs.promises.unlink(tempFilepath).catch(() => {});
@@ -473,26 +521,16 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
     }
 
     await fs.promises.rename(tempFilepath, rawFilepath);
-    await fs.promises.writeFile(`${rawFilepath}.info.json`, JSON.stringify(info), "utf8").catch(() => {});
+    await fs.promises.writeFile(`${rawFilepath}.info.json`, JSON.stringify(metadata), "utf8").catch(() => {});
 
-    const isAudioOnly = info?.vcodec === "none";
+    const isAudioOnly = metadata?.vcodec === "none" || audioOnly;
     const normFilename = await normalizeToMp4(rawFilepath, hash, isAudioOnly);
-    return { filename: normFilename ?? rawFilename, info };
+    return { filename: normFilename ?? rawFilename, info: metadata };
   } catch (err: any) {
     const rawMsg: string = err.message || err.stderr || String(err) || "";
     const tail = rawMsg.trim().split("\n").slice(-6).join(" | ");
-    logger.warn(
-      {
-        url,
-        err: tail || "(empty — likely bot detection or PO token required)",
-        hasCookies,
-        isYouTube,
-      },
-      "yt-dlp failed"
-    );
-    if (fs.existsSync(tempFilepath)) {
-      await fs.promises.unlink(tempFilepath).catch(() => {});
-    }
+    logger.warn({ url: downloadUrl, err: tail }, "yt-dlp download failed");
+    if (fs.existsSync(tempFilepath)) await fs.promises.unlink(tempFilepath).catch(() => {});
     return null;
   }
 }
@@ -581,7 +619,23 @@ const TRACKING_PARAMS: Record<string, string[]> = {
   "tiktok.com": ["is_from_webapp", "sender_device", "web_id"],
   "instagram.com": ["igsh", "igshid"],
   "reddit.com": ["utm_source", "utm_medium", "utm_campaign", "utm_name", "utm_content", "utm_term", "share_id"],
+  "spotify.com": ["si"],
+  "deezer.com": ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"],
 };
+
+const MUSIC_DOMAINS = [
+  "spotify.com",
+  "deezer.com",
+  "music.apple.com",
+  "tidal.com",
+  "napster.com",
+  "pandora.com",
+  "music.amazon.",
+  "qobuz.com",
+  "bandcamp.com",
+  "audiomack.com",
+  "mixcloud.com",
+];
 
 function cleanUrl(url: string): string {
   try {
@@ -619,6 +673,7 @@ function normalizeForExtraction(url: string): { url: string; audioOnly: boolean 
 export async function resolveMediaFromLink(url: string): Promise<{
   type: "image" | "video" | "audio" | "iframe" | "link";
   mediaUrl: string;
+  thumbnailUrl?: string;
   title?: string;
   duration?: number;
   provider?: string;
@@ -698,6 +753,38 @@ export async function resolveMediaFromLink(url: string): Promise<{
     }
   }
 
+  // Music platform to YouTube redirect pipeline
+  const isMusicPlatform = MUSIC_DOMAINS.some((d) => normalizedUrl.includes(d));
+  if (!isDirectMediaUrl && isMusicPlatform) {
+    try {
+      logger.info({ url: normalizedUrl }, "Music platform detected — attempting YouTube redirection");
+      const metadata = await fetchMetadata(normalizedUrl);
+
+      if (metadata && (metadata.title || metadata.author)) {
+        let searchQuery = `${metadata.title || ""} ${metadata.author || ""}`.trim();
+
+        if (!searchQuery || searchQuery.length < 3) {
+          throw new Error("Could not extract meaningful metadata for search");
+        }
+
+        logger.info({ searchQuery, from: metadata }, "Redirecting music link to YouTube search");
+        const searchResult = await fetchWithYtDlp(`ytsearch1:${searchQuery}`, true);
+        if (searchResult) {
+          return {
+            type: "audio",
+            mediaUrl: `/api/media-cache/${searchResult.filename}`,
+            thumbnailUrl: metadata.image || undefined,
+            title: searchResult.info.title || metadata.title || searchQuery,
+            provider: urlProvider,
+          };
+        }
+      }
+    } catch (err: any) {
+      logger.warn({ err: err.message, url: normalizedUrl }, "Music platform redirection failed");
+      /* fallthrough to normal yt-dlp */
+    }
+  }
+
   const ytdlResult = await fetchWithYtDlp(downloadUrl, isAudioOrigin);
   if (ytdlResult) {
     logger.info({ ytdlTitle: ytdlResult.info.title }, "yt-dlp resolution title");
@@ -737,39 +824,16 @@ export async function resolveMediaFromLink(url: string): Promise<{
   }
 
   try {
-    const preview = (await getLinkPreview(url, {
-      timeout: 3000,
-      followRedirects: "follow",
-      resolveDNSHost,
-      headers: {
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-      },
-    })) as any;
+    const metadata = await fetchMetadata(url);
 
-    if (preview) {
-      const contentType = (preview.contentType || "").toLowerCase();
-      const mediaType = (preview.mediaType || "").toLowerCase();
-
-      if (contentType.startsWith("image/") || mediaType === "image" || mediaType === "image.generic") {
-        return { type: "image", mediaUrl: preview.url || url, title: preview.title || "" };
+    if (metadata) {
+      if (metadata.image) {
+        return { type: "image", mediaUrl: metadata.image, title: metadata.title || "" };
       }
-
-      if (contentType.startsWith("video/") || mediaType === "video" || mediaType === "video.other") {
-        const rawUrl = preview.url || url;
-        return {
-          type: "video",
-          mediaUrl: `/api/proxy-media?url=${encodeURIComponent(rawUrl)}`,
-          title: preview.title || "",
-        };
-      }
-
-      if (preview.images && preview.images.length > 0) {
-        return { type: "image", mediaUrl: preview.images[0], title: preview.title || "" };
-      }
+      return { type: "link", mediaUrl: metadata.url || url, title: metadata.title || "", provider: urlProvider };
     }
   } catch {
-    logger.warn({ url }, "link-preview-js retrieval timed out");
+    logger.warn({ url }, "Metadata retrieval failed");
   }
 
   return { ...quick, title: "" };

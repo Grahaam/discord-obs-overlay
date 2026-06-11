@@ -1,4 +1,4 @@
-import { Tv, ImageIcon, Video, ExternalLink, Flame } from "lucide-react";
+import { Tv, ImageIcon, Video, ExternalLink, Flame, Music } from "lucide-react";
 import { AlertPayload } from "../types";
 
 export default function NowPlayingPreview({ alert }: { alert: AlertPayload | null }) {
@@ -12,43 +12,60 @@ export default function NowPlayingPreview({ alert }: { alert: AlertPayload | nul
     );
   }
 
-  const TypeIcon = alert.type === "video" ? Video : alert.type === "image" ? ImageIcon : ExternalLink;
+  const TypeIcon =
+    alert.type === "video" ? Video : alert.type === "image" ? ImageIcon : alert.type === "audio" ? Music : ExternalLink;
 
   return (
-    <div className="w-full h-full relative overflow-hidden bg-[#07070c]">
+    <div className="w-full h-full relative overflow-hidden bg-black">
       {/* Blurred media background */}
-      {alert.mediaUrl && (alert.type === "image" || alert.type === "video") && (
-        <div className="absolute inset-0 z-0">
+      {alert.mediaUrl && (alert.type === "image" || alert.type === "video" || alert.type === "audio") && (
+        <div className="absolute inset-0 z-0 scale-110 pointer-events-none">
           {alert.type === "image" ? (
-            <img src={alert.mediaUrl} alt="" className="w-full h-full object-cover scale-110 blur-xl opacity-30" />
-          ) : (
+            <img src={alert.mediaUrl} alt="" className="w-full h-full object-cover blur-xl opacity-40" />
+          ) : alert.type === "video" ? (
             <video
               src={alert.mediaUrl}
-              className="w-full h-full object-cover scale-110 blur-xl opacity-30"
+              className="w-full h-full object-cover blur-xl opacity-40"
               muted
               autoPlay
               loop
               playsInline
             />
+          ) : (
+            <div
+              className="w-full h-full blur-2xl opacity-50"
+              style={{
+                backgroundImage: `url(${alert.thumbnailUrl || alert.authorAvatar})`,
+                backgroundColor: !alert.thumbnailUrl ? alert.neonColor : "transparent",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            />
           )}
         </div>
       )}
 
-      {/* Neon color glow */}
+      {/* Content overlay gradient */}
       <div
-        className="absolute inset-0 z-0 opacity-10 pointer-events-none"
-        style={{ background: `radial-gradient(ellipse at center, ${alert.neonColor} 0%, transparent 70%)` }}
+        className="absolute inset-0 z-[1] pointer-events-none"
+        style={{ background: `radial-gradient(ellipse at 50% 50%, transparent 0%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.9) 100%)` }}
+      />
+
+      {/* Neon color glow accent */}
+      <div
+        className="absolute inset-0 z-[1] opacity-15 pointer-events-none"
+        style={{ background: `radial-gradient(circle at center, ${alert.neonColor}44 0%, transparent 70%)` }}
       />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col h-full p-4">
         {/* Author row */}
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-3 mb-2.5">
           <div className="relative shrink-0">
             <img
               src={alert.authorAvatar}
               alt="Avatar"
-              className="w-9 h-9 rounded-full border-2 object-cover"
+              className="w-9 h-9 rounded-full border-2 object-cover shadow-lg"
               style={{ borderColor: alert.neonColor }}
               referrerPolicy="no-referrer"
             />
@@ -57,19 +74,19 @@ export default function NowPlayingPreview({ alert }: { alert: AlertPayload | nul
             <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest flex items-center gap-1">
               <Flame className="w-3 h-3" /> Now Playing
             </span>
-            <span className="text-sm font-extrabold text-white truncate">
+            <span className="text-sm font-extrabold text-white truncate drop-shadow-md">
               {alert.title || alert.text || alert.authorName}
             </span>
-            {alert.title && <span className="text-[10px] text-white/40 truncate">{alert.authorName}</span>}
+            {alert.title && <span className="text-[10px] text-white/50 truncate font-medium">{alert.authorName}</span>}
           </div>
-          <div className="ml-auto flex items-center gap-1.5 bg-white/5 border border-white/10 px-2 py-1 rounded-lg text-[10px] text-white/40">
+          <div className="ml-auto flex items-center gap-1.5 bg-black/40 backdrop-blur-sm border border-white/10 px-2 py-1 rounded-lg text-[10px] text-white/60 font-mono">
             <TypeIcon className="w-3 h-3" />
             {alert.type}
           </div>
         </div>
 
         {/* Media preview */}
-        <div className="flex-1 relative rounded-xl overflow-hidden bg-black/40 border border-white/[0.06] min-h-0">
+        <div className="flex-1 relative rounded-xl overflow-hidden bg-black/30 backdrop-blur-sm border border-white/10 min-h-0 shadow-2xl">
           {alert.type === "image" && (
             <img
               src={alert.mediaUrl}
@@ -81,6 +98,28 @@ export default function NowPlayingPreview({ alert }: { alert: AlertPayload | nul
           {alert.type === "video" && (
             <video src={alert.mediaUrl} className="w-full h-full object-contain" muted autoPlay playsInline />
           )}
+          {alert.type === "audio" && (
+            <div className="w-full h-full flex flex-col items-center justify-center p-4 gap-4">
+              <div
+                className={`relative z-10 w-28 h-28 shadow-2xl overflow-hidden border border-white/20 ${alert.thumbnailUrl ? "rounded-2xl" : "rounded-full"}`}
+              >
+                <img
+                  src={alert.thumbnailUrl || alert.authorAvatar}
+                  alt="Track art"
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              <div className="flex flex-col items-center text-center gap-0.5 max-w-full px-2">
+                 <span className="text-white font-black text-xs uppercase tracking-tight truncate w-full shadow-black drop-shadow-sm">
+                   {alert.title || "Unknown Track"}
+                 </span>
+                 <span className="text-white/40 text-[9px] font-mono uppercase tracking-widest truncate w-full">
+                   {alert.authorName}
+                 </span>
+              </div>
+            </div>
+          )}
           {(alert.type === "iframe" || alert.type === "link") && (
             <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-white/30">
               <ExternalLink className="w-8 h-8" />
@@ -90,7 +129,7 @@ export default function NowPlayingPreview({ alert }: { alert: AlertPayload | nul
         </div>
 
         {/* Text */}
-        {alert.text && (
+        {alert.text && alert.title && (
           <p className="mt-2 text-[11px] text-white/50 truncate">
             {alert.text.replace(/https?:\/\/[^\s]+/gi, "").trim()}
           </p>

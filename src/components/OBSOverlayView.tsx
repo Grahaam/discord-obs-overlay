@@ -351,28 +351,48 @@ export default function OBSOverlayView() {
               return (
                 <div className="absolute inset-0 z-0 w-[100vw] h-[100vh] flex items-center justify-center overflow-hidden">
                   {active.type === "audio" ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden">
-                      {/* Radial atmosphere */}
+                    <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden bg-black">
+                      {/* Fullscreen blurred album art background */}
                       <div
-                        className="absolute inset-0 pointer-events-none"
+                        className="absolute inset-0 z-0 pointer-events-none opacity-50 scale-110"
                         style={{
-                          background: `radial-gradient(ellipse 60% 60% at 50% 40%, ${active.neonColor}1e 0%, transparent 70%)`,
+                          backgroundImage: `url(${active.thumbnailUrl || active.authorAvatar})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                          filter: "blur(60px) saturate(1.5)",
                         }}
                       />
+
+                      {/* Radial atmosphere overlay */}
+                      <div
+                        className="absolute inset-0 pointer-events-none z-[1]"
+                        style={{
+                          background: `radial-gradient(ellipse 60% 60% at 50% 50%, transparent 0%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.9) 100%)`,
+                        }}
+                      />
+
+                      {/* Dynamic accent glow */}
+                      <div
+                        className="absolute inset-0 pointer-events-none z-[1] opacity-30"
+                        style={{
+                          background: `radial-gradient(circle at 50% 50%, ${active.neonColor}44 0%, transparent 70%)`,
+                        }}
+                      />
+
                       {/* Film grain */}
                       <div
-                        className="absolute inset-0 pointer-events-none"
+                        className="absolute inset-0 pointer-events-none z-[2]"
                         style={{
-                          opacity: 0.04,
+                          opacity: 0.05,
                           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
                           backgroundSize: "200px 200px",
                         }}
                       />
 
-                      {/* Signal rings + avatar */}
+                      {/* Signal rings + avatar/thumbnail */}
                       <div
-                        className="relative flex items-center justify-center shrink-0"
-                        style={{ width: 140, height: 140 }}
+                        className="relative flex items-center justify-center shrink-0 z-10"
+                        style={{ width: active.thumbnailUrl ? 260 : 180, height: active.thumbnailUrl ? 260 : 180 }}
                       >
                         {[0, 1, 2, 3].map((i) => (
                           <div
@@ -380,26 +400,26 @@ export default function OBSOverlayView() {
                             className="signal-ring absolute rounded-full pointer-events-none"
                             style={
                               {
-                                width: 120,
-                                height: 120,
-                                border: `1.5px solid ${active.neonColor}`,
+                                width: active.thumbnailUrl ? 240 : 160,
+                                height: active.thumbnailUrl ? 240 : 160,
+                                border: `2px solid ${active.neonColor}66`,
                                 "--ring-delay": `${i * 0.65}s`,
                               } as CSSProperties
                             }
                           />
                         ))}
                         <div
-                          className="relative z-10 overflow-hidden rounded-full shrink-0"
+                          className={`relative z-10 overflow-hidden shrink-0 ${active.thumbnailUrl ? "rounded-3xl" : "rounded-full"}`}
                           style={{
-                            width: 96,
-                            height: 96,
-                            border: `2px solid ${active.neonColor}88`,
-                            boxShadow: `0 0 28px ${active.neonColor}44, 0 0 60px ${active.neonColor}1a`,
+                            width: active.thumbnailUrl ? 220 : 120,
+                            height: active.thumbnailUrl ? 220 : 120,
+                            border: `2.5px solid rgba(255,255,255,0.1)`,
+                            boxShadow: `0 0 40px ${active.neonColor}33, 0 12px 60px rgba(0,0,0,0.6)`,
                           }}
                         >
                           <img
-                            src={active.authorAvatar}
-                            alt="Avatar"
+                            src={active.thumbnailUrl || active.authorAvatar}
+                            alt="Media Thumbnail"
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
                           />
@@ -408,14 +428,14 @@ export default function OBSOverlayView() {
 
                       {/* Track title — Bebas Neue condensed display */}
                       <h2
-                        className="text-center leading-none uppercase mt-5 px-8"
+                        className="text-center leading-none uppercase mt-8 px-8 z-10"
                         style={{
                           fontFamily: "'Bebas Neue', Impact, sans-serif",
-                          fontSize: "clamp(3rem, 7vw, 6rem)",
-                          letterSpacing: "0.06em",
+                          fontSize: "clamp(3.5rem, 8vw, 7.5rem)",
+                          letterSpacing: "0.04em",
                           color: "#fff",
-                          textShadow: `0 0 50px ${active.neonColor}44, 0 2px 0 rgba(0,0,0,0.8)`,
-                          maxWidth: "80vw",
+                          textShadow: `0 0 40px ${active.neonColor}55, 0 2px 10px rgba(0,0,0,0.8)`,
+                          maxWidth: "90vw",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
@@ -426,21 +446,25 @@ export default function OBSOverlayView() {
 
                       {/* Metadata */}
                       <div
-                        className="flex items-center gap-3 mt-2.5"
+                        className="flex items-center gap-4 mt-3 z-10 px-4 py-1.5 rounded-full bg-black/30 backdrop-blur-sm border border-white/5"
                         style={{
                           fontFamily: "'JetBrains Mono', monospace",
-                          fontSize: "0.6rem",
-                          letterSpacing: "0.28em",
+                          fontSize: "0.65rem",
+                          letterSpacing: "0.2em",
                           textTransform: "uppercase",
                         }}
                       >
-                        <span style={{ color: `${active.neonColor}dd` }}>{active.provider ?? "audio"}</span>
-                        <span style={{ color: "rgba(255,255,255,0.22)" }}>—</span>
-                        <span style={{ color: "rgba(255,255,255,0.52)" }}>{active.authorName}</span>
+                        <span style={{ color: `${active.neonColor}` }}>{active.provider ?? "audio"}</span>
+                        <span style={{ color: "rgba(255,255,255,0.2)" }}>/</span>
+                        <span className="text-white/80 font-bold">{active.authorName}</span>
                       </div>
 
                       {/* Real-time spectrum analyzer canvas */}
-                      <div ref={vizContainerRef} className="mt-7 w-full" style={{ maxWidth: 600, height: 200 }} />
+                      <div
+                        ref={vizContainerRef}
+                        className="mt-10 w-full z-10"
+                        style={{ maxWidth: 700, height: 240, maskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)" }}
+                      />
 
                       <audio
                         ref={(el) => {

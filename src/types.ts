@@ -49,6 +49,7 @@ export interface AlertPayload {
   authorAvatar: string;
   text: string;
   mediaUrl: string;
+  thumbnailUrl?: string;
   type: MediaType;
   title?: string;
   provider?: string;
@@ -76,6 +77,7 @@ export interface LogEntry {
   authorAvatar?: string;
   text: string;
   title?: string;
+  thumbnailUrl?: string;
   type: MediaType;
   mediaUrl: string;
   status: "approved" | "blocked" | "censored" | "error";

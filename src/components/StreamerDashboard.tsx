@@ -769,6 +769,16 @@ export default function StreamerDashboard() {
                     <span className="text-white/20 shrink-0 tabular-nums font-mono text-[9px] w-9 leading-tight">
                       {new Date(log.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </span>
+                    {log.thumbnailUrl && (
+                      <div className="shrink-0 w-5 h-5 rounded overflow-hidden border border-white/10">
+                        <img
+                          src={log.thumbnailUrl}
+                          className="w-full h-full object-cover"
+                          alt=""
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    )}
                     <span
                       className={`shrink-0 text-[8px] font-bold font-mono px-1 py-0.5 rounded uppercase tracking-wide ${
                         log.type === "video"

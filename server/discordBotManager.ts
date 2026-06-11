@@ -271,6 +271,7 @@ export class DiscordBotManager {
             try {
               let resolvedType: "image" | "video" | "audio" | "iframe" | "link" = "image";
               let mediaUrl = "";
+              let thumbnailUrl: string | undefined;
               let mediaTitle: string | undefined;
               let mediaDuration: number | undefined;
               let mediaProvider: string | undefined;
@@ -324,6 +325,7 @@ export class DiscordBotManager {
                   const resolved = await resolveMediaFromLink(attachment.url);
                   resolvedType = resolved.type;
                   mediaUrl = resolved.mediaUrl;
+                  thumbnailUrl = resolved.thumbnailUrl;
                 } else {
                   logger.warn({ mime }, "Rejected unsupported attachment mimetype");
                   logManager.addLog({
@@ -344,6 +346,7 @@ export class DiscordBotManager {
                   logger.info({ resolved }, "Media resolved from embed");
                   resolvedType = resolved.type;
                   mediaUrl = resolved.mediaUrl;
+                  thumbnailUrl = resolved.thumbnailUrl;
                   mediaProvider = resolved.provider;
                   mediaYtDlpError = resolved.ytDlpError;
                   mediaTitle = resolved.title;
@@ -363,6 +366,7 @@ export class DiscordBotManager {
                   logger.info({ resolved }, "Media resolved from link");
                   resolvedType = resolved.type;
                   mediaUrl = resolved.mediaUrl;
+                  thumbnailUrl = resolved.thumbnailUrl;
                   mediaProvider = resolved.provider;
                   mediaYtDlpError = resolved.ytDlpError;
                   mediaTitle = resolved.title;
@@ -436,6 +440,7 @@ export class DiscordBotManager {
                   "https://cdn.discordapp.com/embed/avatars/0.png",
                 text: finalText,
                 mediaUrl: mediaUrl,
+                thumbnailUrl: thumbnailUrl,
                 type: resolvedType,
                 title: mediaTitle,
                 provider: mediaProvider,
@@ -459,6 +464,7 @@ export class DiscordBotManager {
                 authorAvatar: alertPayload.authorAvatar,
                 text: alertPayload.text,
                 title: alertPayload.title,
+                thumbnailUrl: alertPayload.thumbnailUrl,
                 type: alertPayload.type,
                 mediaUrl: alertPayload.mediaUrl,
                 status: textCheck.wasCensored ? "censored" : "approved",
