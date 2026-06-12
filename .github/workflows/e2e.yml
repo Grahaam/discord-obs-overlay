@@ -33,6 +33,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # postinstall runs `electron-builder install-app-deps`, which rebuilds
+      # better-sqlite3 for the Electron ABI. The E2E suite runs the server under
+      # plain Node, so rebuild it back to the Node ABI or every require() fails
+      # with ERR_DLOPEN_FAILED (NODE_MODULE_VERSION mismatch).
+      - name: Rebuild native deps for Node ABI
+        run: npm rebuild better-sqlite3
+
       - name: Smoke check – better-sqlite3 and yt-dlp
         run: |
           node -e "
