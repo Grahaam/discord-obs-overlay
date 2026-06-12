@@ -10,7 +10,8 @@ import { env } from "./env.js";
 import { settingsManager } from "./settingsManager.js";
 import { botManager } from "./discordBotManager.js";
 import { setupRoutes } from "./routes.js";
-import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser } from "./mediaParser.js";
+import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser, warmUpYtDlp, isYtDlpReady } from "./mediaParser.js";
+import { startMediaQueue } from "./mediaWorkerQueue.js";
 import { alertManager } from "./alertManager.js";
 import { initDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount } from "./db.js";
 import { logManager } from "./logManager.js";
@@ -136,6 +137,7 @@ async function runServer() {
     if (env.NODE_ENV !== "production") {
       logger.debug({ socketId: socket.id, total: io.engine.clientsCount }, "Socket connected");
     }
+    socket.emit("media_engine_status", { ready: isYtDlpReady() });
 
     socket.on("get_initial_state", () => {
       socket.emit("initial_state", alertManager.getAlerts());
@@ -249,6 +251,13 @@ async function runServer() {
 
   httpServer.listen(PORT, env.HOST, () => {
     logger.info({ host: env.HOST, port: PORT }, "Stream Alert server active");
+    // Warm up yt-dlp (self-extract) in the background, then release the media
+    // queue and tell clients the engine is ready.
+    warmUpYtDlp().finally(() => {
+      startMediaQueue();
+      io.emit("media_engine_ready");
+      logger.info("Media engine ready");
+    });
   });
 
   // Graceful shutdown

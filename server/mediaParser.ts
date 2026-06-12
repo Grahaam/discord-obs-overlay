@@ -9,7 +9,7 @@ import metascraperAmazon from "metascraper-amazon";
 import metascraperUrl from "metascraper-url";
 import metascraperLogo from "metascraper-logo";
 import metascraperAuthor from "metascraper-author";
-import { execFileSync } from "child_process";
+import { execFileSync, execFile } from "child_process";
 import { createRequire } from "module";
 import { logger } from "./logger.js";
 import { CACHE_DIR } from "./binaries.js";
@@ -94,6 +94,31 @@ function findBestYtDlpPath(): string | null {
 
 export const _ytDlpCustomPath = findBestYtDlpPath();
 const ytDlp = _ytDlpCustomPath ? ytDlpCreate(_ytDlpCustomPath) : youtubedl;
+
+let _ytDlpReady = false;
+
+/** Whether the media engine (yt-dlp) has finished first-run extraction. */
+export function isYtDlpReady(): boolean {
+  return _ytDlpReady;
+}
+
+/**
+ * Force the standalone yt-dlp to self-extract now (async, off the startup
+ * path) so the first real media job isn't blocked by a ~10s+ extraction.
+ * Always marks ready in `finally` so a hung/slow extraction can't wedge the
+ * media queue forever.
+ */
+export async function warmUpYtDlp(): Promise<void> {
+  try {
+    if (_ytDlpCustomPath) {
+      await new Promise<void>((resolve) => {
+        execFile(_ytDlpCustomPath as string, ["--version"], { timeout: 120000 }, () => resolve());
+      });
+    }
+  } finally {
+    _ytDlpReady = true;
+  }
+}
 
 const metascraper = createMetascraper([
   metascraperSpotify(),
