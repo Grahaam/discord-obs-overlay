@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import { execFileSync } from "child_process";
 
 const ASSET_BY_PLATFORM: Record<string, string> = {
   win32: "yt-dlp.exe",
@@ -25,24 +24,19 @@ interface ResolveOpts {
   platform?: NodeJS.Platform;
 }
 
-function runsOk(bin: string): boolean {
-  try {
-    // No timeout: the PyInstaller standalone self-extracts on first run, which
-    // can take well over 5s on a cold cache — a short timeout would kill a
-    // legitimately-working binary. This runs once at startup; -U is async.
-    execFileSync(bin, ["--version"], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Resolve the bundled standalone yt-dlp. Only meaningful when packaged
  * (appPath set by the Electron fork). Copies the read-only bundled binary
  * into a writable dir (cwd/bin) so `yt-dlp -U` can replace it in place;
- * falls back to running the read-only bundled copy (not self-updatable) if
- * the copy fails.
+ * falls back to the read-only bundled copy (not self-updatable) if the copy
+ * fails.
+ *
+ * Deliberately does NOT exec the binary to verify it. The PyInstaller
+ * standalone self-extracts on first run (10s+), and on an unsigned build
+ * macOS Gatekeeper scans it on first exec — doing that synchronously here
+ * (this runs during server module import) blew past the Electron health-check
+ * budget and the app failed to start. The first real media job pays the
+ * extraction cost instead, off the startup path.
  */
 export function resolveStandalone(opts: ResolveOpts = {}): StandaloneResult | null {
   const appPath = opts.appPath ?? process.env.APP_PATH;
@@ -70,13 +64,9 @@ export function resolveStandalone(opts: ResolveOpts = {}): StandaloneResult | nu
         throw err;
       }
     }
-    if (runsOk(target)) return { path: target, updatable: true };
-    // Target exists but won't run (truncated, quarantined, bad perms) — remove
-    // it so the next launch re-copies instead of getting stuck on it forever.
-    fs.rmSync(target, { force: true });
+    return { path: target, updatable: true };
   } catch {
-    /* copy/exec failed — fall through to read-only bundled */
+    // Copy failed — run the read-only bundled binary directly (not self-updatable).
+    return { path: bundled, updatable: false };
   }
-  if (runsOk(bundled)) return { path: bundled, updatable: false };
-  return null;
 }

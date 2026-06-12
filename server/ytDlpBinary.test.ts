@@ -34,21 +34,22 @@ test("resolveStandalone returns null when the bundled binary is absent", () => {
   assert.equal(resolveStandalone({ appPath, cwd: os.tmpdir() }), null);
 });
 
-test("resolveStandalone copies the bundled binary to cwd/bin and reports updatable", () => {
-  // Use the real fetched binary (Task 2) as the bundled source.
-  const repoRoot = path.resolve(import.meta.dirname, "..");
-  const name = standaloneBinaryName();
-  const realBin = path.join(repoRoot, "electron", "bin", name);
-  if (!fs.existsSync(realBin)) {
-    // Fetch must have run first; fail loudly so the gap is visible.
-    throw new Error(`missing ${realBin} — run: node scripts/fetch-ytdlp.cjs`);
-  }
+// Build a fake "packaged app" dir with a small stand-in bundled binary. We do
+// NOT use the real 36MB binary or exec anything — resolveStandalone copies by
+// path only (it never runs the binary), so a small file fully exercises it.
+function fakeAppPath(name: string): string {
   const appPath = mkdtemp("appp-");
-  fs.mkdirSync(path.join(appPath, "electron", "bin"), { recursive: true });
-  fs.copyFileSync(realBin, path.join(appPath, "electron", "bin", name));
-  if (process.platform !== "win32") fs.chmodSync(path.join(appPath, "electron", "bin", name), 0o755);
+  const binDir = path.join(appPath, "electron", "bin");
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(path.join(binDir, name), "#!/bin/sh\necho stub\n");
+  return appPath;
+}
 
+test("resolveStandalone copies the bundled binary to cwd/bin and reports updatable", () => {
+  const name = standaloneBinaryName();
+  const appPath = fakeAppPath(name);
   const cwd = mkdtemp("cwd-");
+
   const result = resolveStandalone({ appPath, cwd });
 
   assert.ok(result, "expected a resolution result");
@@ -57,29 +58,32 @@ test("resolveStandalone copies the bundled binary to cwd/bin and reports updatab
   assert.ok(fs.existsSync(result!.path), "binary should be copied to cwd/bin");
 });
 
-test("resolveStandalone removes a non-runnable target and falls back to bundled", () => {
-  const repoRoot = path.resolve(import.meta.dirname, "..");
+test("resolveStandalone trusts an existing target and does not re-copy", () => {
   const name = standaloneBinaryName();
-  const realBin = path.join(repoRoot, "electron", "bin", name);
-  if (!fs.existsSync(realBin)) {
-    throw new Error(`missing ${realBin} — run: node scripts/fetch-ytdlp.cjs`);
-  }
-  const appPath = mkdtemp("appp-");
-  fs.mkdirSync(path.join(appPath, "electron", "bin"), { recursive: true });
-  const bundled = path.join(appPath, "electron", "bin", name);
-  fs.copyFileSync(realBin, bundled);
-  if (process.platform !== "win32") fs.chmodSync(bundled, 0o755);
-
-  // Pre-seed a broken (non-runnable) target so the existsSync short-circuit fires.
+  const appPath = fakeAppPath(name);
   const cwd = mkdtemp("cwd-");
-  fs.mkdirSync(path.join(cwd, "bin"), { recursive: true });
-  const badTarget = path.join(cwd, "bin", name);
-  fs.writeFileSync(badTarget, "not a real binary"); // no +x → won't execute
+  const target = path.join(cwd, "bin", name);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, "already here"); // distinct content
+
+  const result = resolveStandalone({ appPath, cwd });
+
+  assert.ok(result, "expected a resolution result");
+  assert.equal(result!.updatable, true);
+  assert.equal(result!.path, target);
+  assert.equal(fs.readFileSync(target, "utf8"), "already here", "existing target must not be overwritten");
+});
+
+test("resolveStandalone falls back to bundled (not updatable) when the copy fails", () => {
+  const name = standaloneBinaryName();
+  const appPath = fakeAppPath(name);
+  const cwd = mkdtemp("cwd-");
+  // Make cwd/bin a FILE so mkdir/copy throws, forcing the fallback path.
+  fs.writeFileSync(path.join(cwd, "bin"), "blocker");
 
   const result = resolveStandalone({ appPath, cwd });
 
   assert.ok(result, "expected a resolution result");
   assert.equal(result!.updatable, false, "read-only bundled fallback is not self-updatable");
-  assert.equal(result!.path, bundled);
-  assert.equal(fs.existsSync(badTarget), false, "broken target should be removed so next launch re-copies");
+  assert.equal(result!.path, path.join(appPath, "electron", "bin", name));
 });

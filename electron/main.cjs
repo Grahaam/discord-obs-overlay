@@ -48,7 +48,10 @@ function findFreePort(start = 3000) {
   });
 }
 
-function waitForServer(port, timeoutMs = 30000) {
+// 90s: on an unsigned build launched from a quarantined .dmg, macOS Gatekeeper
+// scans the bundled binaries (native modules, ffmpeg, yt-dlp) on first exec,
+// which can add many seconds to the first cold boot.
+function waitForServer(port, timeoutMs = 90000) {
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + timeoutMs;
     function attempt() {
@@ -61,7 +64,8 @@ function waitForServer(port, timeoutMs = 30000) {
         .on("error", retry);
     }
     function retry() {
-      if (Date.now() > deadline) return reject(new Error("Server did not start within 30s"));
+      if (Date.now() > deadline)
+        return reject(new Error(`Server did not start within ${Math.round(timeoutMs / 1000)}s`));
       setTimeout(attempt, 500);
     }
     attempt();
