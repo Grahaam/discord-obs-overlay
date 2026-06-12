@@ -377,6 +377,54 @@ function getAudioExt(url: string): string | null {
   return m ? m[1].toLowerCase() : null;
 }
 
+const MIME_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/mp4": "m4a",
+  "audio/aac": "aac",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/flac": "flac",
+};
+
+/**
+ * Resolve true media type from the server's Content-Type for URLs with no usable
+ * file extension (e.g. bing `th/id` thumbnails, image/video CDNs). Without this,
+ * yt-dlp's generic extractor "succeeds" on a bare image — downloading it and
+ * wrapping it into an mp4, so an image plays as a re-encoded silent video.
+ * SSRF-guarded via resolveDNSHost; returns null on any failure (caller falls through).
+ */
+async function sniffMediaType(url: string): Promise<{ kind: "image" | "video" | "audio"; ext: string } | null> {
+  try {
+    await resolveDNSHost(url);
+    const resp = await axios.head(url, {
+      timeout: 6000,
+      maxRedirects: 5,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      },
+      validateStatus: (s) => s >= 200 && s < 400,
+    });
+    const ct = String(resp.headers["content-type"] || "")
+      .split(";")[0]
+      .trim()
+      .toLowerCase();
+    if (ct.startsWith("image/")) return { kind: "image", ext: MIME_EXT[ct] ?? "jpg" };
+    if (ct.startsWith("video/")) return { kind: "video", ext: "mp4" };
+    if (ct.startsWith("audio/")) return { kind: "audio", ext: MIME_EXT[ct] ?? "mp3" };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function cacheMedia(url: string, originalUrl: string, ext = "mp4"): Promise<string | null> {
   const isImage = IMAGE_EXTENSIONS.has(ext);
   const isAudio = AUDIO_EXTENSIONS.has(ext);
@@ -848,6 +896,26 @@ export async function resolveMediaFromLink(url: string): Promise<{
     } catch (err: any) {
       logger.warn({ err: err.message, url: normalizedUrl }, "Music platform redirection failed");
       /* fallthrough to normal yt-dlp */
+    }
+  }
+
+  // Extensionless direct media (e.g. bing th/id thumbnails): cache by Content-Type
+  // BEFORE yt-dlp, otherwise yt-dlp's generic extractor wraps a bare image into an
+  // mp4 and it plays as a silent video. Skip embeddable providers (youtube/tiktok/…
+  // resolve to iframe) so their links still go through the normal yt-dlp path.
+  if (!isDirectMediaUrl && parseMediaUrl(downloadUrl).type !== "iframe") {
+    const sniffed = await sniffMediaType(downloadUrl);
+    if (sniffed) {
+      const cached = await cacheMedia(downloadUrl, cleanedUrl, sniffed.ext);
+      if (cached) {
+        const titleMap = { image: "Image", video: "Video", audio: "Audio" } as const;
+        return {
+          type: sniffed.kind,
+          mediaUrl: `/api/media-cache/${cached}`,
+          title: titleMap[sniffed.kind],
+          provider: urlProvider,
+        };
+      }
     }
   }
 
