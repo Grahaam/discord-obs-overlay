@@ -1,57 +1,134 @@
-# StreamAlerts Hub
+# LiveChat
 
-StreamAlerts Hub est une application pour les streamers permettant de récupérer des médias (vidéos, images, liens) depuis un salon Discord et de les afficher automatiquement en direct via OBS.
+> Application desktop pour streamers : récupère des médias (vidéos, images, liens) depuis un salon Discord et les affiche en direct sur OBS via un overlay transparent.
+
 [![CI](https://github.com/Grahaam/discord-obs-overlay/actions/workflows/ci.yml/badge.svg)](https://github.com/Grahaam/discord-obs-overlay/actions/workflows/ci.yml)
 
-## Prérequis
+---
 
-Assurez-vous d'avoir installé les logiciels suivants sur votre machine :
+## Sommaire
 
-- **[Node.js](https://nodejs.org/fr/)** (version 18 ou supérieure recommandée)
-- Assurez-vous que la commande `npm` est disponible dans votre terminal.
+- [Installation rapide (recommandé)](#installation-rapide-recommandé)
+- [Premier lancement](#premier-lancement)
+- [Configuration OBS](#configuration-obs)
+- [Tester une alerte](#tester-une-alerte)
+- [Installation depuis les sources](#installation-depuis-les-sources)
+- [Documentation détaillée](#documentation-détaillée)
+- [English](#english)
 
-## Installation
+---
 
-1. Ouvrez un terminal dans le dossier du projet.
-2. Installez les dépendances :
-   ```bash
-   npm install
-   ```
-3. Compilez l'application :
-   ```bash
-   npm run build
-   ```
+## Installation rapide (recommandé)
 
-## Lancement de l'application
+Téléchargez l'installeur correspondant à votre système depuis la page [Releases](https://github.com/Grahaam/discord-obs-overlay/releases) :
 
-Pour démarrer le serveur, utilisez la commande suivante :
+| Système | Fichier |
+|---------|---------|
+| Windows | `LiveChat-Setup-2.0.0.exe` (NSIS) |
+| macOS (Apple Silicon) | `LiveChat-2.0.0-arm64.dmg` |
+| macOS (Intel) | `LiveChat-2.0.0.dmg` |
+| Linux | `LiveChat-2.0.0.AppImage` |
+
+Aucune installation de Node.js, `yt-dlp` ou `ffmpeg` n'est requise — tout est embarqué.
+
+## Premier lancement
+
+1. Lancez **LiveChat**. Une fenêtre d'assistant s'ouvre.
+2. Collez votre **Token de bot Discord** et l'**ID du salon textuel** à surveiller.
+3. Cliquez sur **Terminer**. Le tableau de bord s'ouvre.
+
+L'application reste accessible via une icône dans la barre des tâches. Fermer la fenêtre la masque dans la barre — utilisez **Quitter** depuis le menu de l'icône pour fermer totalement.
+
+> Pas de bot Discord ? Voir [docs/CONFIG.md](docs/CONFIG.md#créer-un-bot-discord).
+
+## Configuration OBS
+
+1. Dans le tableau de bord, section **Overlay OBS**, copiez l'URL affichée (forme : `http://127.0.0.1:<port>/overlay`).
+2. Dans OBS Studio, ajoutez une **Source navigateur**.
+3. Collez l'URL, réglez la taille à `1920×1080` (ou votre résolution de stream).
+4. Cochez **Arrière-plan transparent**.
+
+Détails : [docs/OBS-SETUP.md](docs/OBS-SETUP.md).
+
+## Tester une alerte
+
+Tableau de bord → bouton **Tester l'alerte**. L'overlay doit afficher l'alerte de démonstration.
+
+---
+
+## Installation depuis les sources
+
+Pour le développement ou un build personnalisé.
+
+**Prérequis :** Node.js ≥ 22, npm.
 
 ```bash
+git clone https://github.com/Grahaam/discord-obs-overlay.git
+cd discord-obs-overlay
+npm install
+npm run build
 npm start
 ```
 
-Pour le développement (avec rechargement automatique) :
+Mode développement (HMR) :
 
 ```bash
 npm run dev
 ```
 
-Le serveur démarrera localement. Vous pourrez accéder au panneau d'administration depuis votre navigateur à l'adresse **http://localhost:3000** (l'URL exacte sera affichée dans le terminal).
+Lancer l'app Electron en dev :
 
-## Configuration initiale
+```bash
+npm run electron:dev
+```
 
-Lors de votre première connexion, la page d'accueil vous guidera à travers la configuration :
+Builds installeurs :
 
-1. **Liaison Discord** : Allez dans l'onglet Bot Discord. Renseignez l'ID du salon textuel et le Token du Bot.
-2. **OBS Studio** : Dans la section Overlay OBS, copiez l'URL fournie.
-3. Allez dans OBS, ajoutez une nouvelle **Source Navigateur (Browser Source)**.
-4. Collez l'URL.
-5. Ajustez la taille (ex: 1920x1080) selon la résolution souhaitée.
+```bash
+npm run electron:build:win    # NSIS
+npm run electron:build:mac    # DMG x64 + arm64
+npm run electron:build:linux  # AppImage
+```
 
-## Tester l'overlay
+## Documentation détaillée
 
-Vous pouvez utiliser le bouton de simulation dans le panneau de configuration pour envoyer une alerte de test sur l'overlay et vérifier le rendu sur OBS.
+- [docs/INSTALL.md](docs/INSTALL.md) — installeurs par OS, mises à jour
+- [docs/CONFIG.md](docs/CONFIG.md) — bot Discord, cookies YouTube, mots bannis, NSFW
+- [docs/OBS-SETUP.md](docs/OBS-SETUP.md) — source navigateur, audio, dimensions
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — erreurs courantes
+- [CHANGELOG.md](CHANGELOG.md) — historique des versions
 
 ---
 
-_Fourni avec les sources._
+## English
+
+LiveChat is a desktop app for streamers. It picks up media (videos, images, links) posted in a Discord channel and plays them live on OBS through a transparent browser-source overlay.
+
+### Quick install
+
+Download the installer for your OS from [Releases](https://github.com/Grahaam/discord-obs-overlay/releases): Windows NSIS, macOS DMG (Apple Silicon + Intel), or Linux AppImage. No Node.js / yt-dlp / ffmpeg required — everything is bundled.
+
+### First run
+
+Launch LiveChat → the setup wizard asks for your **Discord bot token** and **channel ID** → finish → the dashboard opens. The app lives in the system tray; closing the window hides it there.
+
+### OBS
+
+Copy the overlay URL from the dashboard (`http://127.0.0.1:<port>/overlay`), add it as a **Browser Source** in OBS, size `1920×1080`, transparent background.
+
+### From source
+
+```bash
+npm install
+npm run build
+npm start              # standalone server
+npm run electron:dev   # Electron shell
+```
+
+See [docs/INSTALL.md](docs/INSTALL.md), [docs/CONFIG.md](docs/CONFIG.md), [docs/OBS-SETUP.md](docs/OBS-SETUP.md), [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+
+---
+
+## Licence
+
+Voir le dépôt. Sources fournies.

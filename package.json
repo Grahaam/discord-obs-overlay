@@ -2,7 +2,7 @@
   "name": "livechat",
   "author": "CramoiSel",
   "private": true,
-  "version": "1.9.5",
+  "version": "2.0.0",
   "type": "module",
   "main": "electron/main.cjs",
   "build": {
