@@ -81,7 +81,7 @@ function forkServer(port, dataDir) {
   serverProcess.stdout.on('data', (d) => process.stdout.write(`[server] ${d}`));
   serverProcess.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`));
   serverProcess.on('exit', async (code) => {
-    console.error(`[server] exited (code ${code})`);
+    if (!app.isQuitting) console.error(`[server] exited unexpectedly (code ${code})`);
     // Only surface a recovery dialog if the main window was already created
     // (server had reached connected state). During initial startup the
     // whenReady catch already handles failures via its own Retry/Quit dialog.
