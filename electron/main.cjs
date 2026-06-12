@@ -13,6 +13,21 @@ let tray = null;
 let serverProcess = null;
 let serverPort = null;
 app.isQuitting = false;
+let serverCrashHandled = false;
+
+// ── Single-instance lock ───────────────────────────────────────────────────────
+if (!app.requestSingleInstanceLock()) { app.quit(); return; }
+
+app.on('second-instance', () => {
+  // Restore whichever window is open when the user launches a duplicate.
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  } else if (wizardWindow) {
+    wizardWindow.focus();
+  }
+});
 
 const isDev = !app.isPackaged;
 
@@ -65,8 +80,24 @@ function forkServer(port, dataDir) {
   });
   serverProcess.stdout.on('data', (d) => process.stdout.write(`[server] ${d}`));
   serverProcess.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`));
-  serverProcess.on('exit', (code) => {
-    if (!app.isQuitting) console.error(`[server] exited unexpectedly (code ${code})`);
+  serverProcess.on('exit', async (code) => {
+    console.error(`[server] exited (code ${code})`);
+    // Only surface a recovery dialog if the main window was already created
+    // (server had reached connected state). During initial startup the
+    // whenReady catch already handles failures via its own Retry/Quit dialog.
+    if (!app.isQuitting && mainWindow && !serverCrashHandled) {
+      serverCrashHandled = true; // guard before await to prevent re-entrancy
+      const { dialog } = require('electron');
+      const { response } = await dialog.showMessageBox({
+        type: 'error',
+        title: 'Server stopped',
+        message: 'The background server stopped unexpectedly.',
+        detail: `Exit code: ${code}. Restart the app to reconnect.`,
+        buttons: ['Restart', 'Quit'],
+      });
+      if (response === 0) app.relaunch();
+      app.quit();
+    }
   });
 }
 
