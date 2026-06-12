@@ -67,7 +67,7 @@
     "format": "prettier --write .",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
-    "test:unit": "node --import tsx --test \"server/**/*.test.ts\"",
+    "test:unit": "node --import tsx --test \"server/**/*.test.ts\" \"scripts/**/*.test.cjs\"",
     "test:media": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts",
     "test:media:filter": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts --filter",
     "gen-icons": "node scripts/gen-icons.cjs",
