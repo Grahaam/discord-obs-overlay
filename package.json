@@ -5,8 +5,8 @@
   "type": "module",
   "main": "electron/main.cjs",
   "build": {
-    "appId": "com.discord-obs-overlay",
-    "productName": "Discord OBS Overlay",
+    "appId": "com.livechat",
+    "productName": "LiveChat",
     "asar": false,
     "npmRebuild": true,
     "directories": {

@@ -1,11 +1,11 @@
 @echo off
 cd /d "%~dp0"
 setlocal EnableDelayedExpansion
-title Discord OBS Overlay - Installer
+title LiveChat - Installer
 
 echo.
 echo =============================================
-echo   Discord OBS Overlay - Setup
+echo   LiveChat - Setup
 echo =============================================
 echo.
 
@@ -192,13 +192,13 @@ if !DOCKER_OK!==0 (
     set /a SECS+=1
     set /a MINS=!SECS! / 60
     set /a RSECS=!SECS! %% 60
-    title Discord OBS Overlay - Installing Docker... Time elapsed: !MINS!m !RSECS!s
+    title LiveChat - Installing Docker... Time elapsed: !MINS!m !RSECS!s
     timeout /t 1 >nul
     goto :wait_docker
 
     :docker_done
     del "!DONE_FLAG!" >nul 2>&1
-    title Discord OBS Overlay - Installer
+    title LiveChat - Installer
 
     where docker >nul 2>&1
     if errorlevel 1 (

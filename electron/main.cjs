@@ -109,7 +109,7 @@ function createMainWindow(port) {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: 'Discord OBS Overlay',
+    title: 'LiveChat',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -131,7 +131,7 @@ function createWizardWindow() {
     width: 520,
     height: 500,
     resizable: false,
-    title: 'Discord OBS Overlay — Setup',
+    title: 'LiveChat — Setup',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -154,7 +154,7 @@ function createTray(port) {
     : nativeImage.createEmpty();
 
   tray = new Tray(icon);
-  tray.setToolTip('Discord OBS Overlay');
+  tray.setToolTip('LiveChat');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open Dashboard', click: () => { mainWindow?.show(); mainWindow?.focus(); } },
     { label: 'Copy OBS Overlay URL', click: () => clipboard.writeText(`http://127.0.0.1:${port}/overlay`) },
@@ -270,7 +270,7 @@ app.whenReady().then(async () => {
     const { response } = await dialog.showMessageBox({
       type: 'error',
       title: 'Startup failed',
-      message: 'Discord OBS Overlay could not start the server.',
+      message: 'LiveChat could not start the server.',
       detail: String(err),
       buttons: ['Retry', 'Quit'],
     });
