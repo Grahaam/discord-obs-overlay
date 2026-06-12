@@ -134,9 +134,9 @@ function encodePNG(width, height, pixels) {
  *     1. px >= left
  *     2. px <= right
  *     3. The horizontal half-width at row py (linear interpolation from 0 at
- *        right apex to halfW at left edge) is >= (px - cx):
- *           halfW_at_py = halfW * (right - px) / (right - left)
- *           => py must be within ±halfW_at_py of cy
+ *        right apex to halfH at left edge) is >= (px - cx):
+ *           span_at_x = halfH * (right - px) / (right - left)
+ *           => py must be within ±span_at_x of cy
  *
  *   Equivalently (rearranged):
  *     |py - cy| / halfH <= (right - px) / (right - left)
@@ -226,7 +226,7 @@ function verifyPNG(buf, expectedWidth, expectedHeight) {
     }
 
     if (type === 'IDAT') {
-      idatData = data;
+      idatData = idatData ? Buffer.concat([idatData, data]) : data;
     }
 
     if (type === 'IEND') break;

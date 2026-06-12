@@ -69,6 +69,7 @@
     "test:ui": "playwright test --ui",
     "test:media": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts",
     "test:media:filter": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts --filter",
+    "gen-icons": "node scripts/gen-icons.cjs",
     "electron:rebuild": "node -e \"require('@electron/rebuild').rebuild({buildPath:process.cwd(),electronVersion:require('./node_modules/electron/package.json').version,force:true,onlyModules:['better-sqlite3']}).then(()=>console.log('rebuild ok')).catch(e=>{console.error(e.message);process.exit(1)})\"",
     "electron:dev": "npm run build && npm run electron:rebuild && electron .",
     "electron:build": "npm run build && electron-builder",
