@@ -1,8 +1,8 @@
-import { app, BrowserWindow, Tray, Menu, clipboard, ipcMain, utilityProcess, nativeImage, dialog } from "electron";
-import path from "path";
-import fs from "fs";
-import http from "http";
-import net from "net";
+const { app, BrowserWindow, Tray, Menu, clipboard, ipcMain, utilityProcess, nativeImage, dialog } = require("electron");
+const path = require("path");
+const fs = require("fs");
+const http = require("http");
+const net = require("net");
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let mainWindow = null;
