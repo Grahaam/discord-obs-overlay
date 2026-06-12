@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Tray, Menu, clipboard, ipcMain, utilityProcess, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, clipboard, ipcMain, utilityProcess, nativeImage, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -25,6 +25,7 @@ app.on('second-instance', () => {
     mainWindow.show();
     mainWindow.focus();
   } else if (wizardWindow) {
+    wizardWindow.show();
     wizardWindow.focus();
   }
 });
@@ -80,23 +81,25 @@ function forkServer(port, dataDir) {
   });
   serverProcess.stdout.on('data', (d) => process.stdout.write(`[server] ${d}`));
   serverProcess.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`));
-  serverProcess.on('exit', async (code) => {
+  serverProcess.on('exit', (code) => {
     if (!app.isQuitting) console.error(`[server] exited unexpectedly (code ${code})`);
     // Only surface a recovery dialog if the main window was already created
     // (server had reached connected state). During initial startup the
     // whenReady catch already handles failures via its own Retry/Quit dialog.
     if (!app.isQuitting && mainWindow && !serverCrashHandled) {
-      serverCrashHandled = true; // guard before await to prevent re-entrancy
-      const { dialog } = require('electron');
-      const { response } = await dialog.showMessageBox({
+      serverCrashHandled = true; // guard before dialog to prevent re-entrancy
+      dialog.showMessageBox({
         type: 'error',
         title: 'Server stopped',
         message: 'The background server stopped unexpectedly.',
         detail: `Exit code: ${code}. Restart the app to reconnect.`,
         buttons: ['Restart', 'Quit'],
-      });
-      if (response === 0) app.relaunch();
-      app.quit();
+      })
+        .then(({ response }) => {
+          if (response === 0) app.relaunch();
+          app.quit();
+        })
+        .catch(console.error);
     }
   });
 }
@@ -264,7 +267,6 @@ app.whenReady().then(async () => {
     createTray(serverPort);
   } catch (err) {
     console.error('[main] Failed to start server:', err);
-    const { dialog } = require('electron');
     const { response } = await dialog.showMessageBox({
       type: 'error',
       title: 'Startup failed',
