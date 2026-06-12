@@ -580,20 +580,31 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
 }
 
 export async function updateYtDlp(): Promise<void> {
-  // `yt-dlp -U` self-update only works on the bundled standalone PyInstaller
+  // `yt-dlp -U` self-update only works on a writable standalone PyInstaller
   // binary. Package-manager installs (our venv uses pip; a system binary may be
   // brew/apt) refuse with exit code 100 — keep them current via their own
   // manager (e.g. `pip install -U yt-dlp` in the venv), not here.
-  // Self-update only works on the bundled standalone (writable copy) or the
-  // youtube-dl-exec fallback. venv (pip) / system (brew/apt) binaries refuse
-  // `yt-dlp -U` with exit code 100 — skip them.
   if (_ytDlpCustomPath && !_ytDlpIsStandalone) {
     logger.info({ ytDlp: _ytDlpCustomPath }, "External yt-dlp (venv/system) — skipping self-update");
     return;
   }
   try {
     logger.info("yt-dlp checking for updates");
-    await ytDlpUpdateRaw();
+    if (_ytDlpCustomPath) {
+      // Update the active standalone copy in place. ytDlpUpdateRaw() would run
+      // `-U` against youtube-dl-exec's OWN bundled binary instead — read-only
+      // inside a packaged app bundle, so it always fails (exit 1) and never
+      // touches the copy we actually use.
+      await new Promise<void>((resolve, reject) => {
+        execFile(_ytDlpCustomPath as string, ["-U"], { timeout: 120000 }, (err, _stdout, stderr) => {
+          if (err) reject(new Error(stderr?.trim() || err.message));
+          else resolve();
+        });
+      });
+    } else {
+      // No custom path: youtube-dl-exec fallback binary — update via its own helper.
+      await ytDlpUpdateRaw();
+    }
     logger.info("yt-dlp update check completed");
   } catch (err: any) {
     logger.warn({ err: err.message }, "yt-dlp update failed");
