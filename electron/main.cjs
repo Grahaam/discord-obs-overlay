@@ -131,30 +131,85 @@ function createTray(port) {
 }
 
 // ── IPC handlers ───────────────────────────────────────────────────────────────
+/** Boot the server once; on retry (e.g. wrong token re-entered in the wizard) reuse it. */
+async function ensureServer(dataDir) {
+  if (serverPort && serverProcess) return serverPort;
+  const port = await findFreePort();
+  forkServer(port, dataDir);
+  try {
+    await waitForServer(port);
+  } catch (err) {
+    serverProcess?.kill();
+    serverProcess = null;
+    throw err;
+  }
+  serverPort = port;
+  return port;
+}
+
+/** Poll /api/bot-status until the bot is connected, errored, or we time out. */
+function waitForBotConnection(port, timeoutMs = 20000) {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve, reject) => {
+    async function poll() {
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/api/bot-status`);
+        const { status, errorMsg } = await res.json();
+        if (status === 'connected') return resolve();
+        if (status === 'error') {
+          return reject(new Error(errorMsg || 'Bot connection failed — check your token.'));
+        }
+      } catch {
+        // transient server hiccup — keep polling until the deadline
+      }
+      if (Date.now() > deadline) {
+        return reject(new Error('Timed out waiting for the Discord bot to connect.'));
+      }
+      setTimeout(poll, 500);
+    }
+    poll();
+  });
+}
+
 ipcMain.handle('complete-setup', async (event, { token, channelId }) => {
   // Only accept calls from the wizard window.
   if (!wizardWindow || event.sender !== wizardWindow.webContents) {
     throw new Error('Unauthorized sender');
   }
+  if (typeof token !== 'string' || !token.trim()) {
+    throw new Error('Token is required');
+  }
+  if (typeof channelId !== 'string' || !/^\d+$/.test(channelId)) {
+    throw new Error('Channel ID must be a numeric snowflake');
+  }
 
   const dataDir = isDev ? app.getAppPath() : app.getPath('userData');
   fs.mkdirSync(dataDir, { recursive: true });
 
-  // Boot server first — only persist config if it comes up successfully.
-  const port = await findFreePort();
-  forkServer(port, dataDir);
-  await waitForServer(port);
+  const port = await ensureServer(dataDir);
 
-  fs.writeFileSync(path.join(dataDir, '.env'), `DISCORD_TOKEN=${token}\n`, 'utf8');
-  fs.writeFileSync(
-    path.join(dataDir, 'settings.json'),
-    JSON.stringify({ channelId }, null, 2),
-    'utf8'
-  );
+  // Push config through the server's own settings API: it persists .env /
+  // settings.json in its cwd (dataDir) AND (re)connects the Discord bot —
+  // writing the files ourselves after the fork would leave the bot
+  // disconnected until the next app restart.
+  const base = `http://127.0.0.1:${port}`;
+  const current = await (await fetch(`${base}/api/settings`)).json();
+  const res = await fetch(`${base}/api/settings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...current, discordToken: token.trim(), channelId }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Saving settings failed (HTTP ${res.status})`);
+  }
 
-  serverPort = port;
-  createMainWindow(serverPort);
-  createTray(serverPort);
+  // Surface bad tokens here instead of claiming success and opening a
+  // dashboard with a dead bot.
+  await waitForBotConnection(port);
+
+  createMainWindow(port);
+  createTray(port);
   wizardWindow?.close();
 });
 

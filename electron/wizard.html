@@ -97,6 +97,7 @@
     const channelErr = document.getElementById('channel-err');
     const btn = document.getElementById('btn');
     const status = document.getElementById('status');
+    if (btn.disabled) return; // setup already in flight (Enter key bypasses the button)
     let valid = true;
 
     tokenInput.classList.remove('error'); tokenErr.classList.remove('visible');
@@ -121,7 +122,9 @@
     } catch (e) {
       btn.disabled = false;
       status.className = 'status error';
-      status.textContent = (e && e.message) || 'Setup failed. Check your token and try again.';
+      // Strip Electron's IPC error prefix ("Error invoking remote method '…': Error: ")
+      const msg = ((e && e.message) || '').replace(/^Error invoking remote method '[^']*':\s*(Error:\s*)?/, '');
+      status.textContent = msg || 'Setup failed. Check your token and try again.';
     }
   }
 
