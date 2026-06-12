@@ -45,16 +45,16 @@ export default function TrollOverlay() {
     return () => {
       socket.off("troll_alert", handler);
     };
-  }, [socket]);
+  }, [socket, dismiss]);
 
-  function dismiss() {
+  const dismiss = useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
     setActive(false);
     socket?.emit("troll_dismissed");
-  }
+  }, [socket]);
 
   if (!active) return null;
 
