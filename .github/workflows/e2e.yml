@@ -8,7 +8,12 @@ on:
 
 jobs:
   e2e:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
@@ -25,7 +30,16 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Install dependencies
+      # Windows: skip install scripts to avoid node-gyp issues, then rebuild
+      # only the one native module that actually needs a compiled binary.
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          npm install --ignore-scripts
+          npm rebuild better-sqlite3
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
         run: npm install
 
       - name: Install Playwright browsers
