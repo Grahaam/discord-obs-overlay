@@ -216,7 +216,7 @@ async function runServer() {
             updateAvailable: strip(latest.tag_name) !== pkg.version,
             downloadUrl: latest.html_url,
         });
-    } catch (e) {
+    } catch (_e) {
         res.status(500).json({ error: "Update check failed" });
     }
   });

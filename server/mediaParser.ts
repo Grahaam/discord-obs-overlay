@@ -761,7 +761,7 @@ export async function resolveMediaFromLink(url: string): Promise<{
       const metadata = await fetchMetadata(normalizedUrl);
 
       if (metadata && (metadata.title || metadata.author)) {
-        let searchQuery = `${metadata.title || ""} ${metadata.author || ""}`.trim();
+        const searchQuery = `${metadata.title || ""} ${metadata.author || ""}`.trim();
 
         if (!searchQuery || searchQuery.length < 3) {
           throw new Error("Could not extract meaningful metadata for search");
