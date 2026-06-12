@@ -1,5 +1,6 @@
 {
-  "name": "discord-obs-overlay",
+  "name": "livechat",
+  "author": "CramoiSel",
   "private": true,
   "version": "1.9.5",
   "type": "module",
