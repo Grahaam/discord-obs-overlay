@@ -438,7 +438,12 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
         geoBypass: true,
         forceIpv4: true,
         skipDownload: true,
-        ...(isYouTube && { extractorArgs: "youtube:player-client=android_vr", noCookies: true }),
+        // Extract from multiple player clients and merge their format lists.
+        // A single client (e.g. android_vr) intermittently returns only
+        // storyboard formats when YouTube throttles it, which fails format
+        // selection with "Requested format is not available"; listing a
+        // fallback client lets the real formats come through.
+        ...(isYouTube && { extractorArgs: "youtube:player-client=default,android_vr", noCookies: true }),
         ...(!isYouTube && hasCookies && { cookies: cookiesPath }),
       }),
       YTDLP_TIMEOUT_MS,
