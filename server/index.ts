@@ -200,13 +200,21 @@ async function runServer() {
   app.get("/api/check-update", async (req, res) => {
     try {
         const pkg = JSON.parse(fs.readFileSync(APP_PATHS.packageJson, 'utf8'));
-        const response = await fetch("https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest");
+        const response = await fetch(
+          "https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest",
+          {
+            signal: AbortSignal.timeout(5000),
+            headers: { Accept: "application/vnd.github+json" },
+          }
+        );
+        if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
         const latest = await response.json();
+        const strip = (v: string) => v.replace(/^v/, "");
         res.json({
             current: pkg.version,
-            latest: latest.tag_name.replace('v', ''),
-            updateAvailable: latest.tag_name.replace('v', '') !== pkg.version,
-            downloadUrl: latest.html_url
+            latest: strip(latest.tag_name),
+            updateAvailable: strip(latest.tag_name) !== pkg.version,
+            downloadUrl: latest.html_url,
         });
     } catch (e) {
         res.status(500).json({ error: "Update check failed" });

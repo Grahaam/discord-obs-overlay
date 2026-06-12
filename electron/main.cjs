@@ -105,7 +105,11 @@ function createWizardWindow() {
     },
   });
   wizardWindow.loadFile(path.join(__dirname, 'wizard.html'));
-  wizardWindow.on('closed', () => { wizardWindow = null; });
+  wizardWindow.on('closed', () => {
+    wizardWindow = null;
+    // If setup was never completed there is no tray or main window — quit cleanly.
+    if (!tray && !mainWindow) app.quit();
+  });
 }
 
 // ── Tray ───────────────────────────────────────────────────────────────────────
@@ -127,9 +131,20 @@ function createTray(port) {
 }
 
 // ── IPC handlers ───────────────────────────────────────────────────────────────
-ipcMain.handle('complete-setup', async (_event, { token, channelId }) => {
+ipcMain.handle('complete-setup', async (event, { token, channelId }) => {
+  // Only accept calls from the wizard window.
+  if (!wizardWindow || event.sender !== wizardWindow.webContents) {
+    throw new Error('Unauthorized sender');
+  }
+
   const dataDir = isDev ? app.getAppPath() : app.getPath('userData');
   fs.mkdirSync(dataDir, { recursive: true });
+
+  // Boot server first — only persist config if it comes up successfully.
+  const port = await findFreePort();
+  forkServer(port, dataDir);
+  await waitForServer(port);
+
   fs.writeFileSync(path.join(dataDir, '.env'), `DISCORD_TOKEN=${token}\n`, 'utf8');
   fs.writeFileSync(
     path.join(dataDir, 'settings.json'),
@@ -137,10 +152,7 @@ ipcMain.handle('complete-setup', async (_event, { token, channelId }) => {
     'utf8'
   );
 
-  serverPort = await findFreePort();
-  forkServer(serverPort, dataDir);
-  await waitForServer(serverPort);
-
+  serverPort = port;
   createMainWindow(serverPort);
   createTray(serverPort);
   wizardWindow?.close();
@@ -158,11 +170,27 @@ app.whenReady().then(async () => {
     return;
   }
 
-  serverPort = await findFreePort();
-  forkServer(serverPort, dataDir);
-  await waitForServer(serverPort);
-  createMainWindow(serverPort);
-  createTray(serverPort);
+  try {
+    serverPort = await findFreePort();
+    forkServer(serverPort, dataDir);
+    await waitForServer(serverPort);
+    createMainWindow(serverPort);
+    createTray(serverPort);
+  } catch (err) {
+    console.error('[main] Failed to start server:', err);
+    const { dialog } = require('electron');
+    const { response } = await dialog.showMessageBox({
+      type: 'error',
+      title: 'Startup failed',
+      message: 'Discord OBS Overlay could not start the server.',
+      detail: String(err),
+      buttons: ['Retry', 'Quit'],
+    });
+    if (response === 0) {
+      app.relaunch();
+    }
+    app.quit();
+  }
 });
 
 // macOS: clicking dock icon re-shows window
