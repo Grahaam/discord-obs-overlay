@@ -27,6 +27,9 @@ interface ResolveOpts {
 
 function runsOk(bin: string): boolean {
   try {
+    // No timeout: the PyInstaller standalone self-extracts on first run, which
+    // can take well over 5s on a cold cache — a short timeout would kill a
+    // legitimately-working binary. This runs once at startup; -U is async.
     execFileSync(bin, ["--version"], { stdio: "ignore" });
     return true;
   } catch {
@@ -54,11 +57,23 @@ export function resolveStandalone(opts: ResolveOpts = {}): StandaloneResult | nu
   const target = path.join(cwd, "bin", name);
   try {
     if (!fs.existsSync(target)) {
+      // Copy to a temp sibling and rename so a crash/disk-full mid-copy never
+      // leaves a partial file that satisfies existsSync on the next launch.
       fs.mkdirSync(path.dirname(target), { recursive: true });
-      fs.copyFileSync(bundled, target);
-      if (platform !== "win32") fs.chmodSync(target, 0o755);
+      const tmp = `${target}.tmp`;
+      try {
+        fs.copyFileSync(bundled, tmp);
+        if (platform !== "win32") fs.chmodSync(tmp, 0o755);
+        fs.renameSync(tmp, target);
+      } catch (err) {
+        fs.rmSync(tmp, { force: true });
+        throw err;
+      }
     }
     if (runsOk(target)) return { path: target, updatable: true };
+    // Target exists but won't run (truncated, quarantined, bad perms) — remove
+    // it so the next launch re-copies instead of getting stuck on it forever.
+    fs.rmSync(target, { force: true });
   } catch {
     /* copy/exec failed — fall through to read-only bundled */
   }
