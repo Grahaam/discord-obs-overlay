@@ -84,7 +84,7 @@ function forkServer(port, dataDir) {
     },
     cwd: dataDir,
     stdio: ["ignore", "pipe", "pipe"],
-    serviceName: "discord-obs-overlay-server",
+    serviceName: "livechat-server",
   });
   serverProcess.stdout.on("data", (d) => process.stdout.write(`[server] ${d}`));
   serverProcess.stderr.on("data", (d) => process.stderr.write(`[server] ${d}`));
