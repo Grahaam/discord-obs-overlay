@@ -31,6 +31,7 @@ import axios from "axios";
 import { normalizeToMp4 } from "./ffmpegNormalizer.js";
 import { SIZE_LIMITS } from "./mediaWorkerQueue.js";
 import { settingsManager } from "./settingsManager.js";
+import { resolveStandalone } from "./ytDlpBinary.js";
 
 async function resolveDNSHost(url: string): Promise<string> {
   const hostname = new URL(url).hostname;
@@ -51,7 +52,20 @@ async function resolveDNSHost(url: string): Promise<string> {
   return address;
 }
 
+// Set by findBestYtDlpPath(): true only when the active binary is the bundled
+// standalone copy in a writable dir, which is the only variant that supports
+// `yt-dlp -U` self-update. venv (pip) / system (brew/apt) installs do not.
+let _ytDlpIsStandalone = false;
+
 function findBestYtDlpPath(): string | null {
+  // Packaged: prefer the bundled, self-updating standalone binary.
+  const standalone = resolveStandalone();
+  if (standalone) {
+    _ytDlpIsStandalone = standalone.updatable;
+    logger.info({ ytDlp: standalone.path, updatable: standalone.updatable }, "Using bundled standalone yt-dlp");
+    return standalone.path;
+  }
+
   const isWin = process.platform === "win32";
   const venvBin = path.join(process.cwd(), ".venv", isWin ? "Scripts" : "bin", isWin ? "yt-dlp.exe" : "yt-dlp");
   if (fs.existsSync(venvBin)) {
@@ -545,7 +559,10 @@ export async function updateYtDlp(): Promise<void> {
   // binary. Package-manager installs (our venv uses pip; a system binary may be
   // brew/apt) refuse with exit code 100 — keep them current via their own
   // manager (e.g. `pip install -U yt-dlp` in the venv), not here.
-  if (_ytDlpCustomPath) {
+  // Self-update only works on the bundled standalone (writable copy) or the
+  // youtube-dl-exec fallback. venv (pip) / system (brew/apt) binaries refuse
+  // `yt-dlp -U` with exit code 100 — skip them.
+  if (_ytDlpCustomPath && !_ytDlpIsStandalone) {
     logger.info({ ytDlp: _ytDlpCustomPath }, "External yt-dlp (venv/system) — skipping self-update");
     return;
   }
