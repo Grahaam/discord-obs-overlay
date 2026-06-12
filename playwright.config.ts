@@ -1,4 +1,7 @@
 import { defineConfig } from "@playwright/test";
+import path from "path";
+
+const venvBin = path.join(process.cwd(), ".venv", process.platform === "win32" ? "Scripts" : "bin");
 
 export default defineConfig({
   testDir: "./tests",
@@ -18,7 +21,7 @@ export default defineConfig({
     reuseExistingServer: true,
     timeout: 60_000,
     env: {
-      PATH: `${process.env.PWD}/.venv/bin:${process.env.PATH ?? ""}`,
+      PATH: `${venvBin}${path.delimiter}${process.env.PATH ?? ""}`,
     },
   },
 });

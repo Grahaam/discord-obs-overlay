@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-2022]
 
     runs-on: ${{ matrix.os }}
 
@@ -27,20 +27,27 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
-      # Windows: skip install scripts to avoid node-gyp issues, then rebuild
-      # only the one native module that actually needs a compiled binary.
-      - name: Install dependencies (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          npm install --ignore-scripts
-          npm rebuild better-sqlite3
-
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Install dependencies
         run: npm install
+
+      - name: Smoke check – better-sqlite3 and yt-dlp
+        run: |
+          node -e "
+          const Database = require('better-sqlite3');
+          const db = new Database(':memory:');
+          db.close();
+          console.log('better-sqlite3: ok');
+
+          const fs = require('fs');
+          const path = require('path');
+          const isWin = process.platform === 'win32';
+          const ytDlp = path.join(process.cwd(), '.venv', isWin ? 'Scripts' : 'bin', isWin ? 'yt-dlp.exe' : 'yt-dlp');
+          if (!fs.existsSync(ytDlp)) { console.error('yt-dlp not found at', ytDlp); process.exit(1); }
+          console.log('yt-dlp: ok');
+          "
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
