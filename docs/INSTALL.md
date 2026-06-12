@@ -11,7 +11,7 @@
 
 1. Téléchargez le DMG correspondant à votre puce :
    - Apple Silicon (M1/M2/M3) : `LiveChat-2.0.0-arm64.dmg`
-   - Intel : `LiveChat-2.0.0.dmg`
+   - Intel : `LiveChat-2.0.0-x64.dmg`
 2. Ouvrez le DMG, glissez **LiveChat.app** dans **Applications**.
 3. Premier lancement : clic-droit sur l'app → **Ouvrir** (Gatekeeper bloque le double-clic car l'app n'est pas notarisée).
 4. Données utilisateur : `~/Library/Application Support/LiveChat/`.

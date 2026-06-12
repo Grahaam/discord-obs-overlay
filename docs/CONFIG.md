@@ -22,7 +22,7 @@ Localisation par OS : voir [INSTALL.md](INSTALL.md).
 4. Sous **Privileged Gateway Intents**, activez **MESSAGE CONTENT INTENT**.
 5. Onglet **OAuth2 → URL Generator** :
    - Scopes : `bot`
-   - Bot Permissions : `Read Messages/View Channels`, `Read Message History`
+   - Bot Permissions : `View Channels`, `Read Message History`
    - Copiez l'URL générée → ouvrez-la → ajoutez le bot à votre serveur.
 
 ## Récupérer l'ID d'un salon Discord
@@ -49,12 +49,19 @@ Tableau de bord → **Filtres**. Deux modes :
 
 ## Limites de taille
 
-| Type | Limite dur (code) | Limite utilisateur (UI) |
-|------|------------------|------------------------|
-| Image | 10 Mo | configurable via `mediaMaxSizeMB` |
-| Vidéo | 50 Mo | configurable via `mediaMaxSizeMB` |
+Deux plafonds s'appliquent :
 
-La limite UI ne peut pas dépasser la limite dur.
+- **Limite UI** (`mediaMaxSizeMB`, réglable depuis le tableau de bord) : défaut **50 Mo**, max **500 Mo**. C'est elle qui rejette la plupart des médias trop volumineux.
+- **Limite dure (code)** par type de fichier, beaucoup plus haute :
+
+| Type | Limite dure |
+|------|-------------|
+| Image | 10 Mo |
+| GIF | 25 Mo |
+| Vidéo | 5000 Mo |
+| Audio | 15 Mo |
+
+Si la limite UI est plus basse que la limite dure pour un type donné, c'est elle qui s'applique. Pour autoriser des vidéos jusqu'à 500 Mo, augmentez `mediaMaxSizeMB` à 500.
 
 ## Variables d'environnement
 
@@ -64,4 +71,4 @@ La limite UI ne peut pas dépasser la limite dur.
 | `PORT` | auto (3000–3099) | Force un port spécifique (mode standalone) |
 | `NODE_ENV` | `production` | `development` active Vite HMR |
 
-En mode Electron, le port est choisi automatiquement parmi les libres entre 3000 et 3099 ; `PORT` est ignoré.
+En mode Electron packagé, c'est l'app qui choisit le port libre entre 3000 et 3099 et le passe au serveur ; vos `PORT` définis dans l'environnement OS n'ont pas d'effet.

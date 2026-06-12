@@ -26,9 +26,8 @@ Si vous restez en mode source (`npm start`) : aucune action requise, vos fichier
 
 ### Highlights
 
-- **Renommage produit** : `discord-obs-overlay` → **LiveChat**.
 - **Application desktop** : nouveau shell Electron avec installeurs Windows (NSIS), macOS (DMG x64 + arm64) et Linux (AppImage).
-- **yt-dlp embarqué** : binaire standalone livré avec l'app, auto-mis-à-jour. Plus besoin d'installation système.
+- **yt-dlp embarqué** : binaire PyInstaller standalone livré avec l'app et auto-mis-à-jour via `yt-dlp -U` (mode packagé uniquement ; installations source pip/brew/apt restent gérées par l'utilisateur). Plus besoin d'installation système.
 - **Assistant de premier lancement** : configuration token + salon dans une fenêtre dédiée.
 - **Icône système** : LiveChat tourne en tray, fermer la fenêtre la masque.
 

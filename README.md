@@ -26,7 +26,7 @@ Téléchargez l'installeur correspondant à votre système depuis la page [Relea
 |---------|---------|
 | Windows | `LiveChat-Setup-2.0.0.exe` (NSIS) |
 | macOS (Apple Silicon) | `LiveChat-2.0.0-arm64.dmg` |
-| macOS (Intel) | `LiveChat-2.0.0.dmg` |
+| macOS (Intel) | `LiveChat-2.0.0-x64.dmg` |
 | Linux | `LiveChat-2.0.0.AppImage` |
 
 Aucune installation de Node.js, `yt-dlp` ou `ffmpeg` n'est requise — tout est embarqué.

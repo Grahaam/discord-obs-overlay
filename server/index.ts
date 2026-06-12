@@ -250,7 +250,7 @@ async function runServer() {
   });
 
   httpServer.listen(PORT, env.HOST, () => {
-    logger.info({ host: env.HOST, port: PORT }, "Stream Alert server active");
+    logger.info({ host: env.HOST, port: PORT }, "LiveChat server active");
     // Warm up yt-dlp (self-extract) in the background, then release the media
     // queue and tell clients the engine is ready.
     warmUpYtDlp().finally(() => {

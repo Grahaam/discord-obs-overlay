@@ -29,12 +29,11 @@ LiveChat sonde 3000–3099. Si tout est occupé, fermez les autres apps ou chang
 
 - **Vidéo privée / âge restreint :** ajoutez un `cookies.txt` (voir [CONFIG.md](CONFIG.md#cookies-youtube-cookiestxt)).
 - **Erreur "Sign in to confirm" :** YouTube détecte trop de requêtes anonymes — utilisez `cookies.txt`.
-- **yt-dlp obsolète :** LiveChat s'auto-met-à-jour au démarrage. Forcez : fermez l'app, supprimez le binaire dans le dossier de données utilisateur, relancez.
+- **yt-dlp obsolète :** la copie standalone embarquée (mode Electron packagé) se met à jour automatiquement au premier usage via `yt-dlp -U`. Forcez la régénération : fermez l'app, supprimez le binaire dans `<userData>/bin/` (`yt-dlp.exe` / `yt-dlp_macos` / `yt-dlp_linux`), relancez — la copie embarquée est recopiée puis se met à jour. Pour les installations source via venv/pip, la mise à jour passe par `pip install -U yt-dlp`, jamais par l'app.
 
 ## Fichier trop volumineux
 
-- Limite vidéo dur : 50 Mo. Au-delà, l'alerte est ignorée.
-- Limite Discord attachement : ajustable via **Filtres → Taille max média**.
+La limite la plus restrictive est le réglage UI **Filtres → Taille max média** (`mediaMaxSizeMB`, défaut 50 Mo, max 500 Mo). Au-delà, l'alerte est ignorée. Les limites dures côté code sont bien plus hautes (vidéo 5000 Mo, image 10 Mo, GIF 25 Mo, audio 15 Mo) — voir [CONFIG.md](CONFIG.md#limites-de-taille). Pour autoriser des vidéos lourdes, montez `mediaMaxSizeMB` à 500.
 
 ## L'app ne démarre pas (macOS) — "Application endommagée"
 

@@ -21,6 +21,7 @@
     ],
     "win": {
       "icon": "electron/assets/icon.png",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
       "target": [
         {
           "target": "nsis",
@@ -32,6 +33,7 @@
     },
     "mac": {
       "icon": "electron/assets/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "target": [
         {
           "target": "dmg",
@@ -45,6 +47,7 @@
     },
     "linux": {
       "icon": "electron/assets/icon.png",
+      "artifactName": "${productName}-${version}.${ext}",
       "target": [
         {
           "target": "AppImage",
