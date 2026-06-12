@@ -536,9 +536,17 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
 }
 
 export async function updateYtDlp(): Promise<void> {
+  // `yt-dlp -U` self-update only works on the bundled standalone PyInstaller
+  // binary. Package-manager installs (our venv uses pip; a system binary may be
+  // brew/apt) refuse with exit code 100 — keep them current via their own
+  // manager (e.g. `pip install -U yt-dlp` in the venv), not here.
+  if (_ytDlpCustomPath) {
+    logger.info({ ytDlp: _ytDlpCustomPath }, "External yt-dlp (venv/system) — skipping self-update");
+    return;
+  }
   try {
     logger.info("yt-dlp checking for updates");
-    await (_ytDlpCustomPath ? ytDlpUpdateRaw(_ytDlpCustomPath) : ytDlpUpdateRaw());
+    await ytDlpUpdateRaw();
     logger.info("yt-dlp update check completed");
   } catch (err: any) {
     logger.warn({ err: err.message }, "yt-dlp update failed");
