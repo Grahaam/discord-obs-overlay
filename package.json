@@ -1,10 +1,66 @@
 {
-  "name": "discord-obs-overlay",
+  "name": "livechat",
+  "author": "CramoiSel",
   "private": true,
-  "version": "1.9.5",
+  "version": "2.0.0",
   "type": "module",
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.livechat",
+    "productName": "LiveChat",
+    "asar": false,
+    "npmRebuild": true,
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "node_modules/**",
+      "package.json"
+    ],
+    "win": {
+      "icon": "electron/assets/icon.png",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "icon": "electron/assets/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "icon": "electron/assets/icon.png",
+      "artifactName": "${productName}-${version}.${ext}",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility"
+    }
+  },
   "scripts": {
-    "postinstall": "node scripts/setup-yt-dlp.cjs",
+    "postinstall": "node scripts/setup-yt-dlp.cjs && (npx --no-install electron-builder install-app-deps || echo [skip] electron-builder not installed - skipping app-deps rebuild)",
     "dev": "node scripts/run-with-venv.cjs tsx server/index.ts",
     "build": "npm run typecheck && vite build && esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.mjs",
     "start": "node scripts/run-with-venv.cjs node dist/server.mjs",
@@ -15,8 +71,16 @@
     "format": "prettier --write .",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
+    "test:unit": "node --import tsx --test \"server/**/*.test.ts\" \"scripts/**/*.test.cjs\"",
     "test:media": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts",
-    "test:media:filter": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts --filter"
+    "test:media:filter": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts --filter",
+    "gen-icons": "node scripts/gen-icons.cjs",
+    "electron:rebuild": "node -e \"require('@electron/rebuild').rebuild({buildPath:process.cwd(),electronVersion:require('./node_modules/electron/package.json').version,force:true,onlyModules:['better-sqlite3']}).then(()=>console.log('rebuild ok')).catch(e=>{console.error(e.message);process.exit(1)})\"",
+    "electron:dev": "npm run build && npm run electron:rebuild && electron .",
+    "electron:build": "npm run build && node scripts/fetch-ytdlp.cjs && electron-builder",
+    "electron:build:win": "npm run build && node scripts/fetch-ytdlp.cjs --platform win32 && electron-builder --win",
+    "electron:build:mac": "npm run build && node scripts/fetch-ytdlp.cjs --platform darwin && electron-builder --mac",
+    "electron:build:linux": "npm run build && node scripts/fetch-ytdlp.cjs --platform linux && electron-builder --linux"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -57,6 +121,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.60.0",
     "@types/better-sqlite3": "^7.6.13",
@@ -69,6 +134,8 @@
     "@typescript-eslint/parser": "^8.60.0",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.21",
+    "electron": "35.7.5",
+    "electron-builder": "^25.1.8",
     "esbuild": "^0.28.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
@@ -83,5 +150,13 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.0",
     "vite": "^8.0.14"
+  },
+  "allowScripts": {
+    "electron@35.7.5": true,
+    "better-sqlite3@12.10.0": true,
+    "esbuild@0.28.0": true,
+    "ffmpeg-static@5.3.0": true,
+    "re2@1.24.1": true,
+    "youtube-dl-exec@3.1.7": true
   }
 }

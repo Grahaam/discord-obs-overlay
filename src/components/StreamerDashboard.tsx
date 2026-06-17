@@ -35,6 +35,7 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { SortableQueueItem } from "./SortableQueueItem";
 import { useQueueStore } from "../store/queueStore";
 import UpdateNotification from "./UpdateNotification";
+import MediaEngineBadge from "./MediaEngineBadge";
 
 export default function StreamerDashboard() {
   const [activeTab, setActiveTab] = useState<"credentials" | "styling" | "moderation" | "simulator" | "health">(
@@ -938,6 +939,7 @@ export default function StreamerDashboard() {
             )}
           </div>
           <UpdateNotification />
+          <MediaEngineBadge />
         </section>
       </main>
     </div>

@@ -2,7 +2,6 @@ import express from "express";
 import fs from "fs";
 import { createServer as createHttpServer } from "http";
 import { Server as SocketServer } from "socket.io";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
@@ -11,13 +10,15 @@ import { env } from "./env.js";
 import { settingsManager } from "./settingsManager.js";
 import { botManager } from "./discordBotManager.js";
 import { setupRoutes } from "./routes.js";
-import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser } from "./mediaParser.js";
+import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser, warmUpYtDlp, isYtDlpReady } from "./mediaParser.js";
+import { startMediaQueue } from "./mediaWorkerQueue.js";
 import { alertManager } from "./alertManager.js";
 import { initDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount } from "./db.js";
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
 import { trollRestore } from "./obsManager.js";
+import { APP_PATHS } from "./paths.js";
 
 dotenv.config();
 
@@ -136,6 +137,7 @@ async function runServer() {
     if (env.NODE_ENV !== "production") {
       logger.debug({ socketId: socket.id, total: io.engine.clientsCount }, "Socket connected");
     }
+    socket.emit("media_engine_status", { ready: isYtDlpReady() });
 
     socket.on("get_initial_state", () => {
       socket.emit("initial_state", alertManager.getAlerts());
@@ -199,27 +201,36 @@ async function runServer() {
   // New update check endpoint
   app.get("/api/check-update", async (req, res) => {
     try {
-        const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
-        const response = await fetch("https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest");
+        const pkg = JSON.parse(fs.readFileSync(APP_PATHS.packageJson, 'utf8'));
+        const response = await fetch(
+          "https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest",
+          {
+            signal: AbortSignal.timeout(5000),
+            headers: { Accept: "application/vnd.github+json" },
+          }
+        );
+        if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
         const latest = await response.json();
+        const strip = (v: string) => v.replace(/^v/, "");
         res.json({
             current: pkg.version,
-            latest: latest.tag_name.replace('v', ''),
-            updateAvailable: latest.tag_name.replace('v', '') !== pkg.version,
-            downloadUrl: latest.html_url
+            latest: strip(latest.tag_name),
+            updateAvailable: strip(latest.tag_name) !== pkg.version,
+            downloadUrl: latest.html_url,
         });
-    } catch (e) {
+    } catch (_e) {
         res.status(500).json({ error: "Update check failed" });
     }
   });
 
   if (env.NODE_ENV === "production") {
-    const distPath = path.join(process.cwd(), "dist");
+    const distPath = APP_PATHS.distDir;
     app.use(express.static(distPath));
     app.get("/{*splat}", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   } else {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
@@ -239,7 +250,14 @@ async function runServer() {
   });
 
   httpServer.listen(PORT, env.HOST, () => {
-    logger.info({ host: env.HOST, port: PORT }, "Stream Alert server active");
+    logger.info({ host: env.HOST, port: PORT }, "LiveChat server active");
+    // Warm up yt-dlp (self-extract) in the background, then release the media
+    // queue and tell clients the engine is ready.
+    warmUpYtDlp().finally(() => {
+      startMediaQueue();
+      io.emit("media_engine_ready");
+      logger.info("Media engine ready");
+    });
   });
 
   // Graceful shutdown

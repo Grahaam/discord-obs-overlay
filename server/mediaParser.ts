@@ -9,7 +9,7 @@ import metascraperAmazon from "metascraper-amazon";
 import metascraperUrl from "metascraper-url";
 import metascraperLogo from "metascraper-logo";
 import metascraperAuthor from "metascraper-author";
-import { execFileSync } from "child_process";
+import { execFileSync, execFile } from "child_process";
 import { createRequire } from "module";
 import { logger } from "./logger.js";
 import { CACHE_DIR } from "./binaries.js";
@@ -31,6 +31,7 @@ import axios from "axios";
 import { normalizeToMp4 } from "./ffmpegNormalizer.js";
 import { SIZE_LIMITS } from "./mediaWorkerQueue.js";
 import { settingsManager } from "./settingsManager.js";
+import { resolveStandalone } from "./ytDlpBinary.js";
 
 async function resolveDNSHost(url: string): Promise<string> {
   const hostname = new URL(url).hostname;
@@ -51,7 +52,20 @@ async function resolveDNSHost(url: string): Promise<string> {
   return address;
 }
 
+// Set by findBestYtDlpPath(): true only when the active binary is the bundled
+// standalone copy in a writable dir, which is the only variant that supports
+// `yt-dlp -U` self-update. venv (pip) / system (brew/apt) installs do not.
+let _ytDlpIsStandalone = false;
+
 function findBestYtDlpPath(): string | null {
+  // Packaged: prefer the bundled, self-updating standalone binary.
+  const standalone = resolveStandalone();
+  if (standalone) {
+    _ytDlpIsStandalone = standalone.updatable;
+    logger.info({ ytDlp: standalone.path, updatable: standalone.updatable }, "Using bundled standalone yt-dlp");
+    return standalone.path;
+  }
+
   const isWin = process.platform === "win32";
   const venvBin = path.join(process.cwd(), ".venv", isWin ? "Scripts" : "bin", isWin ? "yt-dlp.exe" : "yt-dlp");
   if (fs.existsSync(venvBin)) {
@@ -80,6 +94,31 @@ function findBestYtDlpPath(): string | null {
 
 export const _ytDlpCustomPath = findBestYtDlpPath();
 const ytDlp = _ytDlpCustomPath ? ytDlpCreate(_ytDlpCustomPath) : youtubedl;
+
+let _ytDlpReady = false;
+
+/** Whether the media engine (yt-dlp) has finished first-run extraction. */
+export function isYtDlpReady(): boolean {
+  return _ytDlpReady;
+}
+
+/**
+ * Force the standalone yt-dlp to self-extract now (async, off the startup
+ * path) so the first real media job isn't blocked by a ~10s+ extraction.
+ * Always marks ready in `finally` so a hung/slow extraction can't wedge the
+ * media queue forever.
+ */
+export async function warmUpYtDlp(): Promise<void> {
+  try {
+    if (_ytDlpCustomPath) {
+      await new Promise<void>((resolve) => {
+        execFile(_ytDlpCustomPath as string, ["--version"], { timeout: 120000 }, () => resolve());
+      });
+    }
+  } finally {
+    _ytDlpReady = true;
+  }
+}
 
 const metascraper = createMetascraper([
   metascraperSpotify(),
@@ -338,6 +377,54 @@ function getAudioExt(url: string): string | null {
   return m ? m[1].toLowerCase() : null;
 }
 
+const MIME_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/mp4": "m4a",
+  "audio/aac": "aac",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/flac": "flac",
+};
+
+/**
+ * Resolve true media type from the server's Content-Type for URLs with no usable
+ * file extension (e.g. bing `th/id` thumbnails, image/video CDNs). Without this,
+ * yt-dlp's generic extractor "succeeds" on a bare image — downloading it and
+ * wrapping it into an mp4, so an image plays as a re-encoded silent video.
+ * SSRF-guarded via resolveDNSHost; returns null on any failure (caller falls through).
+ */
+async function sniffMediaType(url: string): Promise<{ kind: "image" | "video" | "audio"; ext: string } | null> {
+  try {
+    await resolveDNSHost(url);
+    const resp = await axios.head(url, {
+      timeout: 6000,
+      maxRedirects: 5,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      },
+      validateStatus: (s) => s >= 200 && s < 400,
+    });
+    const ct = String(resp.headers["content-type"] || "")
+      .split(";")[0]
+      .trim()
+      .toLowerCase();
+    if (ct.startsWith("image/")) return { kind: "image", ext: MIME_EXT[ct] ?? "jpg" };
+    if (ct.startsWith("video/")) return { kind: "video", ext: "mp4" };
+    if (ct.startsWith("audio/")) return { kind: "audio", ext: MIME_EXT[ct] ?? "mp3" };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function cacheMedia(url: string, originalUrl: string, ext = "mp4"): Promise<string | null> {
   const isImage = IMAGE_EXTENSIONS.has(ext);
   const isAudio = AUDIO_EXTENSIONS.has(ext);
@@ -438,7 +525,12 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
         geoBypass: true,
         forceIpv4: true,
         skipDownload: true,
-        ...(isYouTube && { extractorArgs: "youtube:player-client=android_vr", noCookies: true }),
+        // Extract from multiple player clients and merge their format lists.
+        // A single client (e.g. android_vr) intermittently returns only
+        // storyboard formats when YouTube throttles it, which fails format
+        // selection with "Requested format is not available"; listing a
+        // fallback client lets the real formats come through.
+        ...(isYouTube && { extractorArgs: "youtube:player-client=default,android_vr", noCookies: true }),
         ...(!isYouTube && hasCookies && { cookies: cookiesPath }),
       }),
       YTDLP_TIMEOUT_MS,
@@ -536,9 +628,31 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
 }
 
 export async function updateYtDlp(): Promise<void> {
+  // `yt-dlp -U` self-update only works on a writable standalone PyInstaller
+  // binary. Package-manager installs (our venv uses pip; a system binary may be
+  // brew/apt) refuse with exit code 100 — keep them current via their own
+  // manager (e.g. `pip install -U yt-dlp` in the venv), not here.
+  if (_ytDlpCustomPath && !_ytDlpIsStandalone) {
+    logger.info({ ytDlp: _ytDlpCustomPath }, "External yt-dlp (venv/system) — skipping self-update");
+    return;
+  }
   try {
     logger.info("yt-dlp checking for updates");
-    await (_ytDlpCustomPath ? ytDlpUpdateRaw(_ytDlpCustomPath) : ytDlpUpdateRaw());
+    if (_ytDlpCustomPath) {
+      // Update the active standalone copy in place. ytDlpUpdateRaw() would run
+      // `-U` against youtube-dl-exec's OWN bundled binary instead — read-only
+      // inside a packaged app bundle, so it always fails (exit 1) and never
+      // touches the copy we actually use.
+      await new Promise<void>((resolve, reject) => {
+        execFile(_ytDlpCustomPath as string, ["-U"], { timeout: 120000 }, (err, _stdout, stderr) => {
+          if (err) reject(new Error(stderr?.trim() || err.message));
+          else resolve();
+        });
+      });
+    } else {
+      // No custom path: youtube-dl-exec fallback binary — update via its own helper.
+      await ytDlpUpdateRaw();
+    }
     logger.info("yt-dlp update check completed");
   } catch (err: any) {
     logger.warn({ err: err.message }, "yt-dlp update failed");
@@ -761,7 +875,7 @@ export async function resolveMediaFromLink(url: string): Promise<{
       const metadata = await fetchMetadata(normalizedUrl);
 
       if (metadata && (metadata.title || metadata.author)) {
-        let searchQuery = `${metadata.title || ""} ${metadata.author || ""}`.trim();
+        const searchQuery = `${metadata.title || ""} ${metadata.author || ""}`.trim();
 
         if (!searchQuery || searchQuery.length < 3) {
           throw new Error("Could not extract meaningful metadata for search");
@@ -782,6 +896,26 @@ export async function resolveMediaFromLink(url: string): Promise<{
     } catch (err: any) {
       logger.warn({ err: err.message, url: normalizedUrl }, "Music platform redirection failed");
       /* fallthrough to normal yt-dlp */
+    }
+  }
+
+  // Extensionless direct media (e.g. bing th/id thumbnails): cache by Content-Type
+  // BEFORE yt-dlp, otherwise yt-dlp's generic extractor wraps a bare image into an
+  // mp4 and it plays as a silent video. Skip embeddable providers (youtube/tiktok/…
+  // resolve to iframe) so their links still go through the normal yt-dlp path.
+  if (!isDirectMediaUrl && parseMediaUrl(downloadUrl).type !== "iframe") {
+    const sniffed = await sniffMediaType(downloadUrl);
+    if (sniffed) {
+      const cached = await cacheMedia(downloadUrl, cleanedUrl, sniffed.ext);
+      if (cached) {
+        const titleMap = { image: "Image", video: "Video", audio: "Audio" } as const;
+        return {
+          type: sniffed.kind,
+          mediaUrl: `/api/media-cache/${cached}`,
+          title: titleMap[sniffed.kind],
+          provider: urlProvider,
+        };
+      }
     }
   }
 

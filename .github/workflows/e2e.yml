@@ -1,0 +1,63 @@
+name: E2E
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2022]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+
+      # postinstall runs `electron-builder install-app-deps`, which rebuilds
+      # better-sqlite3 for the Electron ABI. The E2E suite runs the server under
+      # plain Node, so rebuild it back to the Node ABI or every require() fails
+      # with ERR_DLOPEN_FAILED (NODE_MODULE_VERSION mismatch).
+      - name: Rebuild native deps for Node ABI
+        run: npm rebuild better-sqlite3
+
+      - name: Smoke check – better-sqlite3 and yt-dlp
+        run: |
+          node -e "
+          const Database = require('better-sqlite3');
+          const db = new Database(':memory:');
+          db.close();
+          console.log('better-sqlite3: ok');
+
+          const fs = require('fs');
+          const path = require('path');
+          const isWin = process.platform === 'win32';
+          const ytDlp = path.join(process.cwd(), '.venv', isWin ? 'Scripts' : 'bin', isWin ? 'yt-dlp.exe' : 'yt-dlp');
+          if (!fs.existsSync(ytDlp)) { console.error('yt-dlp not found at', ytDlp); process.exit(1); }
+          console.log('yt-dlp: ok');
+          "
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: npm test

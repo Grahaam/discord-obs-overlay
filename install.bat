@@ -1,11 +1,11 @@
 @echo off
 cd /d "%~dp0"
 setlocal EnableDelayedExpansion
-title Discord OBS Overlay - Installer
+title LiveChat - Installer
 
 echo.
 echo =============================================
-echo   Discord OBS Overlay - Setup
+echo   LiveChat - Setup
 echo =============================================
 echo.
 
@@ -89,7 +89,12 @@ if errorlevel 1 (
 echo.
 echo [1/2] Installing Node dependencies...
 echo.
-call npm install
+if not exist "server" (
+    :: Release package — prebuilt dist\, no build needed, skip devDependencies.
+    call npm install --omit=dev
+) else (
+    call npm install
+)
 if errorlevel 1 (
     echo.
     echo [ERROR] npm install failed.
@@ -202,13 +207,13 @@ if !DOCKER_OK!==0 (
     set /a SECS+=1
     set /a MINS=!SECS! / 60
     set /a RSECS=!SECS! %% 60
-    title Discord OBS Overlay - Installing Docker... Time elapsed: !MINS!m !RSECS!s
+    title LiveChat - Installing Docker... Time elapsed: !MINS!m !RSECS!s
     timeout /t 1 >nul
     goto :wait_docker
 
     :docker_done
     del "!DONE_FLAG!" >nul 2>&1
-    title Discord OBS Overlay - Installer
+    title LiveChat - Installer
 
     where docker >nul 2>&1
     if errorlevel 1 (

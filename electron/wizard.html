@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>LiveChat — Setup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #36393f;
+    color: #dcddde;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 32px;
+  }
+  .card {
+    background: #2f3136;
+    border-radius: 12px;
+    padding: 32px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  h1 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #72767d; margin-bottom: 28px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: #b9bbbe; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .field { margin-bottom: 20px; }
+  input {
+    width: 100%;
+    background: #40444b;
+    border: 1px solid #202225;
+    border-radius: 4px;
+    color: #dcddde;
+    font-size: 14px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus { border-color: #7289da; }
+  input.error { border-color: #ed4245; }
+  .hint { font-size: 12px; color: #72767d; margin-top: 4px; }
+  .err-msg { font-size: 12px; color: #ed4245; margin-top: 4px; display: none; }
+  .err-msg.visible { display: block; }
+  button {
+    width: 100%;
+    background: #7289da;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px;
+    cursor: pointer;
+    transition: filter 0.15s, opacity 0.15s;
+    margin-top: 8px;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.1); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .status { font-size: 13px; color: #72767d; text-align: center; margin-top: 12px; min-height: 20px; }
+  .status.error { color: #ed4245; }
+  .status.success { color: #3ba55c; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>LiveChat</h1>
+  <p class="subtitle">First-time setup — connect your Discord bot</p>
+
+  <div class="field">
+    <label for="token">Discord Bot Token</label>
+    <input type="password" id="token" placeholder="Paste your bot token" autocomplete="off" spellcheck="false">
+    <p class="hint">Discord Developer Portal → Your App → Bot → Token</p>
+    <p class="err-msg" id="token-err">Token is required</p>
+  </div>
+
+  <div class="field">
+    <label for="channel">Channel ID</label>
+    <input type="text" id="channel" placeholder="e.g. 1234567890123456789" autocomplete="off" spellcheck="false" inputmode="numeric">
+    <p class="hint">Right-click a channel in Discord → Copy Channel ID</p>
+    <p class="err-msg" id="channel-err">Must be a numeric snowflake ID</p>
+  </div>
+
+  <button id="btn" onclick="submit()">Connect Bot &amp; Open Dashboard</button>
+  <p class="status" id="status"></p>
+</div>
+
+<script>
+  async function submit() {
+    const token = document.getElementById('token').value.trim();
+    const channelId = document.getElementById('channel').value.trim();
+    const tokenInput = document.getElementById('token');
+    const channelInput = document.getElementById('channel');
+    const tokenErr = document.getElementById('token-err');
+    const channelErr = document.getElementById('channel-err');
+    const btn = document.getElementById('btn');
+    const status = document.getElementById('status');
+    if (btn.disabled) return; // setup already in flight (Enter key bypasses the button)
+    let valid = true;
+
+    tokenInput.classList.remove('error'); tokenErr.classList.remove('visible');
+    channelInput.classList.remove('error'); channelErr.classList.remove('visible');
+
+    if (!token) {
+      tokenInput.classList.add('error'); tokenErr.classList.add('visible'); valid = false;
+    }
+    if (!channelId || !/^\d+$/.test(channelId)) {
+      channelInput.classList.add('error'); channelErr.classList.add('visible'); valid = false;
+    }
+    if (!valid) return;
+
+    btn.disabled = true;
+    status.className = 'status';
+    status.textContent = 'Starting server…';
+
+    try {
+      await window.electronAPI.completeSetup(token, channelId);
+      status.className = 'status success';
+      status.textContent = 'Connected! Opening dashboard…';
+    } catch (e) {
+      btn.disabled = false;
+      status.className = 'status error';
+      // Strip Electron's IPC error prefix ("Error invoking remote method '…': Error: ")
+      const msg = ((e && e.message) || '').replace(/^Error invoking remote method '[^']*':\s*(Error:\s*)?/, '');
+      status.textContent = msg || 'Setup failed. Check your token and try again.';
+    }
+  }
+
+  document.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+</script>
+</body>
+</html>

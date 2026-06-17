@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueueStore } from "../store/queueStore";
 
 const DEFAULT_MEDIA =
@@ -21,6 +21,15 @@ export default function TrollOverlay() {
   const [soundUrl, setSoundUrl] = useState(DEFAULT_SOUND);
   const [type, setType] = useState<"video" | "image">("image");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismiss = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setActive(false);
+    socket?.emit("troll_dismissed");
+  }, [socket]);
 
   useEffect(() => {
     if (!socket) return;
@@ -45,16 +54,7 @@ export default function TrollOverlay() {
     return () => {
       socket.off("troll_alert", handler);
     };
-  }, [socket]);
-
-  function dismiss() {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    setActive(false);
-    socket?.emit("troll_dismissed");
-  }
+  }, [socket, dismiss]);
 
   if (!active) return null;
 

@@ -5,6 +5,7 @@ node_modules/
 # Build output
 build/
 dist/
+dist-electron/
 coverage/
 
 # OS
@@ -65,3 +66,5 @@ graphify-out/
 dashboard-initial.png
 .superpowers/
 conductor/
+# Standalone yt-dlp binaries fetched at build time (scripts/fetch-ytdlp.cjs)
+/electron/bin/
