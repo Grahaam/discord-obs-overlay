@@ -86,16 +86,25 @@ echo "[OK] Dependencies installed."
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 echo ""
-echo "[2/2] Building the app..."
-echo ""
-if [ -d dist ] && ! rm -rf dist 2>/dev/null; then
-    echo "[ERROR] Cannot remove old dist/ directory (owned by root from a previous sudo run)."
-    echo "  Fix: sudo rm -rf dist && bash install.sh"
-    exit 1
+if [ ! -d server ]; then
+    echo "[INFO] Source code not found (release package) — skipping build."
+    if [ ! -f dist/server.mjs ]; then
+        echo "[ERROR] No source code and no prebuilt dist/server.mjs. This package is incomplete."
+        exit 1
+    fi
+    echo "[OK] Using prebuilt dist/."
+else
+    echo "[2/2] Building the app..."
+    echo ""
+    if [ -d dist ] && ! rm -rf dist 2>/dev/null; then
+        echo "[ERROR] Cannot remove old dist/ directory (owned by root from a previous sudo run)."
+        echo "  Fix: sudo rm -rf dist && bash install.sh"
+        exit 1
+    fi
+    npm run build
+    echo ""
+    echo "[OK] App built."
 fi
-npm run build
-echo ""
-echo "[OK] App built."
 
 # ── Optional Cobalt setup ──────────────────────────────────────────────────────
 echo ""
