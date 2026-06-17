@@ -81,7 +81,12 @@ fi
 echo ""
 echo "[1/2] Installing Node dependencies..."
 echo ""
-npm install --silent
+if [ ! -d server ]; then
+    # Release package — prebuilt dist/, no build needed, skip devDependencies.
+    npm install --omit=dev --silent
+else
+    npm install --silent
+fi
 echo "[OK] Dependencies installed."
 
 # ── Build ──────────────────────────────────────────────────────────────────────

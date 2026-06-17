@@ -89,7 +89,12 @@ if errorlevel 1 (
 echo.
 echo [1/2] Installing Node dependencies...
 echo.
-call npm install
+if not exist "server" (
+    :: Release package — prebuilt dist\, no build needed, skip devDependencies.
+    call npm install --omit=dev
+) else (
+    call npm install
+)
 if errorlevel 1 (
     echo.
     echo [ERROR] npm install failed.
