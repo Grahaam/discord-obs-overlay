@@ -101,17 +101,27 @@ echo [OK] Dependencies installed.
 
 :: ── Build ───────────────────────────────────────────────────────────────────
 echo.
-echo [2/2] Building the app...
-echo.
-call npm run build
-if errorlevel 1 (
+if not exist "server" (
+    echo [INFO] Source code not found (release package) — skipping build.
+    if not exist "dist\server.mjs" (
+        echo [ERROR] No source code and no prebuilt dist\server.mjs. This package is incomplete.
+        pause
+        exit /b 1
+    )
+    echo [OK] Using prebuilt dist\.
+) else (
+    echo [2/2] Building the app...
     echo.
-    echo [ERROR] Build failed. Check the output above.
-    pause
-    exit /b 1
+    call npm run build
+    if errorlevel 1 (
+        echo.
+        echo [ERROR] Build failed. Check the output above.
+        pause
+        exit /b 1
+    )
+    echo.
+    echo [OK] App built.
 )
-echo.
-echo [OK] App built.
 
 :: ── Optional Cobalt setup ───────────────────────────────────────────────────
 echo.
