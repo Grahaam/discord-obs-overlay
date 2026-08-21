@@ -26,6 +26,8 @@ export interface Settings {
   language: "fr" | "en" | "uwu-fr" | "uwu-en";
   alertSoundUrl?: string;
   allowedRoleIds?: string[];
+  /** Discord user id -> temp-ban details. App-level mute only, not a real Discord action. */
+  bannedUsers?: Record<string, { until: number; username: string }>;
 
   // Cobalt (optional self-hosted media extractor)
   cobaltApiUrl?: string;
@@ -68,6 +70,7 @@ export const defaultSettings: Settings = {
   language: "fr",
   alertSoundUrl: "",
   allowedRoleIds: [],
+  bannedUsers: {},
   alertFont: "sans",
   alertPosition: "bottom-left",
   alertScale: 1,

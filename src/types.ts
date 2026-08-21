@@ -47,6 +47,8 @@ export interface AlertPayload {
   id: string;
   authorName: string;
   authorAvatar: string;
+  /** Discord user snowflake, used to target moderation actions (e.g. temp-ban). */
+  authorId?: string;
   text: string;
   mediaUrl: string;
   thumbnailUrl?: string;
@@ -75,6 +77,8 @@ export interface LogEntry {
   timestamp: number;
   author: string;
   authorAvatar?: string;
+  /** Discord user snowflake, used to target moderation actions (e.g. temp-ban). */
+  authorId?: string;
   text: string;
   title?: string;
   thumbnailUrl?: string;
@@ -82,6 +86,13 @@ export interface LogEntry {
   mediaUrl: string;
   status: "approved" | "blocked" | "censored" | "error";
   reason: string;
+}
+
+/** App-level temp-ban entry (blocks future alerts, not a real Discord action). */
+export interface BannedUser {
+  userId: string;
+  username: string;
+  until: number;
 }
 
 export interface ServerLogEntry {

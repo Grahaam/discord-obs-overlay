@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { TabProps } from "./types";
-import { Shield, ShieldAlert, X, Lock, Link2Off, EyeOff, Clock, Copy, Check } from "lucide-react";
+import { Shield, ShieldAlert, X, Lock, Link2Off, EyeOff, Clock, Copy, Check, UserX } from "lucide-react";
+
+function formatRemaining(until: number): string {
+  const ms = until - Date.now();
+  if (ms <= 0) return "0m";
+  const minutes = Math.ceil(ms / 60000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.ceil(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.ceil(hours / 24)}d`;
+}
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -30,6 +40,8 @@ export default function ModerationTab(props: TabProps) {
     setRoleIdInput,
     handleAddRoleId,
     handleRemoveRoleId,
+    bannedUsers,
+    handleUnbanUser,
   } = props;
 
   const [copiedRoleId, setCopiedRoleId] = useState<string | null>(null);
@@ -280,6 +292,45 @@ export default function ModerationTab(props: TabProps) {
           <span className="text-[10px] text-white/20 font-mono">{t.filter.roleFilterHelp}</span>
         </div>
       </div>
+
+      {/* Banned users */}
+      {bannedUsers && bannedUsers.length > 0 && (
+        <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between pb-2.5 border-b border-white/[0.06]">
+            <div className="flex items-center gap-2">
+              <UserX className="w-3.5 h-3.5 text-rose-400/70" />
+              <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">
+                {t.filter.bannedUsersTitle}
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-rose-300/60 bg-rose-950/30 border border-rose-900/30 px-2 py-0.5 rounded-full">
+              {bannedUsers.length}
+            </span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {bannedUsers.map((banned) => (
+              <div
+                key={banned.userId}
+                className="flex items-center justify-between gap-2 bg-rose-950/20 border border-rose-900/30 rounded-lg px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <span className="block text-xs font-mono text-rose-200/90 truncate">{banned.username}</span>
+                  <span className="block text-[10px] font-mono text-rose-300/40">
+                    {formatRemaining(banned.until)} {t.filter.bannedUntil}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleUnbanUser?.(banned.userId)}
+                  className="shrink-0 flex items-center gap-1 text-[10px] font-mono text-rose-300/60 hover:text-rose-200 hover:bg-rose-900/40 px-2 py-1 rounded-md transition"
+                >
+                  <X className="w-3 h-3" />
+                  {t.filter.unbanUser}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

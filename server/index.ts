@@ -13,8 +13,15 @@ import { botManager } from "./discordBotManager.js";
 import { setupRoutes } from "./routes.js";
 import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
-import { initDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount } from "./db.js";
+import {
+  initDb,
+  loadPersistedAlerts,
+  loadPersistedLogs,
+  loadPersistedFavorites,
+  incrementMediaPlayCount,
+} from "./db.js";
 import { logManager } from "./logManager.js";
+import { favoritesManager } from "./favoritesManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
 import { trollRestore } from "./obsManager.js";
@@ -35,8 +42,10 @@ async function runServer() {
   initDb();
   const persistedAlerts = loadPersistedAlerts();
   const persistedLogs = loadPersistedLogs();
+  const persistedFavorites = loadPersistedFavorites();
   alertManager.restoreFromDb(persistedAlerts);
   logManager.restoreFromDb(persistedLogs);
+  favoritesManager.restoreFromDb(persistedFavorites);
 
   // Update yt-dlp on startup (non-blocking)
   updateYtDlp().catch((err) => {
@@ -141,6 +150,7 @@ async function runServer() {
       socket.emit("initial_state", alertManager.getAlerts());
       socket.emit("now_playing", currentlyPlaying);
       socket.emit("initial_logs", logManager.getLogs());
+      socket.emit("initial_favorites", favoritesManager.getFavorites());
       socket.emit("initial_server_logs", serverLogManager.getLogs());
       socket.emit("bot_status_update", {
         status: botManager.status,
@@ -199,17 +209,17 @@ async function runServer() {
   // New update check endpoint
   app.get("/api/check-update", async (req, res) => {
     try {
-        const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
-        const response = await fetch("https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest");
-        const latest = await response.json();
-        res.json({
-            current: pkg.version,
-            latest: latest.tag_name.replace('v', ''),
-            updateAvailable: latest.tag_name.replace('v', '') !== pkg.version,
-            downloadUrl: latest.html_url
-        });
+      const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+      const response = await fetch("https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest");
+      const latest = await response.json();
+      res.json({
+        current: pkg.version,
+        latest: latest.tag_name.replace("v", ""),
+        updateAvailable: latest.tag_name.replace("v", "") !== pkg.version,
+        downloadUrl: latest.html_url,
+      });
     } catch (e) {
-        res.status(500).json({ error: "Update check failed" });
+      res.status(500).json({ error: "Update check failed" });
     }
   });
 

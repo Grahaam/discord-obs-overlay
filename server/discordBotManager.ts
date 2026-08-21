@@ -14,6 +14,7 @@ import { Server as SocketServer } from "socket.io";
 import { settingsManager } from "./settingsManager.js";
 import { logManager } from "./logManager.js";
 import { processBannedWords } from "./bannedWords.js";
+import { isUserBanned } from "./userBans.js";
 import { resolveMediaFromLink } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
 import { addJob } from "./mediaWorkerQueue.js";
@@ -222,6 +223,21 @@ export class DiscordBotManager {
           }
 
           if (message.channelId !== channelId) return;
+
+          const banStatus = isUserBanned(message.author.id);
+          if (banStatus.banned) {
+            logger.warn({ author: message.author.username }, "Blocked message from temp-banned user");
+            logManager.addLog({
+              author: message.author.username,
+              authorId: message.author.id,
+              text: message.content,
+              type: "image",
+              mediaUrl: "",
+              status: "blocked",
+              reason: `Temp banned (${banStatus.remaining} remaining)`,
+            });
+            return;
+          }
 
           const cooldown = settingsManager.settings.cooldownSeconds || 1;
           if (cooldown > 0) {
@@ -435,6 +451,7 @@ export class DiscordBotManager {
               const alertPayload = {
                 id: alertId,
                 authorName: message.member?.displayName || message.author.globalName || message.author.username,
+                authorId: message.author.id,
                 authorAvatar:
                   message.author.displayAvatarURL({ forceStatic: false }) ||
                   "https://cdn.discordapp.com/embed/avatars/0.png",
@@ -461,6 +478,7 @@ export class DiscordBotManager {
 
               logManager.addLog({
                 author: alertPayload.authorName,
+                authorId: alertPayload.authorId,
                 authorAvatar: alertPayload.authorAvatar,
                 text: alertPayload.text,
                 title: alertPayload.title,
@@ -516,6 +534,8 @@ export class DiscordBotManager {
           const mediaEmbed = fullMessage.embeds.find((e) => e.video?.url || e.image?.url);
           if (!mediaEmbed) return;
 
+          if (isUserBanned(fullMessage.author.id).banned) return;
+
           const allowedRoles = settingsManager.settings.allowedRoleIds || [];
           if (allowedRoles.length > 0) {
             const memberRoles = fullMessage.member?.roles.cache;
@@ -554,6 +574,7 @@ export class DiscordBotManager {
                 id: alertId,
                 authorName:
                   fullMessage.member?.displayName || fullMessage.author.globalName || fullMessage.author.username,
+                authorId: fullMessage.author.id,
                 authorAvatar:
                   fullMessage.author.displayAvatarURL({ forceStatic: false }) ||
                   "https://cdn.discordapp.com/embed/avatars/0.png",
@@ -579,6 +600,7 @@ export class DiscordBotManager {
 
               logManager.addLog({
                 author: alertPayload.authorName,
+                authorId: alertPayload.authorId,
                 authorAvatar: alertPayload.authorAvatar,
                 text: alertPayload.text,
                 type: alertPayload.type,

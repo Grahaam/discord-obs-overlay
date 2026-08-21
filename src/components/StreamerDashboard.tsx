@@ -19,8 +19,11 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
+  Star,
+  UserX,
+  X,
 } from "lucide-react";
-import { UIConfig, LogEntry, AlertPayload, BotStatus, MediaType, ServerLogEntry } from "../types";
+import { UIConfig, LogEntry, AlertPayload, BotStatus, MediaType, ServerLogEntry, BannedUser } from "../types";
 import { locales, Language } from "../locales";
 import NowPlayingPreview from "./NowPlayingPreview";
 import TutorialOverlay from "./TutorialOverlay";
@@ -65,6 +68,10 @@ export default function StreamerDashboard() {
   });
   const [botStatus, setBotStatus] = useState<BotStatus>({ status: "disconnected", botUser: "", errorMsg: "" });
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [favorites, setFavorites] = useState<LogEntry[]>([]);
+  const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
+  const [banMenuFor, setBanMenuFor] = useState<string | null>(null);
+  const [banCustomMinutes, setBanCustomMinutes] = useState("");
   const [serverLogs, setServerLogs] = useState<ServerLogEntry[]>([]);
   const [logsView, setLogsView] = useState<"activity" | "system">("activity");
   const [expandedServerLogs, setExpandedServerLogs] = useState<Set<string>>(new Set());
@@ -84,16 +91,20 @@ export default function StreamerDashboard() {
 
   const fetchSettingsAndLogs = async () => {
     try {
-      const [setRes, logRes, botRes, srvLogRes] = await Promise.all([
+      const [setRes, logRes, botRes, srvLogRes, favRes, bannedRes] = await Promise.all([
         fetch("/api/settings"),
         fetch("/api/logs"),
         fetch("/api/bot-status"),
         fetch("/api/server-logs"),
+        fetch("/api/favorites"),
+        fetch("/api/moderation/banned-users"),
       ]);
       if (setRes.ok) setConfig(await setRes.json());
       if (logRes.ok) setLogs(await logRes.json());
       if (botRes.ok) setBotStatus(await botRes.json());
       if (srvLogRes.ok) setServerLogs(await srvLogRes.json());
+      if (favRes.ok) setFavorites(await favRes.json());
+      if (bannedRes.ok) setBannedUsers((await bannedRes.json()).bannedUsers);
     } catch (err) {
       console.error("Dashboard failed pulling system metrics:", err);
     }
@@ -151,6 +162,18 @@ export default function StreamerDashboard() {
       });
     };
     const onServerLogsCleared = () => setServerLogs([]);
+    const onNewFavorite = (favorite: LogEntry) => {
+      setFavorites((prev) => (prev.some((f) => f.id === favorite.id) ? prev : [favorite, ...prev]));
+    };
+    const onInitialFavorites = (incoming: LogEntry[]) => {
+      setFavorites((prev) => {
+        const knownIds = new Set(prev.map((f) => f.id));
+        const newEntries = incoming.filter((f) => !knownIds.has(f.id));
+        return newEntries.length === 0 ? prev : [...prev, ...newEntries];
+      });
+    };
+    const onFavoriteRemoved = (id: string) => setFavorites((prev) => prev.filter((f) => f.id !== id));
+    const onBannedUsersUpdate = (users: BannedUser[]) => setBannedUsers(users);
 
     socket.on("new_log", onNewLog);
     socket.on("initial_logs", onInitialLogs);
@@ -158,6 +181,10 @@ export default function StreamerDashboard() {
     socket.on("new_server_log", onNewServerLog);
     socket.on("initial_server_logs", onInitialServerLogs);
     socket.on("server_logs_cleared", onServerLogsCleared);
+    socket.on("new_favorite", onNewFavorite);
+    socket.on("initial_favorites", onInitialFavorites);
+    socket.on("favorite_removed", onFavoriteRemoved);
+    socket.on("banned_users_update", onBannedUsersUpdate);
 
     return () => {
       socket.off("new_log", onNewLog);
@@ -166,6 +193,10 @@ export default function StreamerDashboard() {
       socket.off("new_server_log", onNewServerLog);
       socket.off("initial_server_logs", onInitialServerLogs);
       socket.off("server_logs_cleared", onServerLogsCleared);
+      socket.off("new_favorite", onNewFavorite);
+      socket.off("initial_favorites", onInitialFavorites);
+      socket.off("favorite_removed", onFavoriteRemoved);
+      socket.off("banned_users_update", onBannedUsersUpdate);
     };
   }, [socket, wsStatus]);
 
@@ -292,6 +323,70 @@ export default function StreamerDashboard() {
   const handleClearServerLogs = async () => {
     try {
       await fetch("/api/server-logs/clear", { method: "POST" });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddFavorite = async (logId: string) => {
+    try {
+      await fetch("/api/favorites/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logId }),
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRemoveFavorite = async (id: string) => {
+    try {
+      await fetch("/api/favorites/remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleReplay = (logId: string) => {
+    fetch("/api/replay-alert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ logId }),
+    }).catch(() => {});
+  };
+
+  const handleReplayLast = () => {
+    if (logs.length === 0) return;
+    handleReplay(logs[0].id);
+  };
+
+  const handleBanUser = async (userId: string, username: string, durationMinutes: number) => {
+    try {
+      await fetch("/api/moderation/ban-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, username, durationMinutes }),
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setBanMenuFor(null);
+      setBanCustomMinutes("");
+    }
+  };
+
+  const handleUnbanUser = async (userId: string) => {
+    try {
+      await fetch("/api/moderation/unban-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
     } catch (err) {
       console.error(err);
     }
@@ -488,6 +583,8 @@ export default function StreamerDashboard() {
                 setRoleIdInput={setRoleIdInput}
                 handleAddRoleId={handleAddRoleId}
                 handleRemoveRoleId={handleRemoveRoleId}
+                bannedUsers={bannedUsers}
+                handleUnbanUser={handleUnbanUser}
               />
             )}
             {activeTab === "simulator" && (
@@ -692,6 +789,58 @@ export default function StreamerDashboard() {
             </div>
           )}
 
+          {/* Favorites */}
+          {favorites.length > 0 && (
+            <div className="bg-white/[0.025] border border-white/[0.07] rounded-3xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Star className="w-3.5 h-3.5 text-amber-400/70" />
+                  <span className="text-sm font-semibold text-white/80">{t.favorites.title}</span>
+                  <span className="bg-amber-600/25 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {favorites.length}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                {favorites.map((fav) => (
+                  <div
+                    key={fav.id}
+                    className="group flex items-center gap-2 bg-white/[0.03] border border-white/[0.06] rounded-lg px-2.5 py-1.5"
+                  >
+                    {fav.thumbnailUrl && (
+                      <div className="shrink-0 w-6 h-6 rounded overflow-hidden border border-white/10">
+                        <img
+                          src={fav.thumbnailUrl}
+                          className="w-full h-full object-cover"
+                          alt=""
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className="block text-[10px] font-semibold text-indigo-400/70 truncate">{fav.author}</span>
+                      <span className="block text-[10px] text-white/45 truncate">{fav.title || fav.text}</span>
+                    </div>
+                    <button
+                      onClick={() => handleReplay(fav.id)}
+                      title={t.favorites.replay}
+                      className="shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-indigo-600/15 border border-indigo-600/20 text-indigo-400/70 hover:bg-indigo-600/35 hover:border-indigo-500/50 hover:text-indigo-200 transition-all"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                    </button>
+                    <button
+                      onClick={() => handleRemoveFavorite(fav.id)}
+                      title={t.favorites.remove}
+                      className="shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-white/[0.04] border border-white/[0.08] text-white/30 hover:bg-red-950/40 hover:border-red-900/40 hover:text-red-300 transition-all"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Logs */}
           <div className="bg-white/[0.025] border border-white/[0.07] rounded-3xl overflow-hidden flex flex-col flex-1 min-h-0">
             {/* Header */}
@@ -736,9 +885,19 @@ export default function StreamerDashboard() {
                 </button>
               </div>
 
+              {logsView === "activity" && logs.length > 0 && (
+                <button
+                  onClick={handleReplayLast}
+                  title={t.logs.replayLast}
+                  className="ml-auto flex items-center gap-1.5 text-[10px] font-bold text-indigo-400/70 hover:text-indigo-300 hover:bg-indigo-950/25 px-2.5 py-1 rounded-lg border border-transparent hover:border-indigo-900/30 transition-all"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  {t.logs.replayLast}
+                </button>
+              )}
               <button
                 onClick={logsView === "activity" ? handleClearLogs : handleClearServerLogs}
-                className="ml-auto flex items-center gap-1.5 text-[10px] font-bold text-red-400/50 hover:text-red-300 hover:bg-red-950/25 px-2.5 py-1 rounded-lg border border-transparent hover:border-red-900/30 transition-all"
+                className={`${logsView === "activity" && logs.length > 0 ? "" : "ml-auto "}flex items-center gap-1.5 text-[10px] font-bold text-red-400/50 hover:text-red-300 hover:bg-red-950/25 px-2.5 py-1 rounded-lg border border-transparent hover:border-red-900/30 transition-all`}
               >
                 <Trash2 className="w-3 h-3" />
                 {t.logs.clear}
@@ -757,7 +916,7 @@ export default function StreamerDashboard() {
                 {logs.map((log, i) => (
                   <div
                     key={log.id ?? i}
-                    className={`group flex items-center gap-2 px-3 py-2 border-b border-white/[0.04] border-l-2 hover:bg-white/[0.02] transition-colors ${
+                    className={`group relative flex items-center gap-2 px-3 py-2 border-b border-white/[0.04] border-l-2 hover:bg-white/[0.02] transition-colors ${
                       log.status === "approved"
                         ? "border-l-emerald-500/50"
                         : log.status === "blocked"
@@ -819,18 +978,79 @@ export default function StreamerDashboard() {
                     </span>
                     {log.mediaUrl && (
                       <button
-                        onClick={() =>
-                          fetch("/api/replay-alert", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ logId: log.id }),
-                          }).catch(() => {})
-                        }
+                        onClick={() => handleReplay(log.id)}
                         title={t.logs.replay}
                         className="shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-indigo-600/15 border border-indigo-600/20 text-indigo-400/70 hover:bg-indigo-600/35 hover:border-indigo-500/50 hover:text-indigo-200 transition-all opacity-0 group-hover:opacity-100"
                       >
                         <RotateCcw className="w-2.5 h-2.5" />
                       </button>
+                    )}
+                    {log.mediaUrl && (
+                      <button
+                        onClick={() =>
+                          favorites.some((f) => f.id === log.id)
+                            ? handleRemoveFavorite(log.id)
+                            : handleAddFavorite(log.id)
+                        }
+                        title={favorites.some((f) => f.id === log.id) ? t.logs.unfavorite : t.logs.favorite}
+                        className={`shrink-0 flex items-center justify-center w-5 h-5 rounded-md border transition-all ${
+                          favorites.some((f) => f.id === log.id)
+                            ? "bg-amber-500/20 border-amber-500/40 text-amber-300 opacity-100"
+                            : "bg-white/[0.04] border-white/[0.08] text-white/30 opacity-0 group-hover:opacity-100 hover:bg-amber-500/20 hover:border-amber-500/40 hover:text-amber-300"
+                        }`}
+                      >
+                        <Star
+                          className="w-2.5 h-2.5"
+                          fill={favorites.some((f) => f.id === log.id) ? "currentColor" : "none"}
+                        />
+                      </button>
+                    )}
+                    {log.authorId && (
+                      <button
+                        onClick={() => setBanMenuFor(banMenuFor === log.id ? null : log.id)}
+                        title={t.filter.banUser}
+                        className="shrink-0 flex items-center justify-center w-5 h-5 rounded-md bg-white/[0.04] border border-white/[0.08] text-white/30 hover:bg-rose-950/40 hover:border-rose-900/50 hover:text-rose-300 transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        <UserX className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                    {banMenuFor === log.id && log.authorId && (
+                      <div className="absolute right-2 top-full mt-1 z-20 bg-[#0c0c14] border border-white/10 rounded-xl shadow-lg p-2 flex flex-col gap-1.5 w-44">
+                        {[10, 60, 1440, 10080].map((mins) => (
+                          <button
+                            key={mins}
+                            onClick={() => handleBanUser(log.authorId!, log.author, mins)}
+                            className="text-left text-[10px] font-mono text-rose-200/80 hover:bg-rose-950/40 rounded-lg px-2 py-1.5 transition"
+                          >
+                            {mins === 10
+                              ? t.filter.banDuration10m
+                              : mins === 60
+                                ? t.filter.banDuration1h
+                                : mins === 1440
+                                  ? t.filter.banDuration24h
+                                  : t.filter.banDuration7d}
+                          </button>
+                        ))}
+                        <div className="flex items-center gap-1 pt-1 border-t border-white/[0.06]">
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder={t.filter.banDurationCustomPh}
+                            value={banCustomMinutes}
+                            onChange={(e) => setBanCustomMinutes(e.target.value)}
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-mono text-rose-200 focus:outline-none focus:border-rose-500/40"
+                          />
+                          <button
+                            onClick={() => {
+                              const mins = Number(banCustomMinutes);
+                              if (mins > 0) handleBanUser(log.authorId!, log.author, mins);
+                            }}
+                            className="shrink-0 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 px-2 py-1 rounded-lg text-[10px] font-bold transition"
+                          >
+                            {t.filter.banUser}
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 ))}

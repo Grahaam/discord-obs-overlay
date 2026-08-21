@@ -16,6 +16,8 @@ import { serverLogManager } from "./serverLogManager.js";
 import { botManager } from "./discordBotManager.js";
 import { resolveMediaFromLink, _ytDlpCustomPath } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
+import { favoritesManager } from "./favoritesManager.js";
+import { banUser, unbanUser, getBannedUsers } from "./userBans.js";
 
 // Helper to get yt-dlp version
 let _ytDlpVersionCache: string | null = null;
@@ -299,7 +301,8 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     const { logId } = req.body;
     if (!logId) return res.status(400).json({ error: "logId required" });
 
-    const log = logManager.logs.find((l) => l.id === logId);
+    const log =
+      logManager.logs.find((l) => l.id === logId) ?? favoritesManager.getFavorites().find((f) => f.id === logId);
     if (!log) return res.status(404).json({ error: "Log not found" });
 
     if (!log.mediaUrl) return res.status(400).json({ error: "Log has no mediaUrl to replay" });
@@ -330,6 +333,57 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     alertManager.addAlert(replayPayload);
     io.emit("new_alert", replayPayload);
     res.json({ success: true });
+  });
+
+  app.get("/api/favorites", (req, res) => {
+    res.json(favoritesManager.getFavorites());
+  });
+
+  app.post("/api/favorites/add", (req, res) => {
+    const { logId } = req.body;
+    if (!logId) return res.status(400).json({ error: "logId required" });
+
+    const log = logManager.logs.find((l) => l.id === logId);
+    if (!log) return res.status(404).json({ error: "Log not found" });
+
+    const favorite = favoritesManager.addFavorite(log);
+    io.emit("new_favorite", favorite);
+    res.json({ success: true, favorite });
+  });
+
+  app.post("/api/favorites/remove", (req, res) => {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: "id required" });
+
+    favoritesManager.removeFavorite(id);
+    io.emit("favorite_removed", id);
+    res.json({ success: true });
+  });
+
+  app.get("/api/moderation/banned-users", (req, res) => {
+    res.json({ bannedUsers: getBannedUsers() });
+  });
+
+  app.post("/api/moderation/ban-user", (req, res) => {
+    const { userId, username, durationMinutes } = req.body;
+    if (!userId || !username || !durationMinutes || durationMinutes <= 0) {
+      return res.status(400).json({ error: "userId, username and a positive durationMinutes are required" });
+    }
+
+    banUser(String(userId), String(username), Number(durationMinutes));
+    const bannedUsers = getBannedUsers();
+    io.emit("banned_users_update", bannedUsers);
+    res.json({ success: true, bannedUsers });
+  });
+
+  app.post("/api/moderation/unban-user", (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: "userId required" });
+
+    unbanUser(String(userId));
+    const bannedUsers = getBannedUsers();
+    io.emit("banned_users_update", bannedUsers);
+    res.json({ success: true, bannedUsers });
   });
 
   app.post("/api/bot-reconnect", async (req, res) => {
@@ -475,10 +529,12 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       return res.json({ success: true, deleted: 0 });
     }
     try {
+      const { getFavoritedFilenames } = await import("./db.js");
+      const favorited = getFavoritedFilenames();
       const files = await fs.promises.readdir(cacheDir);
       let deleted = 0;
       for (const file of files) {
-        if (!file.endsWith(".tmp")) {
+        if (!file.endsWith(".tmp") && !favorited.has(file)) {
           try {
             await fs.promises.unlink(path.join(cacheDir, file));
             deleted++;

@@ -1,4 +1,4 @@
-import { UIConfig, BotStatus, AlertPayload, MediaType } from "../../types";
+import { UIConfig, BotStatus, AlertPayload, MediaType, BannedUser } from "../../types";
 import { locales } from "../../locales";
 
 export interface TabProps {
@@ -26,4 +26,6 @@ export interface TabProps {
   setRoleIdInput?: React.Dispatch<React.SetStateAction<string>>;
   handleAddRoleId?: () => void;
   handleRemoveRoleId?: (id: string) => void;
+  bannedUsers?: BannedUser[];
+  handleUnbanUser?: (userId: string) => void;
 }

@@ -41,6 +41,11 @@ export function initDb(): void {
           data TEXT NOT NULL,
           created_at INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS favorites (
+          id TEXT PRIMARY KEY,
+          data TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS media_plays (
           filename TEXT PRIMARY KEY,
           play_count INTEGER NOT NULL DEFAULT 0
@@ -144,4 +149,43 @@ export function updateLogInDb(log: LogEntry): void {
       log.timestamp
     );
   }, "updateLogInDb");
+}
+
+export function persistFavorite(favorite: LogEntry): void {
+  withDb((d) => {
+    d.prepare("INSERT OR REPLACE INTO favorites (id, data, created_at) VALUES (?, ?, ?)").run(
+      favorite.id,
+      JSON.stringify(favorite),
+      favorite.timestamp
+    );
+  }, "persistFavorite");
+}
+
+export function removePersistedFavorite(id: string): void {
+  withDb((d) => {
+    d.prepare("DELETE FROM favorites WHERE id = ?").run(id);
+  }, "removePersistedFavorite");
+}
+
+export function loadPersistedFavorites(): LogEntry[] {
+  return (
+    withDb((d) => {
+      const rows = d.prepare("SELECT data FROM favorites ORDER BY created_at DESC").all() as { data: string }[];
+      return rows.map((r) => JSON.parse(r.data) as LogEntry);
+    }, "loadPersistedFavorites") ?? []
+  );
+}
+
+/** Filenames (as stored under media_cache/) referenced by current favorites — exempt from cache eviction. */
+export function getFavoritedFilenames(): Set<string> {
+  return (
+    withDb((d) => {
+      const rows = d.prepare("SELECT data FROM favorites").all() as { data: string }[];
+      const filenames = rows
+        .map((r) => (JSON.parse(r.data) as LogEntry).mediaUrl)
+        .filter((url): url is string => !!url && url.startsWith("/api/media-cache/"))
+        .map((url) => url.replace("/api/media-cache/", ""));
+      return new Set(filenames);
+    }, "getFavoritedFilenames") ?? new Set()
+  );
 }

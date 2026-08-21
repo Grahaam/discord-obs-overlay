@@ -171,26 +171,28 @@ export async function cleanupCache() {
       })
     );
 
-    const { getFrequentMediaFilenames } = await import("./db.js");
+    const { getFrequentMediaFilenames, getFavoritedFilenames } = await import("./db.js");
     const threshold = settingsManager.settings.mediaPersistentPlaysThreshold ?? 5;
     const frequent = getFrequentMediaFilenames(threshold);
+    const favorited = getFavoritedFilenames();
+    const protectedFiles = new Set([...frequent, ...favorited]);
 
-    // Remove TTL-expired files first (skip .tmp and frequently-played files)
+    // Remove TTL-expired files first (skip .tmp, frequently-played, and favorited files)
     for (const f of fileStats) {
       if (f.file.endsWith(".tmp")) continue;
-      if (frequent.has(f.file)) continue;
+      if (protectedFiles.has(f.file)) continue;
       if (now - f.atime > CACHE_TTL_MS) {
         await fs.promises.unlink(f.filePath).catch(() => {});
         logger.info({ file: f.file }, "Cache TTL expired");
       }
     }
 
-    // Then enforce max size — frequent files sorted last (evicted only if necessary)
+    // Then enforce max size — protected files sorted last (evicted only if necessary)
     const remaining = fileStats.filter((f) => !f.file.endsWith(".tmp") && fs.existsSync(f.filePath));
     remaining.sort((a, b) => {
-      const aFreq = frequent.has(a.file) ? 1 : 0;
-      const bFreq = frequent.has(b.file) ? 1 : 0;
-      if (aFreq !== bFreq) return aFreq - bFreq; // non-frequent first
+      const aProtected = protectedFiles.has(a.file) ? 1 : 0;
+      const bProtected = protectedFiles.has(b.file) ? 1 : 0;
+      if (aProtected !== bProtected) return aProtected - bProtected; // non-protected first
       return a.atime - b.atime; // then oldest-access first
     });
     let totalSize = remaining.reduce((sum, f) => sum + f.size, 0);
@@ -199,6 +201,7 @@ export async function cleanupCache() {
       logger.info({ totalSizeMB: (totalSize / 1024 / 1024).toFixed(0) }, "Cache size limit cleanup");
       for (const f of remaining) {
         if (totalSize <= MAX_CACHE_SIZE) break;
+        if (protectedFiles.has(f.file)) continue;
         await fs.promises.unlink(f.filePath).catch(() => {});
         totalSize -= f.size;
         logger.info({ file: f.file, frequent: frequent.has(f.file) }, "Cache evicted");
