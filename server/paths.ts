@@ -21,6 +21,9 @@ export const APP_PATHS = {
   distDir: path.join(appDir, "dist"),
   packageJson: path.join(appDir, "package.json"),
   venvDir: path.join(appDir, ".venv"),
+  // Pose detection: MediaPipe runtime + model, both shipped with the app.
+  mediapipeWasmDir: path.join(appDir, "node_modules", "@mediapipe", "tasks-vision", "wasm"),
+  modelsDir: path.join(appDir, "models"),
 };
 
 export const DATA_PATHS = {
@@ -31,4 +34,6 @@ export const DATA_PATHS = {
   dbFile: path.join(dataDir, "overlay.db"),
   mediaCacheDir: path.join(dataDir, "media_cache"),
   binDir: path.join(dataDir, "bin"),
+  // Streamer-provided image/sound for the pose alert (served at /user-assets).
+  userAssetsDir: path.join(dataDir, "user-assets"),
 };

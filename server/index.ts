@@ -220,9 +220,10 @@ async function runServer() {
   setupRoutes(app, io);
 
   // Pose detection assets: MediaPipe wasm runtime, downloaded model, and streamer-provided image/sound
-  app.use("/mediapipe/wasm", express.static(path.join(process.cwd(), "node_modules/@mediapipe/tasks-vision/wasm")));
-  app.use("/models", express.static(path.join(process.cwd(), "models")));
-  app.use("/user-assets", express.static(path.join(process.cwd(), "user-assets")));
+  app.use("/mediapipe/wasm", express.static(APP_PATHS.mediapipeWasmDir));
+  app.use("/models", express.static(APP_PATHS.modelsDir));
+  fs.mkdirSync(DATA_PATHS.userAssetsDir, { recursive: true });
+  app.use("/user-assets", express.static(DATA_PATHS.userAssetsDir));
 
   // New update check endpoint
   app.get("/api/check-update", async (req, res) => {

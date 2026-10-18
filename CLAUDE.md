@@ -50,9 +50,9 @@ Express + Socket.IO server (Vite React SPA) that runs **standalone** (`npm start
 | `preload.cjs` | `contextBridge` exposes `electronAPI.completeSetup` / `getPort` (contextIsolation on, nodeIntegration off)                                                                    |
 | `wizard.html` | First-run setup UI; `complete-setup` IPC pushes token+channelId through the server's `/api/settings` (reconnects bot), surfaces bad-token errors before opening the dashboard |
 
-**UX goal**: one-click installer → one-click launch → first-run wizard. Main window hides to tray on close (`app.isQuitting` gates real quit); tray "Quit" / `before-quit` kills the forked server.
+**UX goal**: one-click installer → one-click launch → first-run wizard. Main window hides to tray on close (`app.isQuitting` gates real quit); tray "Quit" asks the server to shut down over `parentPort` (restores OBS, closes DB), hard kill after 5 s.
 
-`server/paths.ts` (`APP_PATHS`): read-only app resources (`dist/`, `package.json`) resolve from `APP_PATH` env (set to `app.getAppPath()` by the fork); writable data (`settings.json`, `.env`, `cookies.txt`, `media_cache/`) lives in the fork's `cwd` = `app.getPath('userData')` when packaged, repo root in dev.
+`server/paths.ts`: `APP_PATHS` = read-only shipped files (`dist/`, `package.json`, MediaPipe wasm, `models/` pose model) rooted at `APP_PATH` (`app.getAppPath()`); `DATA_PATHS` = writable files (`settings.json`, `.env`, `cookies.txt`, `overlay.db`, `media_cache/`, `bin/`, `user-assets/`) rooted at `DATA_DIR` (`app.getPath("userData")`). Both fall back to the repo folder in dev. Never use `process.cwd()` directly.
 
 ### Server (`server/`)
 
