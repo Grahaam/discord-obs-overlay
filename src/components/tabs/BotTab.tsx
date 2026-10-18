@@ -16,6 +16,7 @@ import {
   Play,
   Pause,
   ChevronDown,
+  Clapperboard,
 } from "lucide-react";
 
 const PLATFORM_DOMAINS: Record<string, string> = {
@@ -439,6 +440,87 @@ export default function BotTab(props: TabProps) {
           )}
         </div>
         <span className="text-[10px] text-white/20 font-mono">{t.bot.alertSoundHelp}</span>
+      </div>
+
+      {/* "Absolute Cinema" pose detection */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-1.5">
+          <Clapperboard className="w-3 h-3 text-white/30" />
+          <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.poseTitle}</label>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer group">
+          <div
+            className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all ${
+              config.poseDetectionEnabled
+                ? "bg-violet-600 border-violet-500"
+                : "bg-transparent border-white/20 group-hover:border-white/40"
+            }`}
+          >
+            <input
+              type="checkbox"
+              className="hidden"
+              checked={config.poseDetectionEnabled || false}
+              onChange={(e) => setConfig({ ...config, poseDetectionEnabled: e.target.checked })}
+            />
+            {config.poseDetectionEnabled && (
+              <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </div>
+          <span className="text-[10px] font-mono text-white/40 group-hover:text-white/70 transition-colors leading-snug">
+            {t.bot.poseEnable}
+          </span>
+        </label>
+        {config.poseDetectionEnabled && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono text-white/30">{t.bot.poseSource}</span>
+                <input
+                  type="text"
+                  placeholder="Webcam"
+                  value={config.poseCameraSource || ""}
+                  onChange={(e) => setConfig({ ...config, poseCameraSource: e.target.value })}
+                  className={`${inputBase} text-white/70 focus:border-white/20`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono text-white/30">{t.bot.poseCooldown}</span>
+                <input
+                  type="number"
+                  min={5}
+                  max={3600}
+                  value={config.poseCooldownSeconds ?? 30}
+                  onChange={(e) => setConfig({ ...config, poseCooldownSeconds: Number(e.target.value) })}
+                  className={`${inputBase} text-white/70 focus:border-white/20`}
+                />
+              </div>
+            </div>
+            <span className="text-[10px] text-white/20 font-mono">{t.bot.poseSourceHelp}</span>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono text-white/30">{t.bot.poseImage}</span>
+                <input
+                  type="text"
+                  value={config.poseAlertImageUrl || ""}
+                  onChange={(e) => setConfig({ ...config, poseAlertImageUrl: e.target.value })}
+                  className={`${inputBase} text-white/70 focus:border-white/20`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono text-white/30">{t.bot.poseSound}</span>
+                <input
+                  type="text"
+                  value={config.poseAlertSoundUrl || ""}
+                  onChange={(e) => setConfig({ ...config, poseAlertSoundUrl: e.target.value })}
+                  className={`${inputBase} text-white/70 focus:border-white/20`}
+                />
+              </div>
+            </div>
+            <span className="text-[10px] text-white/20 font-mono">{t.bot.poseMediaHelp}</span>
+          </>
+        )}
       </div>
 
       {/* Cookies — terminal window */}

@@ -36,6 +36,16 @@ export const locales = {
       shortcutHelp: "Appuyez sur cette touche pour masquer instantanément l'alerte média active.",
       alertSound: "Son d'alerte (URL)",
       alertSoundHelp: "URL d'un fichier audio joué au début de chaque alerte. Laissez vide pour désactiver.",
+      poseTitle: "Pose « Absolute Cinema »",
+      poseEnable: "Détecter la pose et lancer l'alerte",
+      poseSource: "Source caméra OBS",
+      poseSourceHelp:
+        "Nom exact de votre source webcam dans OBS. Nécessite obs-websocket (Outils → Paramètres du serveur WebSocket) sans mot de passe. Rechargez la source overlay après avoir enregistré.",
+      poseCooldown: "Délai entre deux déclenchements (s)",
+      poseImage: "Image (URL)",
+      poseSound: "Son (URL)",
+      poseMediaHelp:
+        "Déposez vos fichiers dans le dossier user-assets/ et utilisez /user-assets/<fichier>, ou collez une URL.",
       cookies: "Cookies de Session (Optionnel)",
       cookiesHelp:
         "Nécessaires pour contourner les restrictions d'accès (ex: Instagram, TikTok). Utilisez l'extension 'Get cookies.txt LOCALLY' dans votre navigateur pour exporter vos cookies au format Netscape et collez-les ici.",
@@ -218,6 +228,15 @@ export const locales = {
       shortcutHelp: "Press this key to instantly dismiss the currently active media alert.",
       alertSound: "Alert Sound (URL)",
       alertSoundHelp: "URL to an audio file played at the start of each alert. Leave empty to disable.",
+      poseTitle: '"Absolute Cinema" pose',
+      poseEnable: "Detect the pose and trigger the alert",
+      poseSource: "OBS camera source",
+      poseSourceHelp:
+        "Exact name of your webcam source in OBS. Requires obs-websocket (Tools → WebSocket Server Settings) without a password. Reload the overlay source after saving.",
+      poseCooldown: "Cooldown between triggers (s)",
+      poseImage: "Image (URL)",
+      poseSound: "Sound (URL)",
+      poseMediaHelp: "Drop your files in the user-assets/ folder and use /user-assets/<file>, or paste a URL.",
       cookies: "Session Cookies (Optional)",
       cookiesHelp:
         "Required for platforms that block anonymous access. Use a browser extension like 'Get cookies.txt LOCALLY' to extract your cookies in Netscape format and paste them here.",
@@ -399,6 +418,15 @@ export const locales = {
       shortcutHelp: "Gwowal key to pwess to fowce immediatewy cwose the cuwwentwy active awewt. *hides*",
       alertSound: "Awewt Sound UWL OwO",
       alertSoundHelp: "UWL to an audio fiwe pwayed at da stawt of each awewt. Weave empty to disabwe~ nyaa",
+      poseTitle: '"Absowute Cinema" pose OwO',
+      poseEnable: "Detect da pose and twiggew da awewt~",
+      poseSource: "OBS camewa souwce",
+      poseSourceHelp:
+        "Exact name of youw webcam souwce in OBS. Needs obs-websocket (Toows → WebSocket Sewvew Settings) without a passwowd. Wewoad da ovewway souwce aftew saving~ nyaa",
+      poseCooldown: "Coowdown between twiggews (s)",
+      poseImage: "Image (UWL)",
+      poseSound: "Sound (UWL)",
+      poseMediaHelp: "Dwop youw fiwes in da usew-assets/ fowdew and use /user-assets/<fiwe>, ow paste a UWL~",
       cookies: "TikTok/Instagwam Session Cookies (Optionaw, nya~)",
       cookiesHelp: "Standawd cookie text content to bypass connection bwockages fow sum netwowks.",
       cobaltTitle: "Cobawt (Optionaw, nya~)",
@@ -581,6 +609,16 @@ export const locales = {
       shortcutHelp: "Touche gwowabwe à appuyew pouw masquew w'awewte média active instantanément. *hides*",
       alertSound: "Son d'Awewte (UWL) UwU",
       alertSoundHelp: "UWL d'un fichiow audio joué au début de chaque awewte. Waisser vide pouw désactivew~ nyaa",
+      poseTitle: "Pose « Absowute Cinema » UwU",
+      poseEnable: "Détectew wa pose et wancew w'awewte~",
+      poseSource: "Souwce caméwa OBS",
+      poseSourceHelp:
+        "Nom exact de votwe souwce webcam dans OBS. Nécessite obs-websocket (Outiws → Pawamètwes du sewveuw WebSocket) sans mot de passe. Wechawgez wa souwce ovewway apwès avoiw enwegistwé~ nyaa",
+      poseCooldown: "Déwai entwe deux décwenchements (s)",
+      poseImage: "Image (UWL)",
+      poseSound: "Son (UWL)",
+      poseMediaHelp:
+        "Déposez vos fichiows dans we dossiow user-assets/ et utiwisez /user-assets/<fichiow>, ou cowwez une UWL~",
       cookies: "Cookies Vidéo (YouTube, Instagwam, TikTok, nya~)",
       cookiesHelp:
         "Cewa pewmet awwa pwatefowme de téwéchawgew des médias comme si ewwe était connectée à votwe compte.",

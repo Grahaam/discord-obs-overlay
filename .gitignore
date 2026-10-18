@@ -65,3 +65,7 @@ graphify-out/
 dashboard-initial.png
 .superpowers/
 conductor/
+# Pose detection: downloaded model + streamer-provided image/sound
+models/
+user-assets/*
+!user-assets/README.md
