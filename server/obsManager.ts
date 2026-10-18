@@ -1,5 +1,6 @@
 import OBSWebSocket from "obs-websocket-js";
 import { env } from "./env.js";
+import { logger } from "./logger.js";
 
 const _OP = "4455";
 const _OPW = "";
@@ -34,6 +35,20 @@ async function findOverlaySourceId(obs: OBSWebSocket, sceneName: string): Promis
 }
 
 /** Stretches the overlay source to the full canvas. Resolves false if it was already expanded or failed. */
+// Compact summary for logs: enough to rebuild the overlay layout by hand.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function describe(t: any) {
+  return {
+    boundsType: t.boundsType,
+    x: t.positionX,
+    y: t.positionY,
+    scaleX: t.scaleX,
+    scaleY: t.scaleY,
+    w: t.width,
+    h: t.height,
+  };
+}
+
 export async function trollExpand(): Promise<boolean> {
   if (_saved) return false; // already expanded (e.g. troll and pose alert at once) — don't overwrite the original transform
   const obs = new OBSWebSocket();
@@ -52,6 +67,7 @@ export async function trollExpand(): Promise<boolean> {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     _saved = { sceneName: currentProgramSceneName, sceneItemId, transform: sceneItemTransform as any };
+    logger.info({ sceneItemId, saved: describe(sceneItemTransform) }, "OBS overlay expanded");
 
     await obs.call("SetSceneItemTransform", {
       sceneName: currentProgramSceneName,
@@ -65,8 +81,9 @@ export async function trollExpand(): Promise<boolean> {
       },
     });
     return true;
-  } catch {
-    // silent — troll continues without resize
+  } catch (err) {
+    // troll continues without resize
+    logger.warn({ err: (err as Error).message }, "OBS overlay expand failed");
     return false;
   } finally {
     await obs.disconnect();
@@ -90,9 +107,11 @@ export async function trollRestore(): Promise<void> {
         boundsHeight: Math.max(1, transform.boundsHeight),
       },
     });
+    logger.info({ sceneItemId, restored: describe(transform) }, "OBS overlay restored");
     _saved = null;
-  } catch {
-    // silent — _saved preserved for retry
+  } catch (err) {
+    // _saved preserved for retry
+    logger.warn({ err: (err as Error).message }, "OBS overlay restore failed");
   } finally {
     await obs.disconnect();
   }
