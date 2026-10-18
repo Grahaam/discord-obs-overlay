@@ -240,10 +240,20 @@ async function runServer() {
         if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
         const latest = await response.json();
         const strip = (v: string) => v.replace(/^v/, "");
+        // Compare numerically, part by part: "!==" flagged an older release
+        // (v1.9.5 while running 2.0.0) as an update.
+        const isNewer = (a: string, b: string) => {
+          const pa = a.split(/[.-]/).map(Number);
+          const pb = b.split(/[.-]/).map(Number);
+          for (let i = 0; i < 3; i++) {
+            if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+          }
+          return false;
+        };
         res.json({
             current: pkg.version,
             latest: strip(latest.tag_name),
-            updateAvailable: strip(latest.tag_name) !== pkg.version,
+            updateAvailable: isNewer(strip(latest.tag_name), pkg.version),
             downloadUrl: latest.html_url,
         });
     } catch (_e) {
