@@ -34,6 +34,13 @@ export interface Settings {
   mediaQuality?: "720" | "1080" | "1440" | "2160";
   mediaPersistentPlaysThreshold?: number;
 
+  // "Absolute Cinema" pose detection
+  poseDetectionEnabled?: boolean;
+  poseCameraSource?: string;
+  poseCooldownSeconds?: number;
+  poseAlertImageUrl?: string;
+  poseAlertSoundUrl?: string;
+
   // Visual customization
   alertFont?: "sans" | "mono" | "serif" | "display" | "rounded";
   alertPosition?:
@@ -76,6 +83,11 @@ export const defaultSettings: Settings = {
   alertAnimation: "slide-up",
   mediaQuality: "1080",
   mediaPersistentPlaysThreshold: 5,
+  poseDetectionEnabled: false,
+  poseCameraSource: "",
+  poseCooldownSeconds: 30,
+  poseAlertImageUrl: "/user-assets/absolute-cinema.jpg",
+  poseAlertSoundUrl: "/user-assets/absolute-cinema.mp3",
 };
 
 export class SettingsManager {

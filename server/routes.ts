@@ -142,6 +142,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         cobaltApiUrl: z.string().optional(),
         cobaltApiKey: z.string().optional(),
         mediaQuality: z.enum(["720", "1080", "1440", "2160"]).optional(),
+        poseDetectionEnabled: z.boolean().optional(),
+        poseCameraSource: z.string().optional(),
+        poseCooldownSeconds: z.number().min(5).max(3600).optional(),
+        poseAlertImageUrl: z.string().optional(),
+        poseAlertSoundUrl: z.string().optional(),
       });
       const incoming = SettingsSchema.parse(req.body);
       const originalToken = settingsManager.settings.discordToken;
@@ -174,6 +179,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         cobaltApiUrl: incoming.cobaltApiUrl ?? settingsManager.settings.cobaltApiUrl ?? "",
         cobaltApiKey: incoming.cobaltApiKey ?? settingsManager.settings.cobaltApiKey ?? "",
         mediaQuality: incoming.mediaQuality ?? settingsManager.settings.mediaQuality ?? "1080",
+        poseDetectionEnabled: incoming.poseDetectionEnabled ?? settingsManager.settings.poseDetectionEnabled,
+        poseCameraSource: incoming.poseCameraSource ?? settingsManager.settings.poseCameraSource,
+        poseCooldownSeconds: incoming.poseCooldownSeconds ?? settingsManager.settings.poseCooldownSeconds,
+        poseAlertImageUrl: incoming.poseAlertImageUrl ?? settingsManager.settings.poseAlertImageUrl,
+        poseAlertSoundUrl: incoming.poseAlertSoundUrl ?? settingsManager.settings.poseAlertSoundUrl,
       };
 
       settingsManager.saveSettings(updatedSettings);

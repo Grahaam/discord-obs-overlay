@@ -33,14 +33,16 @@ async function findOverlaySourceId(obs: OBSWebSocket, sceneName: string): Promis
   return null;
 }
 
-export async function trollExpand(): Promise<void> {
+/** Stretches the overlay source to the full canvas. Resolves false if it was already expanded or failed. */
+export async function trollExpand(): Promise<boolean> {
+  if (_saved) return false; // already expanded (e.g. troll and pose alert at once) — don't overwrite the original transform
   const obs = new OBSWebSocket();
   try {
     await obs.connect(`ws://localhost:${_OP}`, _OPW || undefined);
 
     const { currentProgramSceneName } = await obs.call("GetCurrentProgramScene");
     const sceneItemId = await findOverlaySourceId(obs, currentProgramSceneName);
-    if (sceneItemId === null) return;
+    if (sceneItemId === null) return false;
 
     const { sceneItemTransform } = await obs.call("GetSceneItemTransform", {
       sceneName: currentProgramSceneName,
@@ -62,8 +64,10 @@ export async function trollExpand(): Promise<void> {
         boundsHeight: baseHeight,
       },
     });
+    return true;
   } catch {
     // silent — troll continues without resize
+    return false;
   } finally {
     await obs.disconnect();
   }
@@ -79,7 +83,12 @@ export async function trollRestore(): Promise<void> {
     await obs.call("SetSceneItemTransform", {
       sceneName,
       sceneItemId,
-      sceneItemTransform: transform,
+      sceneItemTransform: {
+        ...transform,
+        // Sources without a bounding box report 0, but obs-websocket rejects bounds below 1 (error 402)
+        boundsWidth: Math.max(1, transform.boundsWidth),
+        boundsHeight: Math.max(1, transform.boundsHeight),
+      },
     });
     _saved = null;
   } catch {

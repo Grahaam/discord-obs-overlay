@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Development (tsx watch + Vite HMR, yt-dlp on PATH)
+# Development (tsx, no watch: restart after server/ edits; Vite HMR for src/; yt-dlp on PATH)
 npm run dev
 
 # Production build (typecheck → vite build → esbuild server bundle)
@@ -38,7 +38,7 @@ E2E tests via Playwright: `npm test` (headless), `npm run test:ui`. Manual alert
 
 Express + Socket.IO server (Vite React SPA) that runs **standalone** (`npm start`) or **inside an Electron shell** (`electron/main.cjs`). Same server bundle either way.
 
-**Dev mode**: `server/index.ts` runs via `tsx`, Vite imported dynamically as middleware (HMR).
+**Dev mode**: `server/index.ts` runs via `tsx` (no watch mode, so restart after editing `server/`), Vite imported dynamically as middleware (HMR).
 **Production**: `dist/server.mjs` (ESM, esbuild `--packages=external`) serves pre-built `dist/` as static files.
 **Electron**: `main.cjs` forks `dist/server.mjs` via `utilityProcess` on a free port (3000–3099), waits on `/api/health`, then opens a `BrowserWindow` at `http://127.0.0.1:<port>` + a system tray. First run (no `settings.json`) shows `wizard.html` to capture bot token + channel ID before the dashboard opens.
 

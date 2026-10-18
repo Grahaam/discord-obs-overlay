@@ -71,3 +71,8 @@ conductor/
 
 # Writable yt-dlp copy made at runtime (server/ytDlpBinary.ts, DATA_DIR/bin)
 /bin/
+
+# Pose detection: downloaded model + streamer-provided image/sound
+models/
+user-assets/*
+!user-assets/README.md

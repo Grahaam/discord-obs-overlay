@@ -98,6 +98,17 @@ npm run electron:build:linux  # AppImage
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — erreurs courantes
 - [CHANGELOG.md](CHANGELOG.md) — historique des versions
 
+## Pose « Absolute Cinema »
+
+L'overlay peut détecter quand vous faites la pose « Absolute Cinema » (les deux mains levées, bras écartés) et afficher une image avec un son.
+
+1. Dans OBS : **Outils → Paramètres du serveur WebSocket**, activez le serveur (port 4455) et désactivez l'authentification.
+2. Déposez votre image et votre son dans le dossier `user-assets/` (par défaut `absolute-cinema.jpg` et `absolute-cinema.mp3`).
+3. Dans l'onglet Bot Discord, activez la détection et indiquez le nom exact de votre source webcam dans OBS.
+4. Rechargez la source navigateur de l'overlay.
+
+La détection tourne localement dans l'overlay (MediaPipe, aucune image n'est envoyée en ligne). Elle capture la source webcam via obs-websocket, donc la caméra n'a pas besoin d'être partagée avec une autre application. Le modèle est téléchargé dans `models/` lors du `npm install`.
+
 ---
 
 ## English

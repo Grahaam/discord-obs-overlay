@@ -38,6 +38,11 @@ export interface UIConfig {
   cobaltApiKey?: string;
   mediaQuality?: "720" | "1080" | "1440" | "2160";
   mediaPersistentPlaysThreshold?: number;
+  poseDetectionEnabled?: boolean;
+  poseCameraSource?: string;
+  poseCooldownSeconds?: number;
+  poseAlertImageUrl?: string;
+  poseAlertSoundUrl?: string;
 }
 
 /** Canonical media type — shared by alerts and logs. "react-player" is not used. */

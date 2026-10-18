@@ -17,7 +17,8 @@ import { initDb, closeDb, loadPersistedAlerts, loadPersistedLogs, incrementMedia
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
-import { trollRestore } from "./obsManager.js";
+import { trollExpand, trollRestore } from "./obsManager.js";
+import { createPoseAlert } from "./poseAlert.js";
 import { APP_PATHS, DATA_PATHS } from "./paths.js";
 
 dotenv.config({ path: DATA_PATHS.envFile });
@@ -130,6 +131,9 @@ async function runServer() {
     });
   }, HEARTBEAT_INTERVAL_MS);
 
+  // Overlay source stretch started by the current pose alert (resolves true if it expanded)
+  let poseExpand: Promise<boolean> | null = null;
+
   // Single source of truth for what is currently playing
   let currentlyPlaying: import("../src/types.js").AlertPayload | null = null;
 
@@ -178,6 +182,23 @@ async function runServer() {
       trollRestore().catch(() => {});
     });
 
+    socket.on("pose_detected", () => {
+      const alert = createPoseAlert();
+      if (!alert) return;
+      logger.info("Absolute Cinema pose detected");
+      // Full priority: bypasses the alert queue, shown on top of whatever is playing
+      io.emit("pose_alert", alert);
+      poseExpand ??= trollExpand().catch(() => false);
+    });
+
+    socket.on("pose_alert_done", async () => {
+      // Wait for a still-running expand, and only restore if the pose alert did it,
+      // so an ongoing troll keeps its full screen
+      const pending = poseExpand;
+      poseExpand = null;
+      if (pending && (await pending)) trollRestore().catch(() => {});
+    });
+
     socket.on("disconnect", () => {});
 
     // Playback state updates from overlay clients (broadcast to other clients)
@@ -197,6 +218,11 @@ async function runServer() {
   }
 
   setupRoutes(app, io);
+
+  // Pose detection assets: MediaPipe wasm runtime, downloaded model, and streamer-provided image/sound
+  app.use("/mediapipe/wasm", express.static(path.join(process.cwd(), "node_modules/@mediapipe/tasks-vision/wasm")));
+  app.use("/models", express.static(path.join(process.cwd(), "models")));
+  app.use("/user-assets", express.static(path.join(process.cwd(), "user-assets")));
 
   // New update check endpoint
   app.get("/api/check-update", async (req, res) => {
