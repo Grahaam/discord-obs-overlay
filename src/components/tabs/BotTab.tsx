@@ -123,6 +123,24 @@ export default function BotTab(props: TabProps) {
     ? config.youtubeCookiesContent.split("\n").filter((l) => l.trim() && !l.startsWith("#")).length
     : 0;
 
+  // Shared by the green "connected" banner and the channel-issue banner, which
+  // replaces it: pausing the overlay is still useful while the channel is fixed.
+  const pauseButton = (
+    <button
+      type="button"
+      onClick={toggleOverlayPause}
+      disabled={togglingPause}
+      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider border transition-all disabled:opacity-40 ${
+        paused
+          ? "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
+          : "border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+      }`}
+    >
+      {paused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+      {paused ? "Resume" : "Pause"}
+    </button>
+  );
+
   // Fill the localized template with the names Discord gave us (server/channelCheck.ts).
   const describeChannelIssue = () => {
     const issue = botStatus.channelIssue;
@@ -177,7 +195,7 @@ export default function BotTab(props: TabProps) {
           <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500 rounded-r-full" />
           <div className="flex gap-3 items-start pl-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-1 flex-col gap-2">
               <span className="text-xs font-bold font-mono text-amber-300 uppercase tracking-wider">
                 {t.bot.channelIssueTitle}
               </span>
@@ -191,6 +209,7 @@ export default function BotTab(props: TabProps) {
                 {t.bot.inviteBot}
               </a>
             </div>
+            {pauseButton}
           </div>
         </div>
       )}
@@ -207,7 +226,7 @@ export default function BotTab(props: TabProps) {
         </div>
       )}
 
-      {botStatus.status === "connected" && (
+      {botStatus.status === "connected" && !botStatus.channelIssue && (
         <div
           className={`relative overflow-hidden rounded-xl border p-4 transition-colors duration-300 ${
             paused ? "border-amber-500/25 bg-amber-950/15" : "border-emerald-500/25 bg-emerald-950/15"
@@ -242,19 +261,7 @@ export default function BotTab(props: TabProps) {
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={toggleOverlayPause}
-              disabled={togglingPause}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider border transition-all disabled:opacity-40 ${
-                paused
-                  ? "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
-                  : "border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
-              }`}
-            >
-              {paused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
-              {paused ? "Resume" : "Pause"}
-            </button>
+            {pauseButton}
           </div>
         </div>
       )}
