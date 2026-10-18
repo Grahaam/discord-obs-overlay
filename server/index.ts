@@ -181,8 +181,8 @@ async function runServer() {
       const alert = createPoseAlert();
       if (!alert) return;
       logger.info("Absolute Cinema pose detected");
-      alertManager.addAlert(alert);
-      io.emit("new_alert", alert);
+      // Full priority: bypasses the alert queue, shown on top of whatever is playing
+      io.emit("pose_alert", alert);
     });
 
     socket.on("disconnect", () => {});
