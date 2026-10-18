@@ -107,10 +107,24 @@ export interface Sparkle {
   bg: string;
 }
 
+/** Why the bot can't read the configured channel (see server/channelCheck.ts). */
+export interface ChannelIssue {
+  /** not_found: no server the bot is in has this channel. no_access: found, but permissions block it. */
+  kind: "not_found" | "no_access";
+  channelId: string;
+  channelName?: string;
+  guildName?: string;
+  botRole?: string;
+  /** Missing permission names, e.g. ["ViewChannel"]. */
+  missing: string[];
+  inviteUrl: string;
+}
+
 export interface BotStatus {
   status: "connected" | "connecting" | "disconnected" | "error";
   botUser: string;
   errorMsg: string;
+  channelIssue?: ChannelIssue | null;
   overlayPaused?: boolean;
   health?: {
     cache: {

@@ -123,6 +123,25 @@ export default function BotTab(props: TabProps) {
     ? config.youtubeCookiesContent.split("\n").filter((l) => l.trim() && !l.startsWith("#")).length
     : 0;
 
+  // Fill the localized template with the names Discord gave us (server/channelCheck.ts).
+  const describeChannelIssue = () => {
+    const issue = botStatus.channelIssue;
+    if (!issue) return "";
+    if (issue.kind === "not_found") return t.bot.channelNotFound.replace("{id}", issue.channelId);
+    const permLabels: Record<string, string> = {
+      ViewChannel: t.bot.permViewChannel,
+      ReadMessageHistory: t.bot.permReadMessageHistory,
+      SendMessages: t.bot.permSendMessages,
+    };
+    const bot = botStatus.botUser.split("#")[0];
+    return t.bot.channelNoAccess
+      .replace("{bot}", bot)
+      .replace("{channel}", issue.channelName ?? issue.channelId)
+      .replace("{guild}", issue.guildName ?? "")
+      .replace("{role}", issue.botRole ?? bot)
+      .replace("{missing}", issue.missing.map((p) => permLabels[p] ?? p).join(", "));
+  };
+
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
       {/* Header */}
@@ -147,6 +166,30 @@ export default function BotTab(props: TabProps) {
                 {t.bot.error}
               </span>
               <span className="text-[11px] font-mono text-rose-400/60 mt-1 block break-all">{botStatus.errorMsg}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connected, but Discord hides the alert channel from the bot (see server/channelCheck.ts) */}
+      {botStatus.status === "connected" && botStatus.channelIssue && (
+        <div className="relative overflow-hidden rounded-xl border border-amber-500/25 bg-amber-950/15 p-4">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500 rounded-r-full" />
+          <div className="flex gap-3 items-start pl-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-bold font-mono text-amber-300 uppercase tracking-wider">
+                {t.bot.channelIssueTitle}
+              </span>
+              <span className="text-[11px] font-mono text-amber-200/70">{describeChannelIssue()}</span>
+              <a
+                href={botStatus.channelIssue.inviteUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="self-start rounded border border-amber-500/30 px-2 py-1 text-[10px] font-mono text-amber-300 hover:border-amber-400/60"
+              >
+                {t.bot.inviteBot}
+              </a>
             </div>
           </div>
         </div>

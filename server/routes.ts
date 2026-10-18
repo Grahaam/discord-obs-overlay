@@ -251,6 +251,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       status: botManager.status,
       botUser: botManager.botUser,
       errorMsg: botManager.errorMsg,
+      channelIssue: botManager.channelIssue,
       overlayPaused: botManager.overlayPaused,
       health: {
         cache: {

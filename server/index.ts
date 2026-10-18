@@ -152,6 +152,7 @@ async function runServer() {
         status: botManager.status,
         botUser: botManager.botUser,
         errorMsg: botManager.errorMsg,
+        channelIssue: botManager.channelIssue,
         overlayPaused: botManager.overlayPaused,
       });
     });
