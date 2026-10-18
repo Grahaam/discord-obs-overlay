@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Development (tsx watch + Vite HMR, yt-dlp on PATH)
+# Development (tsx, no watch: restart after server/ edits; Vite HMR for src/; yt-dlp on PATH)
 npm run dev
 
 # Production build (typecheck → vite build → esbuild server bundle)
@@ -30,7 +30,7 @@ No test suite exists — manual testing via the `/api/trigger-test` endpoint or 
 
 Single-process Node app: Express + Socket.IO server (port 3000) bundled with a Vite React SPA.
 
-**Dev mode**: `server/index.ts` runs via `tsx`, Vite runs as middleware (HMR).  
+**Dev mode**: `server/index.ts` runs via `tsx` (no watch mode, so restart after editing `server/`), Vite runs as middleware (HMR).  
 **Production**: `dist/server.cjs` serves pre-built `dist/` as static files.
 
 ### Server (`server/`)
