@@ -9,8 +9,11 @@ const L_WRIST = 15;
 const R_WRIST = 16;
 
 const MIN_VISIBILITY = 0.6;
-/** Distance between wrists, relative to shoulder width, for the arms to count as spread. */
-const MIN_WRIST_SPREAD = 1.8;
+/**
+ * Distance between wrists, relative to shoulder width, for the arms to count as spread.
+ * Real webcam poses measured 1.68–1.82 (hands frame the face, closer than the elbows), so 1.5 leaves margin.
+ */
+const MIN_WRIST_SPREAD = 1.5;
 const MIN_ELBOW_SPREAD = 1.3;
 
 /**
