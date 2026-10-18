@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, clipboard, ipcMain, utilityProcess, nativeImage, dialog } = require("electron");
+const { app, BrowserWindow, Tray, Menu, clipboard, ipcMain, utilityProcess, nativeImage, dialog, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -277,6 +277,14 @@ ipcMain.handle("complete-setup", async (event, { token, channelId }) => {
 });
 
 ipcMain.handle("get-port", () => serverPort);
+
+ipcMain.handle("open-user-assets", async () => {
+  const dir = path.join(isDev ? app.getAppPath() : app.getPath("userData"), "user-assets");
+  fs.mkdirSync(dir, { recursive: true });
+  // openPath resolves to an error string ("" on success) instead of throwing.
+  const err = await shell.openPath(dir);
+  if (err) throw new Error(err);
+});
 
 // ── App lifecycle ──────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {

@@ -46,6 +46,7 @@ export const locales = {
       poseSound: "Son (URL)",
       poseMediaHelp:
         "Déposez vos fichiers dans le dossier user-assets/ et utilisez /user-assets/<fichier>, ou collez une URL.",
+      openUserAssets: "Ouvrir le dossier",
       cookies: "Cookies de Session (Optionnel)",
       cookiesHelp:
         "Nécessaires pour contourner les restrictions d'accès (ex: Instagram, TikTok). Utilisez l'extension 'Get cookies.txt LOCALLY' dans votre navigateur pour exporter vos cookies au format Netscape et collez-les ici.",
@@ -237,6 +238,7 @@ export const locales = {
       poseImage: "Image (URL)",
       poseSound: "Sound (URL)",
       poseMediaHelp: "Drop your files in the user-assets/ folder and use /user-assets/<file>, or paste a URL.",
+      openUserAssets: "Open folder",
       cookies: "Session Cookies (Optional)",
       cookiesHelp:
         "Required for platforms that block anonymous access. Use a browser extension like 'Get cookies.txt LOCALLY' to extract your cookies in Netscape format and paste them here.",
@@ -427,6 +429,7 @@ export const locales = {
       poseImage: "Image (UWL)",
       poseSound: "Sound (UWL)",
       poseMediaHelp: "Dwop youw fiwes in da usew-assets/ fowdew and use /user-assets/<fiwe>, ow paste a UWL~",
+      openUserAssets: "Open da fowdew~",
       cookies: "TikTok/Instagwam Session Cookies (Optionaw, nya~)",
       cookiesHelp: "Standawd cookie text content to bypass connection bwockages fow sum netwowks.",
       cobaltTitle: "Cobawt (Optionaw, nya~)",
@@ -619,6 +622,7 @@ export const locales = {
       poseSound: "Son (UWL)",
       poseMediaHelp:
         "Déposez vos fichiows dans we dossiow user-assets/ et utiwisez /user-assets/<fichiow>, ou cowwez une UWL~",
+      openUserAssets: "Ouvwiw we dossiow~",
       cookies: "Cookies Vidéo (YouTube, Instagwam, TikTok, nya~)",
       cookiesHelp:
         "Cewa pewmet awwa pwatefowme de téwéchawgew des médias comme si ewwe était connectée à votwe compte.",

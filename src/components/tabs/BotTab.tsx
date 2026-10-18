@@ -17,6 +17,7 @@ import {
   Pause,
   ChevronDown,
   Clapperboard,
+  FolderOpen,
 } from "lucide-react";
 
 const PLATFORM_DOMAINS: Record<string, string> = {
@@ -518,7 +519,19 @@ export default function BotTab(props: TabProps) {
                 />
               </div>
             </div>
-            <span className="text-[10px] text-white/20 font-mono">{t.bot.poseMediaHelp}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] text-white/20 font-mono">{t.bot.poseMediaHelp}</span>
+              {window.electronAPI && (
+                <button
+                  type="button"
+                  onClick={() => window.electronAPI?.openUserAssets().catch(console.error)}
+                  className="flex shrink-0 items-center gap-1 rounded border border-white/10 px-2 py-1 text-[10px] font-mono text-white/50 hover:border-white/20 hover:text-white/80"
+                >
+                  <FolderOpen className="w-3 h-3" />
+                  {t.bot.openUserAssets}
+                </button>
+              )}
+            </div>
           </>
         )}
       </div>
