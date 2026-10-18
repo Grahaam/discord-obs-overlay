@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueueStore } from "../store/queueStore";
 
-const VISIBLE_MS = 1000;
+// 2 s in total: fully visible, then image and sound fade out together
+const VISIBLE_MS = 1500;
 const FADE_MS = 500;
 
 interface PoseAlertPayload {
@@ -30,20 +31,42 @@ export default function PoseAlertOverlay({ onShow, onHide }: PoseAlertOverlayPro
 
   useEffect(() => {
     if (!socket) return;
+    let audio: HTMLAudioElement | null = null;
+    let fadeInterval: ReturnType<typeof setInterval> | undefined;
+    const stopSound = () => {
+      clearInterval(fadeInterval);
+      audio?.pause();
+      audio = null;
+    };
     const clearTimers = () => {
       timersRef.current.forEach(clearTimeout);
       timersRef.current = [];
     };
     const handler = ({ imageUrl: img, soundUrl }: PoseAlertPayload) => {
       clearTimers();
+      stopSound();
       onShowRef.current?.();
       setImageUrl(img);
       setFading(false);
-      // Not tied to the DOM, so the sound keeps playing after the image has faded out
-      if (soundUrl) new Audio(soundUrl).play().catch(() => {});
+      if (soundUrl) {
+        audio = new Audio(soundUrl);
+        audio.play().catch((err) => console.warn("[PoseAlertOverlay] sound blocked", err));
+      }
       timersRef.current = [
-        setTimeout(() => setFading(true), VISIBLE_MS),
         setTimeout(() => {
+          setFading(true);
+          // Fade the sound with the image (audio volume has no CSS transition, so step it down)
+          const fadingAudio = audio;
+          if (!fadingAudio) return;
+          const steps = 10;
+          let step = 0;
+          fadeInterval = setInterval(() => {
+            step++;
+            fadingAudio.volume = Math.max(0, 1 - step / steps);
+          }, FADE_MS / steps);
+        }, VISIBLE_MS),
+        setTimeout(() => {
+          stopSound();
           setImageUrl(null);
           onHideRef.current?.();
           socket.emit("pose_alert_done");
@@ -54,6 +77,7 @@ export default function PoseAlertOverlay({ onShow, onHide }: PoseAlertOverlayPro
     return () => {
       socket.off("pose_alert", handler);
       clearTimers();
+      stopSound();
     };
   }, [socket]);
 
