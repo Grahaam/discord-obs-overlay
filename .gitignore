@@ -68,3 +68,6 @@ dashboard-initial.png
 conductor/
 # Standalone yt-dlp binaries fetched at build time (scripts/fetch-ytdlp.cjs)
 /electron/bin/
+
+# Writable yt-dlp copy made at runtime (server/ytDlpBinary.ts, DATA_DIR/bin)
+/bin/
