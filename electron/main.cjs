@@ -1,8 +1,20 @@
-const { app, BrowserWindow, Tray, Menu, clipboard, ipcMain, utilityProcess, nativeImage, dialog, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Tray,
+  Menu,
+  clipboard,
+  ipcMain,
+  utilityProcess,
+  nativeImage,
+  dialog,
+  shell,
+} = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
+const { initAutoUpdate } = require("./updater.cjs");
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let mainWindow = null;
@@ -12,6 +24,9 @@ let serverProcess = null;
 let serverPort = null;
 app.isQuitting = false;
 let serverCrashHandled = false;
+let updater = null;
+let pendingUpdateVersion = null; // set once an update is downloaded
+let installUpdateOnQuit = false;
 
 // ── Single-instance lock ───────────────────────────────────────────────────────
 if (!app.requestSingleInstanceLock()) {
@@ -167,8 +182,32 @@ function createTray(port) {
 
   tray = new Tray(icon);
   tray.setToolTip("LiveChat");
+  refreshTrayMenu(port);
+  tray.on("double-click", () => {
+    mainWindow?.show();
+    mainWindow?.focus();
+  });
+}
+
+// Rebuilt when an update finishes downloading, to add the "Restart" item.
+function refreshTrayMenu(port) {
+  if (!tray) return;
+  const updateItems = pendingUpdateVersion
+    ? [
+        {
+          label: `Restart to update (v${pendingUpdateVersion})`,
+          click: () => {
+            installUpdateOnQuit = true;
+            app.isQuitting = true;
+            app.quit(); // clean server shutdown first, then the installer runs (see will-quit)
+          },
+        },
+        { type: "separator" },
+      ]
+    : [];
   tray.setContextMenu(
     Menu.buildFromTemplate([
+      ...updateItems,
       {
         label: "Open Dashboard",
         click: () => {
@@ -187,9 +226,20 @@ function createTray(port) {
       },
     ])
   );
-  tray.on("double-click", () => {
-    mainWindow?.show();
-    mainWindow?.focus();
+}
+
+function startAutoUpdate(port) {
+  if (updater) return;
+  updater = initAutoUpdate({
+    onUpdateReady: (version) => {
+      pendingUpdateVersion = version;
+      refreshTrayMenu(port);
+      // displayBalloon is a Windows-only notification bubble on the tray icon.
+      tray?.displayBalloon?.({
+        title: "LiveChat update ready",
+        content: `Version ${version} will install when you quit, or right-click the tray icon to restart now.`,
+      });
+    },
   });
 }
 
@@ -273,6 +323,7 @@ ipcMain.handle("complete-setup", async (event, { token, channelId }) => {
 
   createMainWindow(port);
   createTray(port);
+  startAutoUpdate(port);
   wizardWindow?.close();
 });
 
@@ -302,6 +353,7 @@ app.whenReady().then(async () => {
     await waitForServer(serverPort);
     createMainWindow(serverPort);
     createTray(serverPort);
+    startAutoUpdate(serverPort);
   } catch (err) {
     console.error("[main] Failed to start server:", err);
     const { response } = await dialog.showMessageBox({
@@ -342,7 +394,10 @@ app.on("will-quit", (e) => {
     if (serverStopped) return;
     serverStopped = true;
     clearTimeout(fallback);
-    app.quit();
+    // quitAndInstall quits the app and runs the NSIS installer silently, then
+    // relaunches. Only reached after the server has exited cleanly.
+    if (installUpdateOnQuit && updater) updater.quitAndInstall(true, true);
+    else app.quit();
   };
   const fallback = setTimeout(() => {
     console.error("[main] server did not exit within 5s, killing it");

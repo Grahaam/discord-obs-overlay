@@ -52,7 +52,14 @@
         }
       ],
       "category": "Utility"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Grahaam",
+        "repo": "discord-obs-overlay"
+      }
+    ]
   },
   "scripts": {
     "postinstall": "node scripts/setup-yt-dlp.cjs",
@@ -72,10 +79,10 @@
     "gen-icons": "node scripts/gen-icons.cjs",
     "electron:rebuild": "node scripts/electron-rebuild.cjs",
     "electron:dev": "npm run build && node scripts/fetch-pose-model.cjs && npm run electron:rebuild && electron .",
-    "electron:build": "npm run build && npm run electron:rebuild && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs && electron-builder",
-    "electron:build:win": "npm run build && npm run electron:rebuild && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs --platform win32 && electron-builder --win",
-    "electron:build:mac": "npm run build && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs --platform darwin && npm run electron:rebuild -- --arch arm64 && electron-builder --mac --arm64 && npm run electron:rebuild -- --arch x64 && electron-builder --mac --x64",
-    "electron:build:linux": "npm run build && npm run electron:rebuild && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs --platform linux && electron-builder --linux",
+    "electron:build": "npm run build && npm run electron:rebuild && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs && electron-builder --publish never",
+    "electron:build:win": "npm run build && npm run electron:rebuild && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs --platform win32 && electron-builder --win --publish never",
+    "electron:build:mac": "npm run build && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs --platform darwin && npm run electron:rebuild -- --arch arm64 && electron-builder --mac --arm64 --publish never && npm run electron:rebuild -- --arch x64 && electron-builder --mac --x64 --publish never",
+    "electron:build:linux": "npm run build && npm run electron:rebuild && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs --platform linux && electron-builder --linux --publish never",
     "predev": "node scripts/ensure-node-native.cjs && node scripts/fetch-pose-model.cjs --optional",
     "prestart": "node scripts/ensure-node-native.cjs"
   },
@@ -90,6 +97,7 @@
     "better-sqlite3": "^12.10.0",
     "discord.js": "^14.26.4",
     "dotenv": "^17.2.3",
+    "electron-updater": "^6.8.9",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "ffmpeg-static": "^5.3.0",

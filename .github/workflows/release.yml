@@ -11,15 +11,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # latest*.yml + .blockmap are what electron-updater reads to find and
+          # (delta-)download a new version, so they must be on the GitHub Release.
           - os: windows-latest
             target: win
-            artifact_glob: dist-electron/*Setup*.exe
+            artifact_glob: |
+              dist-electron/*Setup*.exe
+              dist-electron/*Setup*.exe.blockmap
+              dist-electron/latest.yml
           - os: macos-latest
             target: mac
+            # No latest-mac.yml: macOS auto-update needs a signed build (see docs/CODE-SIGNING.md).
             artifact_glob: dist-electron/*.dmg
           - os: ubuntu-latest
             target: linux
-            artifact_glob: dist-electron/*.AppImage
+            artifact_glob: |
+              dist-electron/*.AppImage
+              dist-electron/latest-linux.yml
 
     runs-on: ${{ matrix.os }}
     permissions:
