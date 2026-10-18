@@ -3,9 +3,10 @@ import { createRequire } from "module";
 import { AlertPayload } from "../src/types.js";
 import type { LogEntry } from "../src/types.js";
 import { logger } from "./logger.js";
+import { DATA_PATHS } from "./paths.js";
 
 const _require = createRequire(import.meta.url);
-const DB_PATH = path.join(process.cwd(), "overlay.db");
+const DB_PATH = DATA_PATHS.dbFile;
 const MAX_LOG_ROWS = 1000;
 const LOG_TRIM_INTERVAL = 100;
 

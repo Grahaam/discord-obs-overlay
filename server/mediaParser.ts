@@ -12,6 +12,7 @@ import metascraperAuthor from "metascraper-author";
 import { execFileSync, execFile } from "child_process";
 import { createRequire } from "module";
 import { logger } from "./logger.js";
+import { APP_PATHS, DATA_PATHS } from "./paths.js";
 import { CACHE_DIR } from "./binaries.js";
 
 const _require = createRequire(import.meta.url);
@@ -67,7 +68,7 @@ function findBestYtDlpPath(): string | null {
   }
 
   const isWin = process.platform === "win32";
-  const venvBin = path.join(process.cwd(), ".venv", isWin ? "Scripts" : "bin", isWin ? "yt-dlp.exe" : "yt-dlp");
+  const venvBin = path.join(APP_PATHS.venvDir, isWin ? "Scripts" : "bin", isWin ? "yt-dlp.exe" : "yt-dlp");
   if (fs.existsSync(venvBin)) {
     try {
       execFileSync(venvBin, ["--version"], { stdio: "ignore" });
@@ -506,7 +507,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 
 async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filename: string; info: any } | null> {
-  const cookiesPath = path.join(process.cwd(), "cookies.txt");
+  const cookiesPath = DATA_PATHS.cookiesFile;
   const hasCookies = fs.existsSync(cookiesPath);
 
   const isYouTube = /youtube\.com|youtu\.be|ytsearch/.test(url);
@@ -795,7 +796,7 @@ export async function resolveMediaFromLink(url: string): Promise<{
 }> {
   const { provider: urlProvider } = parseMediaUrl(url);
   const cleanedUrl = cleanUrl(url);
-  const cookiesPath = path.join(process.cwd(), "cookies.txt");
+  const cookiesPath = DATA_PATHS.cookiesFile;
 
   const { url: normalizedUrl, audioOnly: isAudioOrigin } = normalizeForExtraction(cleanedUrl);
 

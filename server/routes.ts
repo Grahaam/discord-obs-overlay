@@ -10,6 +10,7 @@ import { Server as SocketServer } from "socket.io";
 import os from "os";
 import { exec } from "child_process";
 import { logger } from "./logger.js";
+import { DATA_PATHS } from "./paths.js";
 import { settingsManager } from "./settingsManager.js";
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
@@ -44,7 +45,7 @@ async function getCacheStats() {
   if (_cacheStatsCache && Date.now() < _cacheStatsExpiry) {
     return _cacheStatsCache;
   }
-  const cacheDir = path.join(process.cwd(), "media_cache");
+  const cacheDir = DATA_PATHS.mediaCacheDir;
   if (!fs.existsSync(cacheDir)) {
     _cacheStatsCache = { totalSize: 0, fileCount: 0 };
     _cacheStatsExpiry = Date.now() + 60_000;
@@ -267,7 +268,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
       // Calculate the hash of the URL to find potential cached files
       const urlHash = crypto.createHash("md5").update(url).digest("hex");
-      const possibleCachedFile = path.join(process.cwd(), "media_cache", `${urlHash}.mp4`);
+      const possibleCachedFile = path.join(DATA_PATHS.mediaCacheDir, `${urlHash}.mp4`);
 
       // Clear any potentially cached failures or old versions
       if (fs.existsSync(possibleCachedFile)) {
@@ -469,7 +470,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
   // Clear media cache
   app.post("/api/cache/clear", async (req, res) => {
-    const cacheDir = path.join(process.cwd(), "media_cache");
+    const cacheDir = DATA_PATHS.mediaCacheDir;
     if (!fs.existsSync(cacheDir)) {
       _cacheStatsCache = null;
       return res.json({ success: true, deleted: 0 });
@@ -507,7 +508,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     if (filename.includes("..") || filename.includes("/")) {
       return res.status(400).send("Invalid filename");
     }
-    const filepath = path.join(process.cwd(), "media_cache", filename);
+    const filepath = path.join(DATA_PATHS.mediaCacheDir, filename);
     if (!fs.existsSync(filepath)) {
       return res.status(404).send("File not found");
     }

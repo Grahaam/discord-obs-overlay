@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { DATA_PATHS } from "./paths.js";
 
 const ASSET_BY_PLATFORM: Record<string, string> = {
   win32: "yt-dlp.exe",
@@ -27,7 +28,7 @@ interface ResolveOpts {
 /**
  * Resolve the bundled standalone yt-dlp. Only meaningful when packaged
  * (appPath set by the Electron fork). Copies the read-only bundled binary
- * into a writable dir (cwd/bin) so `yt-dlp -U` can replace it in place;
+ * into a writable dir (DATA_DIR/bin) so `yt-dlp -U` can replace it in place;
  * falls back to the read-only bundled copy (not self-updatable) if the copy
  * fails.
  *
@@ -41,14 +42,14 @@ interface ResolveOpts {
 export function resolveStandalone(opts: ResolveOpts = {}): StandaloneResult | null {
   const appPath = opts.appPath ?? process.env.APP_PATH;
   if (!appPath) return null;
-  const cwd = opts.cwd ?? process.cwd();
+  const dataDir = opts.cwd ?? DATA_PATHS.root;
   const platform = opts.platform ?? process.platform;
   const name = standaloneBinaryName(platform);
 
   const bundled = path.join(appPath, "electron", "bin", name);
   if (!fs.existsSync(bundled)) return null;
 
-  const target = path.join(cwd, "bin", name);
+  const target = path.join(dataDir, "bin", name);
   try {
     if (!fs.existsSync(target)) {
       // Copy to a temp sibling and rename so a crash/disk-full mid-copy never

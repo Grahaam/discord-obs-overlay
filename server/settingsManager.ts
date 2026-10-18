@@ -1,10 +1,11 @@
 import fs from "fs";
 import path from "path";
 import { logger } from "./logger.js";
+import { DATA_PATHS } from "./paths.js";
 import dotenv from "dotenv";
 
-const SETTINGS_FILE = path.join(process.cwd(), "settings.json");
-const ENV_FILE = path.join(process.cwd(), ".env");
+const SETTINGS_FILE = DATA_PATHS.settingsFile;
+const ENV_FILE = DATA_PATHS.envFile;
 
 export interface Settings {
   discordToken: string;
@@ -82,7 +83,7 @@ export class SettingsManager {
 
   public loadSettings() {
     try {
-      dotenv.config(); // Reload env
+      dotenv.config({ path: ENV_FILE }); // Reload env
 
       let loaded: Partial<Settings> = {};
       if (fs.existsSync(SETTINGS_FILE)) {
@@ -99,7 +100,7 @@ export class SettingsManager {
       }
 
       // Load cookies from cookies.txt
-      const cookiesFile = path.join(process.cwd(), "cookies.txt");
+      const cookiesFile = DATA_PATHS.cookiesFile;
       if (fs.existsSync(cookiesFile)) {
         this.settings.youtubeCookiesContent = fs.readFileSync(cookiesFile, "utf-8");
       }
@@ -163,7 +164,7 @@ export class SettingsManager {
 
   private syncCookiesFile() {
     try {
-      const cookiesFile = path.join(process.cwd(), "cookies.txt");
+      const cookiesFile = DATA_PATHS.cookiesFile;
       const content = (this.settings.youtubeCookiesContent || "").trim();
 
       if (!content) {

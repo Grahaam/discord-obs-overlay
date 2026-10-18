@@ -81,6 +81,8 @@ function forkServer(port, dataDir) {
       NODE_ENV: "production",
       PORT: String(port),
       APP_PATH: app.getAppPath(),
+      // Writable data root (settings, token, DB, cache). See server/paths.ts.
+      DATA_DIR: dataDir,
     },
     cwd: dataDir,
     stdio: ["ignore", "pipe", "pipe"],

@@ -18,9 +18,9 @@ import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
 import { trollRestore } from "./obsManager.js";
-import { APP_PATHS } from "./paths.js";
+import { APP_PATHS, DATA_PATHS } from "./paths.js";
 
-dotenv.config();
+dotenv.config({ path: DATA_PATHS.envFile });
 
 const PORT = parseInt(env.PORT, 10);
 const HEARTBEAT_INTERVAL_MS = 5000;
