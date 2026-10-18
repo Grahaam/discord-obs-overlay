@@ -494,6 +494,14 @@ export default function BotTab(props: TabProps) {
                   max={3600}
                   value={config.poseCooldownSeconds ?? 30}
                   onChange={(e) => setConfig({ ...config, poseCooldownSeconds: Number(e.target.value) })}
+                  // min/max only affect the spinner arrows, not typing. Clamp on blur so a
+                  // typed value like 2 can't fail the server's 5–3600 validation on save.
+                  onBlur={(e) =>
+                    setConfig({
+                      ...config,
+                      poseCooldownSeconds: Math.min(3600, Math.max(5, Number(e.target.value) || 30)),
+                    })
+                  }
                   className={`${inputBase} text-white/70 focus:border-white/20`}
                 />
               </div>
