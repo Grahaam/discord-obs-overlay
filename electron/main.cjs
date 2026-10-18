@@ -142,6 +142,13 @@ function createMainWindow(port) {
     },
   });
   mainWindow.loadURL(`http://127.0.0.1:${port}`);
+  // Links with target="_blank" (Discord invite, Developer Portal) would open in a
+  // bare Electron window where the user is not logged in. Send them to the
+  // default browser instead, and only for http(s) URLs.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) shell.openExternal(url);
+    return { action: "deny" };
+  });
   mainWindow.on("close", (e) => {
     if (!app.isQuitting) {
       e.preventDefault();
