@@ -83,7 +83,12 @@ export async function trollRestore(): Promise<void> {
     await obs.call("SetSceneItemTransform", {
       sceneName,
       sceneItemId,
-      sceneItemTransform: transform,
+      sceneItemTransform: {
+        ...transform,
+        // Sources without a bounding box report 0, but obs-websocket rejects bounds below 1 (error 402)
+        boundsWidth: Math.max(1, transform.boundsWidth),
+        boundsHeight: Math.max(1, transform.boundsHeight),
+      },
     });
     _saved = null;
   } catch {
