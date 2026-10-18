@@ -9,7 +9,7 @@
     "appId": "com.livechat",
     "productName": "LiveChat",
     "asar": false,
-    "npmRebuild": true,
+    "npmRebuild": false,
     "directories": {
       "output": "dist-electron"
     },
@@ -35,13 +35,7 @@
       "icon": "electron/assets/icon.png",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
+        "dmg"
       ],
       "category": "public.app-category.utilities"
     },
@@ -60,7 +54,7 @@
     }
   },
   "scripts": {
-    "postinstall": "node scripts/setup-yt-dlp.cjs && (npx --no-install electron-builder install-app-deps || echo [skip] electron-builder not installed - skipping app-deps rebuild)",
+    "postinstall": "node scripts/setup-yt-dlp.cjs",
     "dev": "node scripts/run-with-venv.cjs tsx server/index.ts",
     "build": "npm run typecheck && vite build && esbuild server/index.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.mjs",
     "start": "node scripts/run-with-venv.cjs node dist/server.mjs",
@@ -75,12 +69,14 @@
     "test:media": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts",
     "test:media:filter": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts --filter",
     "gen-icons": "node scripts/gen-icons.cjs",
-    "electron:rebuild": "node -e \"require('@electron/rebuild').rebuild({buildPath:process.cwd(),electronVersion:require('./node_modules/electron/package.json').version,force:true,onlyModules:['better-sqlite3']}).then(()=>console.log('rebuild ok')).catch(e=>{console.error(e.message);process.exit(1)})\"",
+    "electron:rebuild": "node scripts/electron-rebuild.cjs",
     "electron:dev": "npm run build && npm run electron:rebuild && electron .",
-    "electron:build": "npm run build && node scripts/fetch-ytdlp.cjs && electron-builder",
-    "electron:build:win": "npm run build && node scripts/fetch-ytdlp.cjs --platform win32 && electron-builder --win",
-    "electron:build:mac": "npm run build && node scripts/fetch-ytdlp.cjs --platform darwin && electron-builder --mac",
-    "electron:build:linux": "npm run build && node scripts/fetch-ytdlp.cjs --platform linux && electron-builder --linux"
+    "electron:build": "npm run build && npm run electron:rebuild && node scripts/fetch-ytdlp.cjs && electron-builder",
+    "electron:build:win": "npm run build && npm run electron:rebuild && node scripts/fetch-ytdlp.cjs --platform win32 && electron-builder --win",
+    "electron:build:mac": "npm run build && node scripts/fetch-ytdlp.cjs --platform darwin && npm run electron:rebuild -- --arch arm64 && electron-builder --mac --arm64 && npm run electron:rebuild -- --arch x64 && electron-builder --mac --x64",
+    "electron:build:linux": "npm run build && npm run electron:rebuild && node scripts/fetch-ytdlp.cjs --platform linux && electron-builder --linux",
+    "predev": "node scripts/ensure-node-native.cjs",
+    "prestart": "node scripts/ensure-node-native.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
