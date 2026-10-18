@@ -17,7 +17,7 @@ import { initDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
-import { trollRestore } from "./obsManager.js";
+import { trollExpand, trollRestore } from "./obsManager.js";
 import { createPoseAlert } from "./poseAlert.js";
 
 dotenv.config();
@@ -130,6 +130,9 @@ async function runServer() {
     });
   }, HEARTBEAT_INTERVAL_MS);
 
+  // Overlay source stretch started by the current pose alert (resolves true if it expanded)
+  let poseExpand: Promise<boolean> | null = null;
+
   // Single source of truth for what is currently playing
   let currentlyPlaying: import("../src/types.js").AlertPayload | null = null;
 
@@ -183,6 +186,15 @@ async function runServer() {
       logger.info("Absolute Cinema pose detected");
       // Full priority: bypasses the alert queue, shown on top of whatever is playing
       io.emit("pose_alert", alert);
+      poseExpand ??= trollExpand().catch(() => false);
+    });
+
+    socket.on("pose_alert_done", async () => {
+      // Wait for a still-running expand, and only restore if the pose alert did it,
+      // so an ongoing troll keeps its full screen
+      const pending = poseExpand;
+      poseExpand = null;
+      if (pending && (await pending)) trollRestore().catch(() => {});
     });
 
     socket.on("disconnect", () => {});

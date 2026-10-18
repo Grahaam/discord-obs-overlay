@@ -9,12 +9,24 @@ interface PoseAlertPayload {
   soundUrl: string;
 }
 
+interface PoseAlertOverlayProps {
+  onShow?: () => void;
+  onHide?: () => void;
+}
+
 /** Full-screen "Absolute Cinema" flash: shown above everything, then fades out. */
-export default function PoseAlertOverlay() {
+export default function PoseAlertOverlay({ onShow, onHide }: PoseAlertOverlayProps) {
   const { socket } = useQueueStore();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [fading, setFading] = useState(false);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Refs so the socket handler always calls the latest callbacks without re-subscribing
+  const onShowRef = useRef(onShow);
+  const onHideRef = useRef(onHide);
+  useEffect(() => {
+    onShowRef.current = onShow;
+    onHideRef.current = onHide;
+  }, [onShow, onHide]);
 
   useEffect(() => {
     if (!socket) return;
@@ -24,13 +36,18 @@ export default function PoseAlertOverlay() {
     };
     const handler = ({ imageUrl: img, soundUrl }: PoseAlertPayload) => {
       clearTimers();
+      onShowRef.current?.();
       setImageUrl(img);
       setFading(false);
       // Not tied to the DOM, so the sound keeps playing after the image has faded out
       if (soundUrl) new Audio(soundUrl).play().catch(() => {});
       timersRef.current = [
         setTimeout(() => setFading(true), VISIBLE_MS),
-        setTimeout(() => setImageUrl(null), VISIBLE_MS + FADE_MS),
+        setTimeout(() => {
+          setImageUrl(null);
+          onHideRef.current?.();
+          socket.emit("pose_alert_done");
+        }, VISIBLE_MS + FADE_MS),
       ];
     };
     socket.on("pose_alert", handler);

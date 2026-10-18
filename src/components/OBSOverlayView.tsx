@@ -6,6 +6,7 @@ import { locales, Language } from "../locales";
 import { useQueueStore } from "../store/queueStore";
 import { usePlaybackController } from "../hooks/usePlaybackController";
 import { useLeaderElection } from "../hooks/useLeaderElection";
+import PoseAlertOverlay from "./PoseAlertOverlay";
 
 const FONT_MAP: Record<string, string> = {
   sans: "system-ui, -apple-system, sans-serif",
@@ -150,6 +151,22 @@ export default function OBSOverlayView() {
       if (isPaused) togglePause();
     };
   }, [isPaused, togglePause]);
+
+  // Pose alert has full priority: pause the current alert under it, then resume —
+  // unless the streamer had already paused it themselves.
+  const pausedForPoseRef = useRef(false);
+  const handlePoseAlertShow = useCallback(() => {
+    if (active && !isPaused) {
+      pausedForPoseRef.current = true;
+      pauseRef.current();
+    }
+  }, [active, isPaused]);
+  const handlePoseAlertHide = useCallback(() => {
+    if (pausedForPoseRef.current) {
+      pausedForPoseRef.current = false;
+      resumeRef.current();
+    }
+  }, []);
 
   useEffect(() => {
     // keep refs in sync so store callbacks call the latest functions
@@ -601,6 +618,7 @@ export default function OBSOverlayView() {
           </div>
         )}
       </div>
+      <PoseAlertOverlay onShow={handlePoseAlertShow} onHide={handlePoseAlertHide} />
     </div>
   );
 }
