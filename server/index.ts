@@ -13,7 +13,7 @@ import { setupRoutes } from "./routes.js";
 import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser, warmUpYtDlp, isYtDlpReady } from "./mediaParser.js";
 import { startMediaQueue } from "./mediaWorkerQueue.js";
 import { alertManager } from "./alertManager.js";
-import { initDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount } from "./db.js";
+import { initDb, closeDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount } from "./db.js";
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
@@ -260,10 +260,29 @@ async function runServer() {
     });
   });
 
-  // Graceful shutdown
-  process.on("SIGTERM", () => {
+  // Graceful shutdown. Order matters: put OBS back first (needs the network),
+  // then stop Discord + HTTP, then close the DB last so nothing writes after it.
+  let shuttingDown = false;
+  async function shutdown(reason: string) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info({ reason }, "Shutting down");
     clearInterval(heartbeatInterval);
+    await trollRestore().catch(() => {});
+    await botManager.shutdown().catch(() => {});
+    io.close();
     httpServer.close();
+    closeDb();
+    process.exit(0);
+  }
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+  // Under Electron the server runs as a utilityProcess. On Windows there are no
+  // real POSIX signals, so kill() would end it instantly; instead main.cjs
+  // posts { type: "shutdown" } over parentPort and waits for us to exit.
+  const parentPort = (process as any).parentPort;
+  parentPort?.on("message", (e: { data?: { type?: string } }) => {
+    if (e?.data?.type === "shutdown") void shutdown("electron-quit");
   });
 }
 

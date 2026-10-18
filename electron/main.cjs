@@ -321,8 +321,28 @@ app.on("activate", () => {
 app.on("before-quit", () => {
   app.isQuitting = true;
 });
-app.on("will-quit", () => {
-  serverProcess?.kill();
+// Ask the server to shut down cleanly (restore OBS transforms, close the DB)
+// instead of kill(), which is an instant hard kill on Windows. will-quit is
+// synchronous, so we cancel the quit once, wait for the server to exit, then
+// quit for real. A 5 s timer hard-kills a server that hangs (e.g. OBS frozen).
+let serverStopped = false;
+app.on("will-quit", (e) => {
+  if (serverStopped || !serverProcess) return;
+  e.preventDefault();
+  const proc = serverProcess;
+  const finish = () => {
+    if (serverStopped) return;
+    serverStopped = true;
+    clearTimeout(fallback);
+    app.quit();
+  };
+  const fallback = setTimeout(() => {
+    console.error("[main] server did not exit within 5s, killing it");
+    proc.kill();
+    finish();
+  }, 5000);
+  proc.once("exit", finish);
+  proc.postMessage({ type: "shutdown" });
 });
 
 // Keep app alive when all windows are closed (tray mode)

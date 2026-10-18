@@ -24,6 +24,16 @@ function withDb<T>(fn: (d: any) => T, caller: string): T | undefined {
   }
 }
 
+/** Close the DB so WAL contents are checkpointed into overlay.db before exit. */
+export function closeDb(): void {
+  try {
+    db?.close();
+  } catch (err: any) {
+    logger.error({ err: err.message }, "Failed to close database");
+  }
+  db = null;
+}
+
 export function initDb(): void {
   try {
     const Database = _require("better-sqlite3") as typeof import("better-sqlite3");
