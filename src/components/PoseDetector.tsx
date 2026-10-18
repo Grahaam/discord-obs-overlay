@@ -3,7 +3,6 @@ import { FilesetResolver, PoseLandmarker } from "@mediapipe/tasks-vision";
 import OBSWebSocket from "obs-websocket-js";
 import { useQueueStore } from "../store/queueStore";
 import { isAbsoluteCinemaPose } from "../lib/absoluteCinemaPose";
-import { useLeaderElection } from "../hooks/useLeaderElection";
 
 // Same endpoint as server/obsManager.ts
 const OBS_WS_URL = "ws://localhost:4455";
@@ -29,7 +28,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
  * through obs-websocket (no webcam access needed), runs MediaPipe pose detection, and
  * notifies the server when the "Absolute Cinema" pose is held. Cooldown is server-side.
  */
-export default function PoseDetector() {
+export default function PoseDetector({ isLeader }: { isLeader: boolean }) {
   const [settings, setSettings] = useState<PoseSettings | null>(null);
 
   useEffect(() => {
@@ -40,7 +39,6 @@ export default function PoseDetector() {
   }, []);
 
   // Only the leader overlay tab runs detection, same as playback.
-  const isLeader = useLeaderElection();
 
   const sourceName = settings?.poseCameraSource?.trim();
   const enabled = isLeader && settings?.poseDetectionEnabled === true && !!sourceName;

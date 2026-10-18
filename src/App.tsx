@@ -3,7 +3,6 @@ import StreamerDashboard from "./components/StreamerDashboard";
 import OBSQueueDock from "./components/OBSQueueDock";
 import OBSStatusDock from "./components/OBSStatusDock";
 import TrollOverlay from "./components/TrollOverlay";
-import PoseDetector from "./components/PoseDetector";
 
 export default function App() {
   const path = window.location.pathname.replace(/\/$/, "");
@@ -13,7 +12,6 @@ export default function App() {
       <>
         <OBSOverlayView />
         <TrollOverlay />
-        <PoseDetector />
       </>
     );
   if (path === "/dock") return <OBSQueueDock />;
