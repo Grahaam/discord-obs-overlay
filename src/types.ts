@@ -11,6 +11,7 @@ export type AlertPosition =
   | "bottom-right";
 export type AlertAnimation = "slide-up" | "fade" | "zoom" | "bounce";
 export type BodyPart = "arms" | "legs" | "head";
+export type Finger = "thumb" | "index" | "middle" | "ring" | "pinky";
 
 export interface NormalizedPoint {
   x: number;
