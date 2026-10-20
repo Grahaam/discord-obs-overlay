@@ -362,6 +362,11 @@ async function saveSettings(port, patch) {
   }
 }
 
+/** The wizard's language becomes the dashboard's; anything else is ignored (keeps the server default). */
+function languagePatch(language) {
+  return language === "fr" || language === "en" ? { language } : {};
+}
+
 async function fetchChannels(port) {
   const res = await fetch(`http://127.0.0.1:${port}/api/discord/channels`);
   const body = await res.json().catch(() => ({}));
@@ -370,7 +375,7 @@ async function fetchChannels(port) {
 }
 
 // Wizard step 2: boot the server, connect the bot with the pasted token (no channel yet).
-ipcMain.handle("setup-token", async (event, { token }) => {
+ipcMain.handle("setup-token", async (event, { token, language }) => {
   assertWizardSender(event);
   if (typeof token !== "string" || !token.trim()) {
     throw new Error("Token is required");
@@ -385,7 +390,7 @@ ipcMain.handle("setup-token", async (event, { token }) => {
   // settings.json in its cwd (dataDir) AND (re)connects the Discord bot —
   // writing the files ourselves after the fork would leave the bot
   // disconnected until the next app restart.
-  await saveSettings(port, { discordToken: token.trim(), channelId: "" });
+  await saveSettings(port, { discordToken: token.trim(), channelId: "", ...languagePatch(language) });
 
   // The settings API only reconnects when the token changed. After a failed
   // attempt re-pasting the same token would otherwise keep the old error.
@@ -410,7 +415,7 @@ ipcMain.handle("list-channels", async (event) => {
 });
 
 // Wizard step 3 "Finish": save the channel, then switch to the dashboard.
-ipcMain.handle("setup-channel", async (event, { channelId }) => {
+ipcMain.handle("setup-channel", async (event, { channelId, language }) => {
   assertWizardSender(event);
   if (typeof channelId !== "string" || !/^\d+$/.test(channelId)) {
     throw new Error("Channel ID must be a numeric snowflake");
@@ -418,7 +423,8 @@ ipcMain.handle("setup-channel", async (event, { channelId }) => {
   if (!serverPort) throw new Error("Server not started");
   const port = serverPort;
 
-  await saveSettings(port, { channelId });
+  // Language again: the user may have switched it since step 2.
+  await saveSettings(port, { channelId, ...languagePatch(language) });
   // Channel changes reconnect the bot; wait so the dashboard opens on a live bot.
   await waitForBotConnection(port);
 

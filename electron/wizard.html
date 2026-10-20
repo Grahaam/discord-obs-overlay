@@ -17,6 +17,7 @@
     padding: 32px;
   }
   .card {
+    position: relative;
     background: #2f3136;
     border-radius: 12px;
     padding: 32px;
@@ -24,6 +25,9 @@
     max-width: 420px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   }
+  .lang { position: absolute; top: 16px; right: 16px; display: flex; border: 1px solid #202225; border-radius: 4px; overflow: hidden; }
+  .lang button { width: auto; margin: 0; border-radius: 0; background: #40444b; color: #b9bbbe; font-size: 11px; padding: 4px 8px; }
+  .lang button.active { background: #7289da; color: #fff; }
   h1 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px; }
   .subtitle { font-size: 13px; color: #72767d; margin-bottom: 12px; }
   .steps { font-size: 12px; font-weight: 600; color: #7289da; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
@@ -78,6 +82,10 @@
 </head>
 <body>
 <div class="card">
+  <div class="lang" role="group" aria-label="Language">
+    <button type="button" data-lang="fr">FR</button>
+    <button type="button" data-lang="en">EN</button>
+  </div>
   <h1>LiveChat</h1>
   <p class="subtitle" data-i18n="subtitle"></p>
   <p class="steps" id="steps"></p>
@@ -197,26 +205,84 @@
       failed: 'La configuration a échoué. Réessayez.'
     }
   };
-  const L = (navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en';
-  const t = STRINGS[L];
-  document.documentElement.lang = L;
+  function detectLanguage() {
+    try {
+      const saved = localStorage.getItem('wizardLanguage');
+      if (saved === 'fr' || saved === 'en') return saved;
+    } catch { /* storage unavailable: fall back to the system language */ }
+    return (navigator.language || 'en').toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  }
+  let L = detectLanguage();
+  let t = STRINGS[L];
 
   const $ = (id) => document.getElementById(id);
   const PORTAL_URL = 'https://discord.com/developers/applications';
   let inviteUrl = '';
+  let currentStep = 1;
+  // The status line and channel list are kept as data so they can be re-rendered in another language.
+  let statusText = null; // () => string
+  let statusKind = '';
+  let channelData = null;
 
-  document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t[el.dataset.i18n]; });
-  $('token').placeholder = t.tokenPlaceholder;
-  // Static, trusted strings from the table above (never server data), so innerHTML is safe for <b>.
-  t.instructions.forEach((html) => {
-    const li = document.createElement('li');
-    li.innerHTML = html;
-    $('instructions').appendChild(li);
-  });
+  function renderStatus() {
+    $('status').className = 'status' + (statusKind ? ' ' + statusKind : '');
+    $('status').textContent = statusText ? statusText() : '';
+  }
 
+  function renderChannels() {
+    const select = $('channel');
+    const selected = select.value;
+    select.replaceChildren();
+    if (!channelData || !channelData.guilds.length) return;
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = t.pick;
+    select.appendChild(placeholder);
+    for (const g of channelData.guilds) {
+      const group = document.createElement('optgroup');
+      group.label = g.name;
+      for (const c of g.channels) {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.disabled = !c.readable;
+        const missing = c.missing.map((p) => t.perms[p] || p).join(', ');
+        opt.textContent = '#' + c.name + (c.readable ? '' : ' (' + t.unreadable.replace('{missing}', missing) + ')');
+        group.appendChild(opt);
+      }
+      select.appendChild(group);
+    }
+    select.value = selected;
+  }
+
+  function render() {
+    t = STRINGS[L];
+    document.documentElement.lang = L;
+    document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t[el.dataset.i18n]; });
+    document.querySelectorAll('[data-lang]').forEach((el) => el.classList.toggle('active', el.dataset.lang === L));
+    $('token').placeholder = t.tokenPlaceholder;
+    // Static, trusted strings from the table above (never server data), so innerHTML is safe for <b>.
+    $('instructions').replaceChildren(...t.instructions.map((html) => {
+      const li = document.createElement('li');
+      li.innerHTML = html;
+      return li;
+    }));
+    $('steps').textContent = t.step.replace('{n}', currentStep);
+    renderChannels();
+    renderStatus();
+  }
+
+  function setLanguage(lang) {
+    L = lang;
+    try { localStorage.setItem('wizardLanguage', lang); } catch { /* non-essential */ }
+    render();
+  }
+  document.querySelectorAll('[data-lang]').forEach((el) => { el.onclick = () => setLanguage(el.dataset.lang); });
+
+  // msg is a function so the text can be rebuilt when the language changes.
   function setStatus(msg, kind) {
-    $('status').className = 'status' + (kind ? ' ' + kind : '');
-    $('status').textContent = msg || '';
+    statusText = msg || null;
+    statusKind = kind || '';
+    renderStatus();
   }
   // Strip Electron's IPC error prefix ("Error invoking remote method '…': Error: ")
   function cleanError(e) {
@@ -226,6 +292,7 @@
   function showStep(n) {
     document.querySelectorAll('.step').forEach((el) => el.classList.remove('active'));
     $('step' + n).classList.add('active');
+    currentStep = n;
     $('steps').textContent = t.step.replace('{n}', n);
     setStatus('');
     if (n === 2) $('token').focus();
@@ -252,15 +319,16 @@
 
     btn.disabled = true;
     $('invite-block').classList.add('hidden');
-    setStatus(t.connecting);
+    setStatus(() => t.connecting);
     try {
-      const { botTag, inviteUrl: url } = await window.electronAPI.setupToken(token);
+      const { botTag, inviteUrl: url } = await window.electronAPI.setupToken(token, L);
       inviteUrl = url;
-      setStatus(t.connected.replace('{tag}', botTag), 'success');
+      setStatus(() => t.connected.replace('{tag}', botTag), 'success');
       $('invite-block').classList.remove('hidden');
     } catch (e) {
       // Always add the Message Content Intent hint: it is the most common cause of a failed login.
-      setStatus(t.tokenError.replace('{msg}', cleanError(e) || '?') + '\n' + t.intentHint, 'error');
+      const msg = cleanError(e) || '?';
+      setStatus(() => t.tokenError.replace('{msg}', msg) + '\n' + t.intentHint, 'error');
     } finally {
       btn.disabled = false;
     }
@@ -268,37 +336,23 @@
   $('connect-btn').onclick = connect;
 
   async function loadChannels() {
-    const select = $('channel');
-    select.replaceChildren();
+    channelData = null;
+    renderChannels();
     $('invite2-btn').classList.add('hidden');
     try {
       const data = await window.electronAPI.listChannels();
       inviteUrl = data.inviteUrl || inviteUrl;
       if (!data.guilds.length) {
-        setStatus(t.noServers, 'error');
+        setStatus(() => t.noServers, 'error');
         $('invite2-btn').classList.remove('hidden');
         return;
       }
       setStatus('');
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = t.pick;
-      select.appendChild(placeholder);
-      for (const g of data.guilds) {
-        const group = document.createElement('optgroup');
-        group.label = g.name;
-        for (const c of g.channels) {
-          const opt = document.createElement('option');
-          opt.value = c.id;
-          opt.disabled = !c.readable;
-          const missing = c.missing.map((p) => t.perms[p] || p).join(', ');
-          opt.textContent = '#' + c.name + (c.readable ? '' : ' (' + t.unreadable.replace('{missing}', missing) + ')');
-          group.appendChild(opt);
-        }
-        select.appendChild(group);
-      }
+      channelData = data;
+      renderChannels();
     } catch (e) {
-      setStatus(cleanError(e) || t.failed, 'error');
+      const msg = cleanError(e);
+      setStatus(() => msg || t.failed, 'error');
     }
   }
   $('refresh-btn').onclick = loadChannels;
@@ -308,16 +362,17 @@
     if (btn.disabled) return;
     const channelId = $('channel').value;
     if (!channelId) {
-      setStatus(t.pickRequired, 'error');
+      setStatus(() => t.pickRequired, 'error');
       return;
     }
     btn.disabled = true;
     try {
-      await window.electronAPI.setupChannel(channelId);
-      setStatus(t.opening, 'success');
+      await window.electronAPI.setupChannel(channelId, L);
+      setStatus(() => t.opening, 'success');
     } catch (e) {
       btn.disabled = false;
-      setStatus(cleanError(e) || t.failed, 'error');
+      const msg = cleanError(e);
+      setStatus(() => msg || t.failed, 'error');
     }
   }
   $('finish-btn').onclick = finish;
@@ -325,6 +380,7 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && $('step2').classList.contains('active')) connect();
   });
+  render();
   showStep(1);
 </script>
 </body>
