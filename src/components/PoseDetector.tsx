@@ -8,6 +8,7 @@ const FRAME_INTERVAL_MS = 100; // ~10 fps is plenty for a held pose
 const FRAME_WIDTH = 320;
 const HOLD_MS = 600;
 const RETRY_MS = 5000;
+const CONN_CHECK_MS = 2000;
 
 interface ObsConnection {
   port: number;
@@ -54,6 +55,8 @@ export default function PoseDetector({ isLeader }: { isLeader: boolean }) {
     let landmarker: PoseLandmarker | null = null;
     const obs = new OBSWebSocket();
     let obsConnected = false;
+    let usedConn: ObsConnection | null = null;
+    let lastConnCheck = 0;
     let poseSince: number | null = null;
 
     obs.on("ConnectionClosed", () => {
@@ -76,11 +79,19 @@ export default function PoseDetector({ isLeader }: { isLeader: boolean }) {
             numPoses: 1,
           });
         }
-        if (!obsConnected) {
-          // Fetched on every (re)connect attempt so new port/password settings apply within RETRY_MS
+        // Re-read the settings now and then: a changed port/password must replace a healthy connection
+        if (!obsConnected || performance.now() - lastConnCheck >= CONN_CHECK_MS) {
+          lastConnCheck = performance.now();
           const conn: ObsConnection = await fetch("/api/obs-connection").then((r) => r.json());
-          await obs.connect(`ws://localhost:${conn.port}`, conn.password || undefined);
-          obsConnected = true;
+          if (obsConnected && (conn.port !== usedConn?.port || conn.password !== usedConn?.password)) {
+            await obs.disconnect().catch(() => {});
+            obsConnected = false;
+          }
+          if (!obsConnected) {
+            await obs.connect(`ws://localhost:${conn.port}`, conn.password || undefined);
+            usedConn = conn;
+            obsConnected = true;
+          }
         }
 
         const { imageData } = await obs.call("GetSourceScreenshot", {

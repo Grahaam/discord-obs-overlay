@@ -3,6 +3,7 @@ import path from "path";
 import { logger } from "./logger.js";
 import { DATA_PATHS } from "./paths.js";
 import dotenv from "dotenv";
+import { upsertEnvVar } from "./envFile.js";
 
 const SETTINGS_FILE = DATA_PATHS.settingsFile;
 const ENV_FILE = DATA_PATHS.envFile;
@@ -170,14 +171,7 @@ export class SettingsManager {
       }
 
       for (const [key, value] of Object.entries(vars)) {
-        const safeValue = `"${value.replace(/"/g, '\\"')}"`;
-        const regex = new RegExp(`^${key}=.*$`, "m");
-
-        if (regex.test(envContent)) {
-          envContent = envContent.replace(regex, `${key}=${safeValue}`);
-        } else {
-          envContent += `\n${key}=${safeValue}`;
-        }
+        envContent = upsertEnvVar(envContent, key, value);
         process.env[key] = value; // Update the live process environment reference
       }
 

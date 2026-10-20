@@ -98,8 +98,8 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
   app.get("/api/settings", (req, res) => {
     const safeSettings = {
       ...settingsManager.settings,
-      discordToken: settingsManager.settings.discordToken ? "••••••••••••••••••••" : "",
-      obsWebsocketPassword: settingsManager.settings.obsWebsocketPassword ? "••••••••••••••••••••" : "",
+      discordToken: settingsManager.settings.discordToken ? OBS_PASSWORD_MASK : "",
+      obsWebsocketPassword: settingsManager.settings.obsWebsocketPassword ? OBS_PASSWORD_MASK : "",
     };
     res.json(safeSettings);
   });
@@ -130,7 +130,9 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
   // Save Settings
   app.post("/api/settings", async (req, res) => {
     try {
-      logger.info({ body: req.body }, "Received settings update");
+      // Never log secrets
+      const { discordToken: _t, obsWebsocketPassword: _p, youtubeCookiesContent: _c, ...loggableBody } = req.body ?? {};
+      logger.info({ body: loggableBody }, "Received settings update");
       const SettingsSchema = z.object({
         discordToken: z.string().optional(),
         obsWebsocketPort: z.number().int().min(1).max(65535).optional(),
@@ -183,7 +185,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
       const updatedSettings = {
         ...settingsManager.settings,
-        discordToken: incoming.discordToken === "••••••••••••••••••••" ? originalToken : incoming.discordToken || "",
+        discordToken: incoming.discordToken === OBS_PASSWORD_MASK ? originalToken : incoming.discordToken || "",
         obsWebsocketPort: incoming.obsWebsocketPort ?? settingsManager.settings.obsWebsocketPort,
         obsWebsocketPassword:
           incoming.obsWebsocketPassword === OBS_PASSWORD_MASK
@@ -233,8 +235,8 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         success: true,
         settings: {
           ...updatedSettings,
-          discordToken: updatedSettings.discordToken ? "••••••••••••••••••••" : "",
-          obsWebsocketPassword: updatedSettings.obsWebsocketPassword ? "••••••••••••••••••••" : "",
+          discordToken: updatedSettings.discordToken ? OBS_PASSWORD_MASK : "",
+          obsWebsocketPassword: updatedSettings.obsWebsocketPassword ? OBS_PASSWORD_MASK : "",
         },
       });
     } catch (err: any) {
