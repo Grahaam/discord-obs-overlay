@@ -26,6 +26,8 @@ cookies.txt
 
 # App data (user-local, not shared)
 settings.json
+poses.json
+poses.json.*
 data/
 overlay.db
 overlay.db-wal
