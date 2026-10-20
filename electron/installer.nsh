@@ -5,6 +5,16 @@
 ; the OBS password and Instagram/TikTok cookies, so a streamer removing LiveChat should
 ; be able to wipe it, while someone reinstalling may want to keep their setup.
 
+; electron-builder hides the progress log entirely ("nevershow" in its common.nsh).
+; "hide" restores the usual "Show details" button: collapsed, but one click away.
+; customHeader is inserted after common.nsh, so these lines win.
+!macro customHeader
+  ShowInstDetails hide
+  !ifdef BUILD_UNINSTALLER
+    ShowUninstDetails hide
+  !endif
+!macroend
+
 ; First page of the (assisted) installer: say what LiveChat is and what will happen, in
 ; French and English (one bilingual text: no per-language strings to keep in sync).
 !macro customWelcomePage
