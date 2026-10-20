@@ -1,6 +1,8 @@
 import type { BodyPart, NormalizedPoint } from "../types";
 
-export const JOINTS: Record<BodyPart, number[]> = {
+export type BodyOnlyPart = "arms" | "legs" | "head";
+
+export const JOINTS: Record<BodyOnlyPart, number[]> = {
   arms: [11, 12, 13, 14, 15, 16],
   head: [0, 7, 8],
   legs: [23, 24, 25, 26, 27, 28],
@@ -24,7 +26,7 @@ const MIRROR_PAIRS: Array<[number, number]> = [
 ];
 
 function maskedIndices(bodyParts: BodyPart[]): number[] {
-  return [...new Set(bodyParts.flatMap((part) => JOINTS[part]))];
+  return [...new Set(bodyParts.flatMap((part) => (part in JOINTS ? JOINTS[part as BodyOnlyPart] : [])))];
 }
 
 function visible(points: NormalizedPoint[], indices: number[]): boolean {
@@ -104,6 +106,18 @@ export function normalise(landmarks: NormalizedPoint[], aspect: number): Normali
     y: (point.y - centreY) / shoulderWidth,
     visibility: point.visibility,
   }));
+}
+
+/** Direct and mirrored body scores kept apart, so hands can be combined with each variant. */
+export function scorePoseBoth(
+  live: NormalizedPoint[],
+  template: NormalizedPoint[],
+  bodyParts: BodyPart[]
+): { direct: number | null; flipped: number | null } {
+  return {
+    direct: scoreOne(live, template, bodyParts),
+    flipped: scoreOne(mirrored(live), template, bodyParts),
+  };
 }
 
 export function scorePose(
