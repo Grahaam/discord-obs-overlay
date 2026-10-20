@@ -63,6 +63,48 @@ function findFreePort(start = 3000) {
   });
 }
 
+function isPortFree(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once("error", () => resolve(false));
+    server.listen(port, "127.0.0.1", () => server.close(() => resolve(true)));
+  });
+}
+
+/**
+ * Port for the server. The OBS browser source URL (and the dashboard's localStorage, whose origin
+ * includes the port) depend on it, so reuse the last port when it is still free and only scan
+ * for another one if something else took it.
+ */
+async function pickPort(dataDir) {
+  const portFile = path.join(dataDir, "last-port.json");
+  let last = null;
+  try {
+    last = JSON.parse(fs.readFileSync(portFile, "utf8")).port;
+  } catch {
+    // first launch or unreadable file: fall through to the scan
+  }
+  const port = Number.isInteger(last) && (await isPortFree(last)) ? last : await findFreePort();
+  if (last !== null && port !== last) {
+    console.warn(`[main] Port ${last} is taken, using ${port}: the OBS overlay URL has changed`);
+  }
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(portFile, JSON.stringify({ port }));
+  } catch (err) {
+    console.warn("[main] Could not remember the port:", err);
+  }
+  return port;
+}
+
+/** GET/POST the local server and return its JSON; throws a readable error on a non-OK answer. */
+async function serverJson(url, options) {
+  const res = await fetch(url, options);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `Server request failed (HTTP ${res.status}): ${url.split("/api/")[1]}`);
+  return body;
+}
+
 // 90s: on an unsigned build launched from a quarantined .dmg, macOS Gatekeeper
 // scans the bundled binaries (native modules, ffmpeg, yt-dlp) on first exec,
 // which can add many seconds to the first cold boot.
@@ -259,7 +301,7 @@ function startAutoUpdate(port) {
 /** Boot the server once; on retry (e.g. wrong token re-entered in the wizard) reuse it. */
 async function ensureServer(dataDir) {
   if (serverPort && serverProcess) return serverPort;
-  const port = await findFreePort();
+  const port = await pickPort(dataDir);
   forkServer(port, dataDir);
   try {
     await waitForServer(port);
@@ -306,7 +348,7 @@ function assertWizardSender(event) {
 /** Save settings through the server's own API (see the comment in setup-token). */
 async function saveSettings(port, patch) {
   const base = `http://127.0.0.1:${port}`;
-  const current = await (await fetch(`${base}/api/settings`)).json();
+  const current = await serverJson(`${base}/api/settings`);
   const res = await fetch(`${base}/api/settings`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -345,15 +387,15 @@ ipcMain.handle("setup-token", async (event, { token }) => {
 
   // The settings API only reconnects when the token changed. After a failed
   // attempt re-pasting the same token would otherwise keep the old error.
-  const { status } = await (await fetch(`http://127.0.0.1:${port}/api/bot-status`)).json();
+  const { status } = await serverJson(`http://127.0.0.1:${port}/api/bot-status`);
   if (status === "error" || status === "disconnected") {
-    await fetch(`http://127.0.0.1:${port}/api/bot-reconnect`, { method: "POST" });
+    await serverJson(`http://127.0.0.1:${port}/api/bot-reconnect`, { method: "POST" });
   }
 
   // Surface bad tokens here instead of claiming success and moving on with a dead bot.
   await waitForBotConnection(port);
 
-  const { botUser } = await (await fetch(`http://127.0.0.1:${port}/api/bot-status`)).json();
+  const { botUser } = await serverJson(`http://127.0.0.1:${port}/api/bot-status`);
   const { inviteUrl } = await fetchChannels(port);
   return { botTag: botUser, inviteUrl };
 });
@@ -426,7 +468,7 @@ app.whenReady().then(async () => {
   }
 
   try {
-    serverPort = await findFreePort();
+    serverPort = await pickPort(dataDir);
     forkServer(serverPort, dataDir);
     await waitForServer(serverPort);
     createMainWindow(serverPort);
