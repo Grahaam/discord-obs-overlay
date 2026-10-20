@@ -24,14 +24,27 @@ Si vous utilisiez `npm start` et passez à l'installeur Electron :
 
 Si vous restez en mode source (`npm start`) : aucune action requise, vos fichiers restent en place.
 
+### Ancienne version en ligne de commande
+
+La version installée par `install.bat` / `install.sh` et lancée par `launch.bat` / `launch.sh` n'est plus maintenue. **La dernière est [v1.9.5](https://github.com/Grahaam/discord-obs-overlay/releases/tag/v1.9.5)**, qui reste téléchargeable. Les scripts restent dans le dépôt et lancent le même serveur (`npm start`), sans fenêtre ni icône système.
+
 ### Highlights
 
 - **Application desktop** : nouveau shell Electron avec installeurs Windows (NSIS), macOS (DMG x64 + arm64) et Linux (AppImage).
 - **yt-dlp embarqué** : binaire PyInstaller standalone livré avec l'app et auto-mis-à-jour via `yt-dlp -U` (mode packagé uniquement ; installations source pip/brew/apt restent gérées par l'utilisateur). Plus besoin d'installation système.
-- **Assistant de premier lancement** : configuration token + salon dans une fenêtre dédiée.
+- **Assistant de premier lancement guidé** en 3 étapes : création du bot, token puis invitation, choix du salon dans une liste.
+- **Liste de vérification** qui coche chaque étape en direct : bot, overlay dans OBS, connexion OBS, alerte de test et cookies (optionnel).
+- **Mises à jour automatiques** sur Windows et Linux, depuis les Releases GitHub (macOS : nécessite une version signée, voir [docs/CODE-SIGNING.md](docs/CODE-SIGNING.md)).
+- **Pose « Absolute Cinema »** : alerte déclenchée par la webcam via MediaPipe, modèle embarqué.
+- **Mot de passe obs-websocket** et port configurables, avec un bouton de test.
 - **Icône système** : LiveChat tourne en tray, fermer la fenêtre la masque.
 
 ### Added
+
+- Avertissement dans l'onglet Bot quand le bot ne peut pas lire le salon configuré, avec le salon, le serveur, le rôle et la permission manquante.
+- Guide pour récupérer les cookies Instagram / TikTok avec un compte jetable, dans une fenêtre privée.
+- Arrêt propre à la fermeture : la taille de l'overlay dans OBS est restaurée et la base de données fermée.
+- Le port du serveur est conservé d'un lancement à l'autre, pour que l'URL de l'overlay dans OBS reste valide.
 
 - Shell Electron (`electron/main.cjs`) : fork du serveur via `utilityProcess`, sélection de port 3000–3099, attente de `/api/health`, BrowserWindow + tray.
 - Premier lancement : `wizard.html` capture token et channel ID avant d'ouvrir le tableau de bord.
