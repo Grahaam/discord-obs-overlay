@@ -339,7 +339,7 @@ export default function BotTab(props: TabProps) {
           <button
             onClick={() => setShowToken((v) => !v)}
             className="absolute right-3 text-white/25 hover:text-white/60 transition-colors"
-            title={showToken ? "Hide token" : "Show token"}
+            title={showToken ? t.bot.tokenHide : t.bot.tokenShow}
           >
             {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
@@ -745,7 +745,7 @@ export default function BotTab(props: TabProps) {
       </div>
 
       {/* Cookies — terminal window */}
-      <div className="flex flex-col gap-1.5">
+      <div id="cookies-section" className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <FileText className="w-3 h-3 text-white/30" />
@@ -836,9 +836,35 @@ export default function BotTab(props: TabProps) {
             className="bg-[#04060b] w-full px-4 py-3 text-xs font-mono min-h-[120px] text-emerald-400/70 placeholder:text-white/12 focus:outline-none resize-none"
           />
         </div>
-        <div className="bg-violet-950/15 border border-violet-500/10 rounded-lg p-2.5">
-          <span className="text-[10px] text-violet-200/40 font-mono leading-relaxed">{t.bot.cookiesHelp}</span>
-        </div>
+        <details className="bg-violet-950/15 border border-violet-500/10 rounded-lg p-2.5">
+          <summary className="text-[10px] text-violet-200/60 font-mono cursor-pointer">{t.bot.cookiesHowTo}</summary>
+          <ol className="mt-2 ml-4 list-decimal flex flex-col gap-1 text-[10px] text-violet-200/40 font-mono leading-relaxed">
+            <li>{t.bot.cookiesStep1}</li>
+            <li>
+              {t.bot.cookiesStep2}{" "}
+              <a
+                href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc"
+                target="_blank"
+                rel="noreferrer"
+                className="text-violet-400/70 hover:text-violet-300 underline"
+              >
+                Chrome Web Store
+              </a>{" "}
+              /{" "}
+              <a
+                href="https://addons.mozilla.org/firefox/addon/get-cookies-txt-locally/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-violet-400/70 hover:text-violet-300 underline"
+              >
+                Firefox Add-ons
+              </a>
+            </li>
+            <li>{t.bot.cookiesStep3}</li>
+            <li>{t.bot.cookiesStep4}</li>
+          </ol>
+          <p className="mt-2 text-[10px] text-amber-300/60 font-mono leading-relaxed">{t.bot.cookiesWarning}</p>
+        </details>
       </div>
 
       {/* Cobalt */}

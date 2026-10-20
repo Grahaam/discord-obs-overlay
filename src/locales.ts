@@ -13,8 +13,10 @@ export const locales = {
       desc: "Configurez le salon textuel que le bot doit analyser pour les médias.",
       error: "Erreur de connexion :",
       channelIssueTitle: "Le bot ne voit pas le salon",
-      channelNoAccess: "{bot} ne peut pas lire #{channel} ({guild}). Dans les permissions du salon, donnez à « {role} » : {missing}.",
-      channelNotFound: "Aucun serveur du bot ne contient le salon {id}. Vérifiez l'ID, ou invitez le bot sur le bon serveur.",
+      channelNoAccess:
+        "{bot} ne peut pas lire #{channel} ({guild}). Dans les permissions du salon, donnez à « {role} » : {missing}.",
+      channelNotFound:
+        "Aucun serveur du bot ne contient le salon {id}. Vérifiez l'ID, ou invitez le bot sur le bon serveur.",
       inviteBot: "Inviter le bot",
       permViewChannel: "Voir le salon",
       permReadMessageHistory: "Voir les anciens messages",
@@ -69,9 +71,18 @@ export const locales = {
       poseMediaHelp:
         "Déposez vos fichiers dans le dossier user-assets/ et utilisez /user-assets/<fichier>, ou collez une URL.",
       openUserAssets: "Ouvrir le dossier",
-      cookies: "Cookies de Session (Optionnel)",
-      cookiesHelp:
-        "Nécessaires pour contourner les restrictions d'accès (ex: Instagram, TikTok). Utilisez l'extension 'Get cookies.txt LOCALLY' dans votre navigateur pour exporter vos cookies au format Netscape et collez-les ici.",
+      cookies: "Cookies de session pour Instagram / TikTok / Reddit (optionnel, pas YouTube)",
+      cookiesHowTo: "Comment les obtenir",
+      cookiesStep1:
+        "Créez un compte Instagram / TikTok jetable, distinct : jamais votre compte principal ni celui du stream.",
+      cookiesStep2: "Installez l'extension « Get cookies.txt LOCALLY » :",
+      cookiesStep3: "Connectez-vous avec le compte jetable sur instagram.com / tiktok.com.",
+      cookiesStep4:
+        "Cliquez sur l'extension, Export (format Netscape), collez ici tout le contenu du fichier, puis Sauvegardez.",
+      cookiesWarning:
+        "Attention : des cookies = une session connectée. Quiconque possède cookies.txt est connecté en tant que ce compte : ne le partagez jamais, ni votre dossier de réglages. Ré-exportez-les quand les téléchargements échouent (les sessions expirent). YouTube n'a pas besoin de cookies.",
+      tokenHide: "Masquer le token",
+      tokenShow: "Afficher le token",
       cobaltTitle: "Cobalt (Optionnel)",
       cobaltKeyPlaceholder: "Clé API (si requise)",
       cobaltHelp:
@@ -244,6 +255,12 @@ export const locales = {
       testWaiting: "Envoyez une alerte de test et regardez votre overlay.",
       testNeedsOverlay: "Ouvrez d'abord l'overlay dans OBS (étape 2), puis envoyez une alerte de test.",
       testButton: "Envoyer une alerte de test",
+      cookiesTitle: "Cookies Instagram / TikTok",
+      cookiesOptional: "optionnel",
+      cookiesOk: "Des cookies sont configurés.",
+      cookiesMissing:
+        "Facultatif : sans cookies, certains liens Instagram / TikTok / Reddit peuvent échouer. YouTube n'en a pas besoin.",
+      cookiesGo: "Ouvrir la section « Cookies »",
       allDone: "Tout est prêt, bon live !",
     },
   },
@@ -261,8 +278,9 @@ export const locales = {
       desc: "Specify the text channel the bot should monitor for media requests.",
       error: "Connection error:",
       channelIssueTitle: "The bot can't see the channel",
-      channelNoAccess: "{bot} can't read #{channel} ({guild}). In the channel permissions, give \"{role}\": {missing}.",
-      channelNotFound: "None of the bot's servers has channel {id}. Check the ID, or invite the bot to the right server.",
+      channelNoAccess: '{bot} can\'t read #{channel} ({guild}). In the channel permissions, give "{role}": {missing}.',
+      channelNotFound:
+        "None of the bot's servers has channel {id}. Check the ID, or invite the bot to the right server.",
       inviteBot: "Invite the bot",
       permViewChannel: "View Channel",
       permReadMessageHistory: "Read Message History",
@@ -314,9 +332,16 @@ export const locales = {
       poseSound: "Sound (URL)",
       poseMediaHelp: "Drop your files in the user-assets/ folder and use /user-assets/<file>, or paste a URL.",
       openUserAssets: "Open folder",
-      cookies: "Session Cookies (Optional)",
-      cookiesHelp:
-        "Required for platforms that block anonymous access. Use a browser extension like 'Get cookies.txt LOCALLY' to extract your cookies in Netscape format and paste them here.",
+      cookies: "Session Cookies for Instagram / TikTok / Reddit (Optional, not YouTube)",
+      cookiesHowTo: "How to get them",
+      cookiesStep1: "Create a separate throwaway Instagram / TikTok account: never your main or the stream's account.",
+      cookiesStep2: 'Install the "Get cookies.txt LOCALLY" browser extension:',
+      cookiesStep3: "Log in with the throwaway account on instagram.com / tiktok.com.",
+      cookiesStep4: "Click the extension, Export (Netscape format), paste the whole file content here, then Save.",
+      cookiesWarning:
+        "Warning: cookies = a logged-in session. Anyone holding cookies.txt is signed in as that account, so never share it or your settings folder. Re-export when downloads start failing (sessions expire). YouTube doesn't need cookies.",
+      tokenHide: "Hide token",
+      tokenShow: "Show token",
       cobaltTitle: "Cobalt (Optional)",
       cobaltKeyPlaceholder: "API key (if required)",
       cobaltHelp:
@@ -488,6 +513,12 @@ export const locales = {
       testWaiting: "Send a test alert and watch your overlay.",
       testNeedsOverlay: "Open the overlay in OBS first (step 2), then send a test alert.",
       testButton: "Send a test alert",
+      cookiesTitle: "Instagram / TikTok cookies",
+      cookiesOptional: "optional",
+      cookiesOk: "Cookies are configured.",
+      cookiesMissing:
+        "Optional: without cookies, some Instagram / TikTok / Reddit links may fail. YouTube doesn't need them.",
+      cookiesGo: 'Open the "Cookies" section',
       allDone: "Everything is ready, have a great stream!",
     },
   },
@@ -505,7 +536,7 @@ export const locales = {
       desc: "Configuwe the Discowd bawt to wisten to youw media wequests channew. nyaa~",
       error: "Discowd Connection Ewwow T_T:",
       channelIssueTitle: "Da bot can't see da channew T_T",
-      channelNoAccess: "{bot} can't wead #{channel} ({guild}). In da channew pewmissions, give \"{role}\": {missing}~",
+      channelNoAccess: '{bot} can\'t wead #{channel} ({guild}). In da channew pewmissions, give "{role}": {missing}~',
       channelNotFound: "None of da bot's sewvews has channew {id}. Check da ID, ow invite da bot to da wight sewvew~",
       inviteBot: "Invite da bot",
       permViewChannel: "View Channel",
@@ -557,8 +588,16 @@ export const locales = {
       poseSound: "Sound (UWL)",
       poseMediaHelp: "Dwop youw fiwes in da usew-assets/ fowdew and use /user-assets/<fiwe>, ow paste a UWL~",
       openUserAssets: "Open da fowdew~",
-      cookies: "TikTok/Instagwam Session Cookies (Optionaw, nya~)",
-      cookiesHelp: "Standawd cookie text content to bypass connection bwockages fow sum netwowks.",
+      cookies: "Session Cookies fow Instagwam / TikTok / Weddit (Optionaw, nyot YouTube~)",
+      cookiesHowTo: "How to get dem~",
+      cookiesStep1: "Cweate a sepawate thwowaway Instagwam / TikTok account: nyevew youw main ow da stweam's account~",
+      cookiesStep2: 'Instaww da "Get cookies.txt LOCALLY" bwowsew extension:',
+      cookiesStep3: "Wog in wif da thwowaway account on instagram.com / tiktok.com.",
+      cookiesStep4: "Cwick da extension, Expowt (Netscape fowmat), paste da whowe fiwe content hewe, den Save~",
+      cookiesWarning:
+        "Wawning: cookies = a wogged-in session. Anyonye howding cookies.txt is signed in as dat account, so nyevew shawe it ow youw settings fowdew~ We-expowt when downwoads stawt faiwing (sessions expiwe). YouTube doesn't nyeed cookies.",
+      tokenHide: "Hide tokyn~",
+      tokenShow: "Show tokyn~",
       cobaltTitle: "Cobawt (Optionaw, nya~)",
       cobaltKeyPlaceholder: "API key (if wequiwed)",
       cobaltHelp:
@@ -731,6 +770,12 @@ export const locales = {
       testWaiting: "Send a test awewt and watch youw ovewway~",
       testNeedsOverlay: "Open the ovewway in OBS fiwst (step 2), then send a test awewt UwU",
       testButton: "Send a test awewt",
+      cookiesTitle: "Instagwam / TikTok cookies",
+      cookiesOptional: "optionyaw",
+      cookiesOk: "Cookies awe configuwed~",
+      cookiesMissing:
+        "Optionyaw: widout cookies, sum Instagwam / TikTok / Weddit winks may faiw. YouTube doesn't nyeed dem~",
+      cookiesGo: 'Open da "Cookies" section',
       allDone: "Evewything is weady, have a gweat stweam~!",
     },
   },
@@ -748,8 +793,10 @@ export const locales = {
       desc: "Configuwez w'accès du bawt Discowd pouw qu'iw écoute votwe sawon de wequêtes média, nyaa~",
       error: "Ewweuw de wiaison Discowd T_T:",
       channelIssueTitle: "We bot ne voit pas we sawon T_T",
-      channelNoAccess: "{bot} ne peut pas wiwe #{channel} ({guild}). Dans wes pewmissions du sawon, donnez à « {role} » : {missing}~",
-      channelNotFound: "Aucun sewveuw du bot ne contient we sawon {id}. Véwifiez w'ID, ou invitez we bot suw we bon sewveuw~",
+      channelNoAccess:
+        "{bot} ne peut pas wiwe #{channel} ({guild}). Dans wes pewmissions du sawon, donnez à « {role} » : {missing}~",
+      channelNotFound:
+        "Aucun sewveuw du bot ne contient we sawon {id}. Véwifiez w'ID, ou invitez we bot suw we bon sewveuw~",
       inviteBot: "Invitew we bot",
       permViewChannel: "Voir le salon",
       permReadMessageHistory: "Voir les anciens messages",
@@ -802,9 +849,18 @@ export const locales = {
       poseMediaHelp:
         "Déposez vos fichiows dans we dossiow user-assets/ et utiwisez /user-assets/<fichiow>, ou cowwez une UWL~",
       openUserAssets: "Ouvwiw we dossiow~",
-      cookies: "Cookies Vidéo (YouTube, Instagwam, TikTok, nya~)",
-      cookiesHelp:
-        "Cewa pewmet awwa pwatefowme de téwéchawgew des médias comme si ewwe était connectée à votwe compte.",
+      cookies: "Cookies de session Instagwam / TikTok / Weddit (optionnew, pas YouTube~)",
+      cookiesHowTo: "Comment wes obtenir~",
+      cookiesStep1:
+        "Cwéez un compte Instagwam / TikTok jetabwe, distinct : jamais votwe compte pwincipaw ni cewui du stweam~",
+      cookiesStep2: "Instawwez w'extension « Get cookies.txt LOCALLY » :",
+      cookiesStep3: "Connectez-vous avec we compte jetabwe suw instagram.com / tiktok.com.",
+      cookiesStep4:
+        "Cwiquez suw w'extension, Expowt (fowmat Netscape), cowwez ici tout we contenu du fichiew, puis Sauvegawdez~",
+      cookiesWarning:
+        "Attention : des cookies = une session connectée. Quiconque possède cookies.txt est connecté en tant que ce compte : ne we pawtagez jamais, ni votwe dossiew de wéglages~ Wé-expowtez-wes quand wes téwéchawgements échouent (wes sessions expiwent). YouTube n'a pas besoin de cookies.",
+      tokenHide: "Cachew we token~",
+      tokenShow: "Afficher we token~",
       cobaltTitle: "Cobawt (Optionnew, nya~)",
       cobaltKeyPlaceholder: "Cwé API (si wequise)",
       cobaltHelp:
@@ -979,6 +1035,12 @@ export const locales = {
       testWaiting: "Envoyez une awewte de test et wegawdez votwe ovewway~",
       testNeedsOverlay: "Ouvwez d'abowd l'ovewway dans OBS (étape 2), puis envoyez une awewte de test UwU",
       testButton: "Envoyew une awewte de test",
+      cookiesTitle: "Cookies Instagwam / TikTok",
+      cookiesOptional: "optionnew",
+      cookiesOk: "Des cookies sont configuwés~",
+      cookiesMissing:
+        "Facuwtatif : sans cookies, cewtains wiens Instagwam / TikTok / Weddit peuvent échouew. YouTube n'en a pas besoin~",
+      cookiesGo: "Ouvwiw wa section « Cookies »",
       allDone: "Tout est pwêt, bon live~ !",
     },
   },

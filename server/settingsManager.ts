@@ -22,6 +22,7 @@ export interface Settings {
   alertStyle: "neon" | "glitch" | "cyberpunk" | "glass";
   bannedWordsAction: "block" | "censor";
   stopAlertShortcut: string;
+  // Historic name: used for non-YouTube sites only (Instagram, TikTok, Reddit...); renaming would break stored data
   youtubeCookiesContent?: string;
 
   // Moderation
