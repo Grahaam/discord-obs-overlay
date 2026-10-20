@@ -152,6 +152,8 @@ function combine(
   if (opts.direction) {
     const aligned =
       (2 - (angleDiff(direction.palm, t.direction.palm) + angleDiff(direction.thumb, t.direction.thumb)) / Math.PI) / 2;
+    // Gate: a hand pointing more than 90 degrees away from its recording is a different gesture (thumbs up is not thumbs down).
+    if (aligned < 0.5) return 0;
     total += DIRECTION_WEIGHT * aligned;
     weight += DIRECTION_WEIGHT;
   }

@@ -54,8 +54,16 @@ test("a finger marked any is ignored", () => {
 test("direction separates thumbs up from thumbs down", () => {
   const t = template(thumbsDown);
   assert.ok(scoreHand(thumbsUp, armsUp, 1, t, { position: false, direction: false }) >= 90);
-  assert.ok(scoreHand(thumbsUp, armsUp, 1, t, { position: false, direction: true }) <= 80);
-  assert.ok(scoreHand(thumbsUp, armsUp, 1, t, both) <= 60);
+  assert.ok(scoreHand(thumbsUp, armsUp, 1, t, { position: false, direction: true }) < 50);
+  assert.ok(scoreHand(thumbsUp, armsUp, 1, t, both) < 50);
+});
+
+test("a moderately tilted hand still passes the direction gate", () => {
+  const tilted = handSkeleton(
+    { thumb: 0, index: 1, middle: 1, ring: 1, pinky: 1 },
+    { thumbAngle: 0.9, angle: Math.PI / 6 }
+  );
+  assert.ok(scoreHand(tilted, armsUp, 1, template(thumbsUp), { position: false, direction: true }) >= 80);
 });
 
 test("position matters only when switched on", () => {
