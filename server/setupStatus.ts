@@ -6,6 +6,8 @@ export interface SetupStatus {
   overlay: boolean;
   obs: boolean;
   testAlertSeen: boolean;
+  // Optional step: never part of "all done"
+  cookies: boolean;
   details: {
     botStatus: string;
     channelConfigured: boolean;
@@ -24,6 +26,7 @@ export interface SetupInputs {
   overlayClients: number;
   obs: ObsTestResult;
   testAlertSeen: boolean;
+  cookiesConfigured: boolean;
 }
 
 /** Pure: turns the raw server state into the checklist booleans (+ the details the UI shows on failures). */
@@ -33,6 +36,7 @@ export function computeSetupStatus(i: SetupInputs): SetupStatus {
     overlay: i.overlayClients > 0,
     obs: i.obs.ok,
     testAlertSeen: i.testAlertSeen,
+    cookies: i.cookiesConfigured,
     details: {
       botStatus: i.botStatus,
       channelConfigured: i.channelConfigured,

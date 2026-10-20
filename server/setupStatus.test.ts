@@ -9,6 +9,7 @@ const ok = {
   overlayClients: 1,
   obs: { ok: true as const, obsVersion: "31.0" },
   testAlertSeen: true,
+  cookiesConfigured: false,
 };
 
 test("computeSetupStatus: everything fine", () => {
@@ -29,6 +30,14 @@ test("computeSetupStatus: overlay and obs failures", () => {
   const s = computeSetupStatus({ ...ok, obs: { ok: false, errorCode: "unreachable", error: "x" } });
   assert.strictEqual(s.obs, false);
   assert.strictEqual(s.details.obsErrorCode, "unreachable");
+});
+
+test("computeSetupStatus: cookies step mirrors cookiesConfigured and is independent of the others", () => {
+  assert.strictEqual(computeSetupStatus(ok).cookies, false);
+  assert.strictEqual(computeSetupStatus({ ...ok, cookiesConfigured: true }).cookies, true);
+  const broken = computeSetupStatus({ ...ok, botStatus: "error", cookiesConfigured: true });
+  assert.strictEqual(broken.bot, false);
+  assert.strictEqual(broken.cookies, true);
 });
 
 test("overlayClients counts distinct sockets", () => {

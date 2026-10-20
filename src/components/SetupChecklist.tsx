@@ -14,6 +14,7 @@ interface SetupStatus {
   overlay: boolean;
   obs: boolean;
   testAlertSeen: boolean;
+  cookies: boolean;
   details: {
     botStatus: string;
     channelConfigured: boolean;
@@ -30,11 +31,13 @@ function Row({
   done,
   loading,
   title,
+  badge,
   children,
 }: {
   done: boolean;
   loading: boolean;
   title: string;
+  badge?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -49,7 +52,14 @@ function Row({
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-bold text-white">{title}</div>
+        <div className="text-sm font-bold text-white">
+          {title}
+          {badge && (
+            <span className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-wide text-slate-400 border border-white/15 rounded px-1.5 py-0.5">
+              {badge}
+            </span>
+          )}
+        </div>
         <div className="text-xs text-slate-300 leading-relaxed">{children}</div>
       </div>
     </li>
@@ -220,6 +230,18 @@ export default function SetupChecklist({ onClose, setActiveTab, t }: SetupCheckl
                 {t.setup.testButton}
               </button>
             </div>
+          </Row>
+
+          {/* Optional: not counted in allDone */}
+          <Row done={!!status?.cookies} loading={loading} title={t.setup.cookiesTitle} badge={t.setup.cookiesOptional}>
+            {status?.cookies ? t.setup.cookiesOk : t.setup.cookiesMissing}
+            {status && !status.cookies && (
+              <div>
+                <button onClick={() => goToBotTab("cookies-section")} className={linkBtn}>
+                  {t.setup.cookiesGo}
+                </button>
+              </div>
+            )}
           </Row>
         </ul>
 

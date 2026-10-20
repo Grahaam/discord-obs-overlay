@@ -141,6 +141,8 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         overlayClients: overlayClients.count(),
         obs: await cachedObsTest(),
         testAlertSeen: wasAlertStarted(testAlertId),
+        // Same source syncCookiesFile uses (it deletes cookies.txt when the content is empty)
+        cookiesConfigured: !!settingsManager.settings.youtubeCookiesContent?.trim(),
       })
     );
   });
