@@ -47,13 +47,25 @@ async function runServer() {
   });
 
   const app = express();
+
+  // Anti DNS-rebinding: a malicious web page can point its own domain at 127.0.0.1 and then call this
+  // API from the browser (read the OBS password, overwrite the bot token...). Only the two names we
+  // are served on are accepted; the browser always sends the Host of the domain it believes it uses.
+  const allowedHosts = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
+  app.use((req, res, next) => {
+    if (req.headers.host && allowedHosts.has(req.headers.host.toLowerCase())) return next();
+    res.status(403).send("Forbidden host");
+  });
+
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // Write/action endpoints — tight limit (prevent accidental loops on mutations)
+  // Write/action endpoints — tight limit (prevent accidental loops on mutations).
+  // Only mutating methods count: every client is 127.0.0.1 (one shared counter), so GET polls would exhaust it.
   const writeLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 300,
+    skip: (req) => req.method === "GET" || req.method === "HEAD",
     standardHeaders: true,
     legacyHeaders: false,
   });
@@ -72,6 +84,8 @@ async function runServer() {
   app.use("/api/settings", readLimiter);
   app.use("/api/media-cache", readLimiter);
   app.use("/api/health", readLimiter);
+  app.use("/api/setup-status", readLimiter);
+  app.use("/api/obs-connection", readLimiter);
   app.use("/api", writeLimiter);
 
   // Phase 4: CSP hardening — set via HTTP headers (more reliable in OBS than meta tags)
