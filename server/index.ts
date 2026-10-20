@@ -17,8 +17,8 @@ import { initDb, closeDb, loadPersistedAlerts, loadPersistedLogs, incrementMedia
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
-import { expandOverlay, restoreOverlay } from "./obsManager.js";
-import { poseAlertController } from "./poseAlert.js";
+import { restoreOverlay } from "./obsManager.js";
+import { emitPoseAlert, finishPoseAlert, poseAlertController } from "./poseAlert.js";
 import { APP_PATHS, DATA_PATHS } from "./paths.js";
 import { overlayClients, markAlertStarted } from "./setupStatus.js";
 import { poseStore } from "./poseStore.js";
@@ -149,9 +149,6 @@ async function runServer() {
     });
   }, HEARTBEAT_INTERVAL_MS);
 
-  // Overlay source stretch started by the current pose alert (resolves true if it expanded)
-  let poseExpand: Promise<boolean> | null = null;
-
   // Single source of truth for what is currently playing
   let currentlyPlaying: import("../src/types.js").AlertPayload | null = null;
 
@@ -206,22 +203,10 @@ async function runServer() {
       const alert = poseAlertController.trigger(payload.poseId);
       if (!alert) return;
       logger.info({ poseId: alert.poseId }, "Pose detected");
-      io.emit("pose_alert", alert);
-      if (alert.media.fullscreen) poseExpand ??= expandOverlay().catch(() => false);
+      emitPoseAlert(io, alert);
     });
 
-    socket.on("pose_alert_done", async () => {
-      // Wait for a still-running expand, and only restore if the pose alert did it,
-      // so an unrelated overlay expansion keeps its full screen
-      poseAlertController.done();
-      const pending = poseExpand;
-      poseExpand = null;
-      if (pending) {
-        if (await pending) restoreOverlay().catch(() => {});
-      } else {
-        restoreOverlay().catch(() => {});
-      }
-    });
+    socket.on("pose_alert_done", () => void finishPoseAlert());
 
     socket.on("disconnect", () => overlayClients.remove(socket.id));
 

@@ -20,8 +20,7 @@ import { alertManager } from "./alertManager.js";
 import { testObsConnection } from "./obsManager.js";
 import { computeSetupStatus, cached, overlayClients, wasAlertStarted } from "./setupStatus.js";
 import { poseStore, posesFileSchema } from "./poseStore.js";
-import { poseAlertController } from "./poseAlert.js";
-import { expandOverlay, restoreOverlay } from "./obsManager.js";
+import { emitPoseAlert, poseAlertController } from "./poseAlert.js";
 import { safeAssetName, validateUpload } from "./userAssets.js";
 
 // Helper to get yt-dlp version
@@ -147,14 +146,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       res.status(409).json({ error: "Pose unavailable or another alert is playing" });
       return;
     }
-    io.emit("pose_alert", alert);
-    if (alert.media.fullscreen) {
-      expandOverlay()
-        .then((expanded) => {
-          if (expanded && !poseAlertController.isPlaying()) restoreOverlay().catch(() => {});
-        })
-        .catch(() => {});
-    }
+    emitPoseAlert(io, alert);
     res.json(alert);
   });
 

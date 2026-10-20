@@ -2,7 +2,8 @@ import type { Pose, PoseAlertPayload } from "../src/types.js";
 import { hasMedia } from "../src/lib/poseMedia.js";
 import { poseStore, visiblePoses } from "./poseStore.js";
 import { settingsManager } from "./settingsManager.js";
-import { restoreOverlay } from "./obsManager.js";
+import type { Server as SocketServer } from "socket.io";
+import { expandOverlay, restoreOverlay } from "./obsManager.js";
 
 export type PoseAlertControllerDeps = {
   getPoses: () => Pose[];
@@ -55,13 +56,34 @@ export function createPoseAlertController(deps: PoseAlertControllerDeps) {
   };
 }
 
+// Overlay source stretch started by the current pose alert (resolves true if it expanded)
+let poseExpand: Promise<boolean> | null = null;
+
+async function restoreIfExpanded() {
+  // Only restore what this alert expanded; awaits an expand that is still running
+  const pending = poseExpand;
+  poseExpand = null;
+  if (pending && (await pending)) restoreOverlay().catch(() => {});
+}
+
 export const poseAlertController = createPoseAlertController({
   getPoses: () => visiblePoses(poseStore.get()),
   isEnabled: () => settingsManager.settings.poseDetectionEnabled === true,
   now: Date.now,
   setTimer: setTimeout,
   clearTimer: clearTimeout,
-  onStuck: () => {
-    restoreOverlay().catch(() => {});
-  },
+  onStuck: () => void restoreIfExpanded(),
 });
+
+/** Sends an alert returned by `trigger()` to the overlay and stretches the source if the pose asks for it. */
+export function emitPoseAlert(io: SocketServer, alert: PoseAlertPayload) {
+  io.emit("pose_alert", alert);
+  // Plain assignment: only one pose alert plays at a time, so any previous value is stale
+  poseExpand = alert.media.fullscreen ? expandOverlay().catch(() => false) : null;
+}
+
+/** Overlay finished the alert (`pose_alert_done`). */
+export function finishPoseAlert() {
+  poseAlertController.done();
+  return restoreIfExpanded();
+}

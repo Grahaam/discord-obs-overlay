@@ -95,3 +95,13 @@ test("default builtin pose uses legacy settings", () => {
   assert.equal(pose.id, "absolute-cinema");
   assert.equal(pose.builtinId, "absolute-cinema");
 });
+
+test("keeps the other media type's fields when switching type", () => {
+  const store = new PoseStore(makeFile(), legacy);
+  const current = store.load();
+  const pose = current.poses[0];
+  const switched = { ...pose, media: { ...pose.media, type: "video" as const, videoUrl: "/user-assets/v.mp4" } };
+  store.save({ ...current, poses: [switched] });
+  assert.equal(store.get().poses[0].media.imageUrl, "/user-assets/a.jpg");
+  assert.equal(store.get().poses[0].media.videoUrl, "/user-assets/v.mp4");
+});

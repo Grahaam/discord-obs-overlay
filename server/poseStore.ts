@@ -15,25 +15,17 @@ const pointSchema = z.object({
   visibility: z.number().min(0).max(1),
 });
 
-const poseMediaSchema = z
-  .object({
-    type: z.enum(["image", "video"]),
-    imageUrl: z.string().optional(),
-    soundUrl: z.string().optional(),
-    videoUrl: z.string().optional(),
-    volume: z.number().min(0).max(1),
-    durationSeconds: z.number().positive().optional(),
-    maxDurationSeconds: z.number().min(5).max(120),
-    fullscreen: z.boolean(),
-  })
-  .superRefine((media, ctx) => {
-    if (media.type === "image" && media.videoUrl) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Image media cannot include videoUrl", path: ["videoUrl"] });
-    }
-    if (media.type === "video" && media.imageUrl) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Video media cannot include imageUrl", path: ["imageUrl"] });
-    }
-  });
+// Both media types may keep the other type's fields: switching type in the dashboard keeps them until changed
+const poseMediaSchema = z.object({
+  type: z.enum(["image", "video"]),
+  imageUrl: z.string().optional(),
+  soundUrl: z.string().optional(),
+  videoUrl: z.string().optional(),
+  volume: z.number().min(0).max(1),
+  durationSeconds: z.number().positive().optional(),
+  maxDurationSeconds: z.number().min(5).max(120),
+  fullscreen: z.boolean(),
+});
 
 const poseSchema = z.object({
   id: z.string().min(1),

@@ -84,7 +84,11 @@ export default function PoseAlertOverlay({ onShow, onHide }: PoseAlertOverlayPro
         audio.addEventListener("ended", finish);
         audio.addEventListener("error", finish);
         audioRef.current = audio;
-        audio.play().catch((err) => console.warn("[PoseAlertOverlay] sound blocked", err));
+        audio.play().catch((err) => {
+          // No "ended" will come: show the image for its duration instead of the max timeout
+          console.warn("[PoseAlertOverlay] sound blocked", err);
+          timersRef.current.push(setTimeout(finish, (media.durationSeconds ?? 4) * 1000));
+        });
       } else if (media.type === "image" && media.durationSeconds) {
         timersRef.current.push(setTimeout(finish, media.durationSeconds * 1000));
       }
