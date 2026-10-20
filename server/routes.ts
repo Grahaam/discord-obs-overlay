@@ -17,6 +17,7 @@ import { serverLogManager } from "./serverLogManager.js";
 import { botManager } from "./discordBotManager.js";
 import { resolveMediaFromLink, _ytDlpCustomPath } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
+import { testObsConnection } from "./obsManager.js";
 
 // Helper to get yt-dlp version
 let _ytDlpVersionCache: string | null = null;
@@ -90,14 +91,40 @@ function isUrlSafeToProxy(rawUrl: string): boolean {
   }
 }
 
+const OBS_PASSWORD_MASK = "••••••••••••••••••••";
+
 export function setupRoutes(app: express.Express, io: SocketServer) {
   // Get Settings
   app.get("/api/settings", (req, res) => {
     const safeSettings = {
       ...settingsManager.settings,
       discordToken: settingsManager.settings.discordToken ? "••••••••••••••••••••" : "",
+      obsWebsocketPassword: settingsManager.settings.obsWebsocketPassword ? "••••••••••••••••••••" : "",
     };
     res.json(safeSettings);
+  });
+
+  // The overlay page (an OBS browser source) connects to obs-websocket itself, so it needs the real password.
+  // This returns a secret in clear text: safe only because the server listens on 127.0.0.1 (see server/index.ts).
+  app.get("/api/obs-connection", (req, res) => {
+    res.json({
+      port: settingsManager.settings.obsWebsocketPort,
+      password: settingsManager.settings.obsWebsocketPassword,
+    });
+  });
+
+  // Test an obs-websocket connection. Body fields are optional: missing ones fall back to the stored settings,
+  // and the masked password means "keep the stored one" (the dashboard only ever holds the mask).
+  app.post("/api/obs/test", async (req, res) => {
+    const body = z
+      .object({ port: z.number().int().min(1).max(65535).optional(), password: z.string().optional() })
+      .safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Validation failed" });
+      return;
+    }
+    const password = body.data.password === OBS_PASSWORD_MASK ? undefined : body.data.password;
+    res.json(await testObsConnection({ port: body.data.port, password }));
   });
 
   // Save Settings
@@ -106,6 +133,8 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       logger.info({ body: req.body }, "Received settings update");
       const SettingsSchema = z.object({
         discordToken: z.string().optional(),
+        obsWebsocketPort: z.number().int().min(1).max(65535).optional(),
+        obsWebsocketPassword: z.string().optional(),
         channelId: z.string(),
         alertDuration: z.number().min(500).max(60000),
         syncDurationWithMedia: z.boolean(),
@@ -155,6 +184,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       const updatedSettings = {
         ...settingsManager.settings,
         discordToken: incoming.discordToken === "••••••••••••••••••••" ? originalToken : incoming.discordToken || "",
+        obsWebsocketPort: incoming.obsWebsocketPort ?? settingsManager.settings.obsWebsocketPort,
+        obsWebsocketPassword:
+          incoming.obsWebsocketPassword === OBS_PASSWORD_MASK
+            ? settingsManager.settings.obsWebsocketPassword
+            : (incoming.obsWebsocketPassword ?? settingsManager.settings.obsWebsocketPassword),
         channelId: incoming.channelId || "",
         alertDuration: incoming.alertDuration || 8000,
         syncDurationWithMedia: incoming.syncDurationWithMedia ?? true,
@@ -200,6 +234,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         settings: {
           ...updatedSettings,
           discordToken: updatedSettings.discordToken ? "••••••••••••••••••••" : "",
+          obsWebsocketPassword: updatedSettings.obsWebsocketPassword ? "••••••••••••••••••••" : "",
         },
       });
     } catch (err: any) {

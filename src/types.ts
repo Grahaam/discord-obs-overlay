@@ -13,6 +13,8 @@ export type AlertAnimation = "slide-up" | "fade" | "zoom" | "bounce";
 
 export interface UIConfig {
   discordToken: string;
+  obsWebsocketPort?: number;
+  obsWebsocketPassword?: string;
   channelId: string;
   alertDuration: number;
   syncDurationWithMedia: boolean;

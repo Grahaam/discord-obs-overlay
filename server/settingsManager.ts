@@ -9,6 +9,9 @@ const ENV_FILE = DATA_PATHS.envFile;
 
 export interface Settings {
   discordToken: string;
+  // obs-websocket connection (password lives in .env like the Discord token)
+  obsWebsocketPort: number;
+  obsWebsocketPassword: string;
   channelId: string;
   alertDuration: number;
   syncDurationWithMedia: boolean;
@@ -60,6 +63,8 @@ export interface Settings {
 
 export const defaultSettings: Settings = {
   discordToken: "",
+  obsWebsocketPort: 4455,
+  obsWebsocketPassword: "",
   channelId: "",
   alertDuration: 8000,
   syncDurationWithMedia: true,
@@ -111,6 +116,11 @@ export class SettingsManager {
         this.settings.discordToken = envToken.replace(/^"|"$/g, "").trim();
       }
 
+      const envObsPassword = process.env.OBS_WEBSOCKET_PASSWORD;
+      if (envObsPassword) {
+        this.settings.obsWebsocketPassword = envObsPassword.replace(/^"|"$/g, "");
+      }
+
       // Load cookies from cookies.txt
       const cookiesFile = DATA_PATHS.cookiesFile;
       if (fs.existsSync(cookiesFile)) {
@@ -130,13 +140,16 @@ export class SettingsManager {
   public saveSettings(newSettings: Settings) {
     try {
       // 1. Separate sensitive from public
-      const { discordToken: _t, youtubeCookiesContent: _c, ...publicSettings } = newSettings;
+      const { discordToken: _t, obsWebsocketPassword: _o, youtubeCookiesContent: _c, ...publicSettings } = newSettings;
 
       // 2. Save public things safely to settings.json
       fs.writeFileSync(SETTINGS_FILE, JSON.stringify(publicSettings, null, 2), "utf-8");
 
       // 3. Save discordToken safely to .env
-      this.writeEnvVars({ DISCORD_TOKEN: newSettings.discordToken });
+      this.writeEnvVars({
+        DISCORD_TOKEN: newSettings.discordToken,
+        OBS_WEBSOCKET_PASSWORD: newSettings.obsWebsocketPassword ?? "",
+      });
 
       this.settings = { ...newSettings };
 

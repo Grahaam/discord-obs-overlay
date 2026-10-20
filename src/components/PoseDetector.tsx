@@ -4,12 +4,15 @@ import OBSWebSocket from "obs-websocket-js";
 import { useQueueStore } from "../store/queueStore";
 import { isAbsoluteCinemaPose } from "../lib/absoluteCinemaPose";
 
-// Same endpoint as server/obsManager.ts
-const OBS_WS_URL = "ws://localhost:4455";
 const FRAME_INTERVAL_MS = 100; // ~10 fps is plenty for a held pose
 const FRAME_WIDTH = 320;
 const HOLD_MS = 600;
 const RETRY_MS = 5000;
+
+interface ObsConnection {
+  port: number;
+  password: string;
+}
 
 interface PoseSettings {
   poseDetectionEnabled?: boolean;
@@ -74,7 +77,9 @@ export default function PoseDetector({ isLeader }: { isLeader: boolean }) {
           });
         }
         if (!obsConnected) {
-          await obs.connect(OBS_WS_URL);
+          // Fetched on every (re)connect attempt so new port/password settings apply within RETRY_MS
+          const conn: ObsConnection = await fetch("/api/obs-connection").then((r) => r.json());
+          await obs.connect(`ws://localhost:${conn.port}`, conn.password || undefined);
           obsConnected = true;
         }
 
