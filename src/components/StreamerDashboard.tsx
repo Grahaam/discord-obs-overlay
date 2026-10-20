@@ -29,6 +29,7 @@ import StylingTab from "./tabs/StylingTab";
 import ModerationTab from "./tabs/ModerationTab";
 import SimulatorTab from "./tabs/SimulatorTab";
 import HealthTab from "./tabs/HealthTab";
+import PosesTab from "./tabs/PosesTab";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -38,9 +39,9 @@ import UpdateNotification from "./UpdateNotification";
 import MediaEngineBadge from "./MediaEngineBadge";
 
 export default function StreamerDashboard() {
-  const [activeTab, setActiveTab] = useState<"credentials" | "styling" | "moderation" | "simulator" | "health">(
-    "credentials"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "credentials" | "styling" | "moderation" | "simulator" | "health" | "poses"
+  >("credentials");
   const [saveLoading, setSaveLoading] = useState(false);
   const [showSetup, setShowSetup] = useState(() => !localStorage.getItem("hasSeenTutorial"));
   const { queue: pendingQueue, nowPlaying, reorder, wsStatus, socket } = useQueueStore();
@@ -336,6 +337,7 @@ export default function StreamerDashboard() {
     { id: "moderation" as const, icon: <Shield className="w-3.5 h-3.5" />, label: t.tabs.filter },
     { id: "simulator" as const, icon: <Send className="w-3.5 h-3.5" />, label: t.tabs.simulator },
     { id: "health" as const, icon: <HeartPulse className="w-3.5 h-3.5" />, label: t.tabs.health },
+    { id: "poses" as const, icon: <Tv className="w-3.5 h-3.5" />, label: t.tabs.poses },
   ];
 
   const showSaveButton = activeTab === "credentials" || activeTab === "styling" || activeTab === "moderation";
@@ -514,6 +516,9 @@ export default function StreamerDashboard() {
               />
             )}
             {activeTab === "health" && <HealthTab botStatus={botStatus} t={t} />}
+            {activeTab === "poses" && (
+              <PosesTab config={config} setConfig={setConfig} saveSettings={handleSaveSettings} t={t} />
+            )}
           </div>
 
           {/* Save button */}
