@@ -74,13 +74,16 @@ export const locales = {
       cookies: "Cookies de session pour Instagram / TikTok / Reddit (optionnel, pas YouTube)",
       cookiesHowTo: "Comment les obtenir",
       cookiesStep1:
-        "Créez un compte Instagram / TikTok jetable, distinct : jamais votre compte principal ni celui du stream.",
-      cookiesStep2: "Installez l'extension « Get cookies.txt LOCALLY » :",
-      cookiesStep3: "Connectez-vous avec le compte jetable sur instagram.com / tiktok.com.",
+        "Créez un compte Instagram / TikTok jetable, distinct : jamais votre compte principal ni celui du stream. Faites toute la suite dans une fenêtre de navigation privée séparée.",
+      cookiesStep2:
+        "Installez l'extension « Get cookies.txt LOCALLY » et autorisez-la en navigation privée (Chrome : détails de l'extension → « Autoriser en navigation privée » ; Firefox : « Exécuter dans les fenêtres privées ») :",
+      cookiesStep3:
+        "Dans cette fenêtre privée, connectez-vous avec le compte jetable sur instagram.com / tiktok.com uniquement, sans ouvrir d'autre site ni vous connecter ailleurs.",
       cookiesStep4:
         "Cliquez sur l'extension, Export (format Netscape), collez ici tout le contenu du fichier, puis Sauvegardez.",
+      cookiesStep5: "Fermez la fenêtre privée une fois terminé.",
       cookiesWarning:
-        "Utilisez un compte Instagram / TikTok jetable, jamais votre compte principal ni celui du stream. Des cookies = une session connectée. Quiconque possède cookies.txt est connecté en tant que ce compte : ne le partagez jamais, ni votre dossier de réglages. Ré-exportez-les quand les téléchargements échouent (les sessions expirent). YouTube n'a pas besoin de cookies.",
+        "Utilisez un compte Instagram / TikTok jetable, jamais votre compte principal ni celui du stream, et uniquement dans une fenêtre de navigation privée. Des cookies = une session connectée. Quiconque possède cookies.txt est connecté en tant que ce compte : ne le partagez jamais, ni votre dossier de réglages. Ré-exportez-les quand les téléchargements échouent (les sessions expirent). YouTube n'a pas besoin de cookies.",
       tokenHide: "Masquer le token",
       tokenShow: "Afficher le token",
       cobaltTitle: "Cobalt (Optionnel)",
@@ -334,12 +337,16 @@ export const locales = {
       openUserAssets: "Open folder",
       cookies: "Session Cookies for Instagram / TikTok / Reddit (Optional, not YouTube)",
       cookiesHowTo: "How to get them",
-      cookiesStep1: "Create a separate throwaway Instagram / TikTok account: never your main or the stream's account.",
-      cookiesStep2: 'Install the "Get cookies.txt LOCALLY" browser extension:',
-      cookiesStep3: "Log in with the throwaway account on instagram.com / tiktok.com.",
+      cookiesStep1:
+        "Create a separate throwaway Instagram / TikTok account: never your main or the stream's account. Do everything below in a separate private / incognito window.",
+      cookiesStep2:
+        'Install the "Get cookies.txt LOCALLY" browser extension and allow it in private windows (Chrome: extension details → "Allow in Incognito"; Firefox: "Run in Private Windows"):',
+      cookiesStep3:
+        "In that private window, log in with the throwaway account on instagram.com / tiktok.com only. Visit no other site and log in nowhere else.",
       cookiesStep4: "Click the extension, Export (Netscape format), paste the whole file content here, then Save.",
+      cookiesStep5: "Close the private window when you're done.",
       cookiesWarning:
-        "Use a throwaway Instagram / TikTok account, never your main or the stream's. Cookies are a logged-in session. Anyone holding cookies.txt is signed in as that account, so never share it or your settings folder. Re-export when downloads start failing (sessions expire). YouTube doesn't need cookies.",
+        "Use a throwaway Instagram / TikTok account, never your main or the stream's, and only in a private window. Cookies are a logged-in session. Anyone holding cookies.txt is signed in as that account, so never share it or your settings folder. Re-export when downloads start failing (sessions expire). YouTube doesn't need cookies.",
       tokenHide: "Hide token",
       tokenShow: "Show token",
       cobaltTitle: "Cobalt (Optional)",
@@ -590,12 +597,16 @@ export const locales = {
       openUserAssets: "Open da fowdew~",
       cookies: "Session Cookies fow Instagwam / TikTok / Weddit (Optionaw, nyot YouTube~)",
       cookiesHowTo: "How to get dem~",
-      cookiesStep1: "Cweate a sepawate thwowaway Instagwam / TikTok account: nyevew youw main ow da stweam's account~",
-      cookiesStep2: 'Instaww da "Get cookies.txt LOCALLY" bwowsew extension:',
-      cookiesStep3: "Wog in wif da thwowaway account on instagram.com / tiktok.com.",
+      cookiesStep1:
+        "Cweate a sepawate thwowaway Instagwam / TikTok account: nyevew youw main ow da stweam's account~ Do evewything bewow in a sepawate pwivate / incognito window~",
+      cookiesStep2:
+        'Instaww da "Get cookies.txt LOCALLY" bwowsew extension and awwow it in pwivate windows (Chwome: extension detaiws → "Awwow in Incognito"; Firefox: "Wun in Pwivate Windows"):',
+      cookiesStep3:
+        "In dat pwivate window, wog in wif da thwowaway account on instagram.com / tiktok.com ONWY. Visit no othew site and wog in nowhere ewse~",
       cookiesStep4: "Cwick da extension, Expowt (Netscape fowmat), paste da whowe fiwe content hewe, den Save~",
+      cookiesStep5: "Cwose da pwivate window when youw done~",
       cookiesWarning:
-        "Use a thwowaway Instagwam / TikTok account, nyevew youw main ow da stweam's~ Cookies awe a wogged-in session. Anyonye howding cookies.txt is signed in as dat account, so nyevew shawe it ow youw settings fowdew~ We-expowt when downwoads stawt faiwing (sessions expiwe). YouTube doesn't nyeed cookies.",
+        "Use a thwowaway Instagwam / TikTok account, nyevew youw main ow da stweam's, and onwy in a pwivate window~ Cookies awe a wogged-in session. Anyonye howding cookies.txt is signed in as dat account, so nyevew shawe it ow youw settings fowdew~ We-expowt when downwoads stawt faiwing (sessions expiwe). YouTube doesn't nyeed cookies.",
       tokenHide: "Hide tokyn~",
       tokenShow: "Show tokyn~",
       cobaltTitle: "Cobawt (Optionaw, nya~)",
@@ -852,13 +863,16 @@ export const locales = {
       cookies: "Cookies de session Instagwam / TikTok / Weddit (optionnew, pas YouTube~)",
       cookiesHowTo: "Comment wes obtenir~",
       cookiesStep1:
-        "Cwéez un compte Instagwam / TikTok jetabwe, distinct : jamais votwe compte pwincipaw ni cewui du stweam~",
-      cookiesStep2: "Instawwez w'extension « Get cookies.txt LOCALLY » :",
-      cookiesStep3: "Connectez-vous avec we compte jetabwe suw instagram.com / tiktok.com.",
+        "Cwéez un compte Instagwam / TikTok jetabwe, distinct : jamais votwe compte pwincipaw ni cewui du stweam~ Faites tout wa suite dans une fenêtwe de navigation pwivée séparée~",
+      cookiesStep2:
+        "Instawwez w'extension « Get cookies.txt LOCALLY » et autowisez-wa en navigation pwivée (Chwome : détaiws de w'extension → « Autowiser en navigation pwivée » ; Firefox : « Exécutew dans les fenêtwes pwivées ») :",
+      cookiesStep3:
+        "Dans cette fenêtwe pwivée, connectez-vous avec we compte jetabwe suw instagram.com / tiktok.com uniquement, sans ouvwiw d'autwe site ni vous connecter aiwweuws~",
       cookiesStep4:
         "Cwiquez suw w'extension, Expowt (fowmat Netscape), cowwez ici tout we contenu du fichiew, puis Sauvegawdez~",
+      cookiesStep5: "Fewmez wa fenêtwe pwivée une fois fini~",
       cookiesWarning:
-        "Utiwisez un compte Instagwam / TikTok jetabwe, jamais votwe compte pwincipaw ni cewui du stweam~ Des cookies = une session connectée. Quiconque possède cookies.txt est connecté en tant que ce compte : ne we pawtagez jamais, ni votwe dossiew de wéglages~ Wé-expowtez-wes quand wes téwéchawgements échouent (wes sessions expiwent). YouTube n'a pas besoin de cookies.",
+        "Utilisez un compte Instagwam / TikTok jetabwe, jamais votwe compte pwincipaw ni cewui du stweam, et uniquement en fenêtwe pwivée~ Des cookies = une session connectée. Quiconque possède cookies.txt est connecté en tant que ce compte : ne we pawtagez jamais, ni votwe dossiew de wéglages~ Wé-expowtez-wes quand wes téwéchawgements échouent (wes sessions expiwent). YouTube n'a pas besoin de cookies.",
       tokenHide: "Cachew we token~",
       tokenShow: "Afficher we token~",
       cobaltTitle: "Cobawt (Optionnew, nya~)",

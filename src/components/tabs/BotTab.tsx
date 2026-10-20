@@ -862,6 +862,7 @@ export default function BotTab(props: TabProps) {
             </li>
             <li>{t.bot.cookiesStep3}</li>
             <li>{t.bot.cookiesStep4}</li>
+            <li>{t.bot.cookiesStep5}</li>
           </ol>
         </details>
         <p className="text-[10px] text-amber-300/70 font-mono leading-relaxed bg-amber-950/15 border border-amber-500/15 rounded-lg p-2.5">
