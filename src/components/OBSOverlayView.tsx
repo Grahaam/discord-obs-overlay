@@ -91,6 +91,13 @@ export default function OBSOverlayView() {
 
   const { queue, setQueue, queueRef, wsStatus, socketRef } = useQueueStore();
 
+  // Tell the server this socket is the OBS overlay page (not the dashboard) so the setup checklist can detect it.
+  // The dashboard's preview is a plain component (NowPlayingPreview), not an iframe of /overlay, so only this
+  // view ever registers. Re-sent after each reconnect since the server forgets a socket when it disconnects.
+  useEffect(() => {
+    if (wsStatus === "connected") socketRef.current?.emit("register_overlay");
+  }, [wsStatus, socketRef]);
+
   // Register playback control callbacks with store
   useEffect(() => {
     const { setSkipCallback, setPauseCallback, setResumeCallback } = useQueueStore.getState();
