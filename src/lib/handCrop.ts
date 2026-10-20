@@ -142,23 +142,35 @@ export function drawCrop(
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
-/** Assigns each hand to the body wrist (15 left / 16 right) nearest its point 0; at most one hand per side. */
+/**
+ * Assigns hands to the visible body wrists (15 left / 16 right) by their point 0: as many sides as possible,
+ * then the lowest total distance. Empty hands and hidden or missing wrists are skipped.
+ */
 export function assignToWrists(
   hands: HandPoint[][],
   body: NormalizedPoint[]
 ): { left?: HandPoint[]; right?: HandPoint[] } {
-  const out: { left?: HandPoint[]; right?: HandPoint[] } = {};
-  const best = { left: Infinity, right: Infinity };
-  for (const hand of hands) {
-    const distance = (i: number) => Math.hypot(hand[0].x - body[i].x, hand[0].y - body[i].y);
-    const dl = distance(15);
-    const dr = distance(16);
-    const side: HandSide = dl <= dr ? "left" : "right";
-    const d = side === "left" ? dl : dr;
-    if (d < best[side]) {
-      best[side] = d;
-      out[side] = hand;
+  const valid = hands.filter((h) => h.length > 0);
+  const wrist = (i: number) => (body[i] && body[i].visibility >= MIN_VISIBILITY ? body[i] : undefined);
+  const wl = wrist(15);
+  const wr = wrist(16);
+  const dist = (h: HandPoint[], w: NormalizedPoint) => Math.hypot(h[0].x - w.x, h[0].y - w.y);
+  const lefts: (HandPoint[] | undefined)[] = wl ? [undefined, ...valid] : [undefined];
+  const rights: (HandPoint[] | undefined)[] = wr ? [undefined, ...valid] : [undefined];
+  let best: { left?: HandPoint[]; right?: HandPoint[] } = {};
+  let bestCount = 0;
+  let bestCost = Infinity;
+  for (const l of lefts) {
+    for (const r of rights) {
+      if (l && l === r) continue;
+      const count = (l ? 1 : 0) + (r ? 1 : 0);
+      const cost = (l && wl ? dist(l, wl) : 0) + (r && wr ? dist(r, wr) : 0);
+      if (count > bestCount || (count === bestCount && cost < bestCost)) {
+        best = { left: l, right: r };
+        bestCount = count;
+        bestCost = cost;
+      }
     }
   }
-  return out;
+  return { ...(best.left && { left: best.left }), ...(best.right && { right: best.right }) };
 }
