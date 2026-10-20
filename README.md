@@ -32,6 +32,8 @@ Téléchargez l'installeur correspondant à votre système depuis la page [Relea
 
 Aucune installation de Node.js, `yt-dlp` ou `ffmpeg` n'est requise — tout est embarqué.
 
+**Désinstaller :** Paramètres Windows → Applications → **LiveChat** → Désinstaller. Le désinstalleur demande s'il faut aussi supprimer vos données (`%APPDATA%LiveChat` : réglages, token du bot Discord, mot de passe OBS, cookies, cache). Répondez **Oui** pour tout effacer, ou **Non** pour les garder en vue d'une réinstallation.
+
 ## Premier lancement
 
 1. Lancez **LiveChat**. Un assistant en 3 étapes s'ouvre :
@@ -130,6 +132,8 @@ LiveChat is a desktop app for streamers. It picks up media (videos, images, link
 ### Quick install
 
 Download the installer for your OS from [Releases](https://github.com/Grahaam/discord-obs-overlay/releases): Windows NSIS, macOS DMG (Apple Silicon + Intel), or Linux AppImage. No Node.js / yt-dlp / ffmpeg required — everything is bundled.
+
+**Uninstall:** Windows Settings → Apps → **LiveChat** → Uninstall. The uninstaller asks whether to also delete your data (`%APPDATA%LiveChat`: settings, Discord bot token, OBS password, cookies, cache): **Yes** removes everything, **No** keeps it for a reinstall.
 
 ### First run
 
