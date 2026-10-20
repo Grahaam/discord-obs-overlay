@@ -50,11 +50,17 @@ export function safeAssetName(original: string, ext: string): string {
   return `${crypto.randomBytes(6).toString("hex")}-${base}.${ext}`;
 }
 
-export function cleanupUnusedUploads(dir: string, referencedUrls: Set<string>): string[] {
+// A file uploaded moments ago may not be in poses.json yet (its pose saves 400 ms later,
+// possibly after another save already ran this cleanup), so recent uploads are kept.
+const MIN_UPLOAD_AGE_MS = 10 * 60 * 1000;
+
+export function cleanupUnusedUploads(dir: string, referencedUrls: Set<string>, now = Date.now()): string[] {
   const deleted: string[] = [];
   for (const name of fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
     if (!UPLOAD_NAME_RE.test(name) || referencedUrls.has(`/user-assets/${name}`)) continue;
-    fs.rmSync(path.join(dir, name), { force: true });
+    const file = path.join(dir, name);
+    if (now - fs.statSync(file).mtimeMs < MIN_UPLOAD_AGE_MS) continue;
+    fs.rmSync(file, { force: true });
     deleted.push(name);
   }
   return deleted;

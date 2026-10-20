@@ -34,8 +34,17 @@ test("cleans only unreferenced generated uploads", () => {
   fs.writeFileSync(path.join(dir, "aaaaaaaaaaaa-old.gif"), "x");
   fs.writeFileSync(path.join(dir, "bbbbbbbbbbbb-kept.gif"), "x");
   fs.writeFileSync(path.join(dir, "my.gif"), "x");
-  assert.deepEqual(cleanupUnusedUploads(dir, new Set(["/user-assets/bbbbbbbbbbbb-kept.gif"])), [
+  const later = Date.now() + 60 * 60 * 1000;
+  assert.deepEqual(cleanupUnusedUploads(dir, new Set(["/user-assets/bbbbbbbbbbbb-kept.gif"]), later), [
     "aaaaaaaaaaaa-old.gif",
   ]);
   assert.equal(fs.existsSync(path.join(dir, "my.gif")), true);
+});
+
+test("keeps fresh uploads that no pose references yet", () => {
+  // The pose using a just-uploaded file may be saved after another save already ran cleanup
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "assets-"));
+  fs.writeFileSync(path.join(dir, "cccccccccccc-new.png"), "x");
+  assert.deepEqual(cleanupUnusedUploads(dir, new Set()), []);
+  assert.deepEqual(cleanupUnusedUploads(dir, new Set(), Date.now() + 11 * 60 * 1000), ["cccccccccccc-new.png"]);
 });
