@@ -1,5 +1,4 @@
 import fs from "fs";
-import path from "path";
 import { logger } from "./logger.js";
 import { DATA_PATHS } from "./paths.js";
 import dotenv from "dotenv";

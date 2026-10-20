@@ -1,4 +1,3 @@
-import path from "path";
 import { createRequire } from "module";
 import { AlertPayload } from "../src/types.js";
 import type { LogEntry } from "../src/types.js";

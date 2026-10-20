@@ -68,7 +68,7 @@ export async function testObsConnection(opts: { port?: number; password?: string
 interface SavedTransform {
   sceneName: string;
   sceneItemId: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   transform: any;
 }
 
@@ -96,7 +96,7 @@ async function findOverlaySourceId(obs: OBSWebSocket, sceneName: string): Promis
 
 /** Stretches the overlay source to the full canvas. Resolves false if it was already expanded or failed. */
 // Compact summary for logs: enough to rebuild the overlay layout by hand.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function describe(t: any) {
   return {
     boundsType: t.boundsType,
@@ -125,7 +125,6 @@ export async function trollExpand(): Promise<boolean> {
     });
     const { baseWidth, baseHeight } = await obs.call("GetVideoSettings");
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     _saved = { sceneName: currentProgramSceneName, sceneItemId, transform: sceneItemTransform as any };
     logger.info({ sceneItemId, saved: describe(sceneItemTransform) }, "OBS overlay expanded");
 

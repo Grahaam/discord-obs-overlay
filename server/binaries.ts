@@ -1,6 +1,5 @@
 import { createRequire } from "module";
 import { execFileSync } from "child_process";
-import path from "path";
 import { logger } from "./logger.js";
 import { DATA_PATHS } from "./paths.js";
 
