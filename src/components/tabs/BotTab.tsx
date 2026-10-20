@@ -243,7 +243,10 @@ export default function BotTab(props: TabProps) {
 
       {/* Connected, but Discord hides the alert channel from the bot (see server/channelCheck.ts) */}
       {botStatus.status === "connected" && botStatus.channelIssue && (
-        <div className="relative overflow-hidden rounded-xl border border-amber-500/25 bg-amber-950/15 p-4">
+        <div
+          id="bot-channel-issue"
+          className="relative overflow-hidden rounded-xl border border-amber-500/25 bg-amber-950/15 p-4"
+        >
           <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500 rounded-r-full" />
           <div className="flex gap-3 items-start pl-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -326,6 +329,7 @@ export default function BotTab(props: TabProps) {
         </div>
         <div className="relative flex items-center">
           <input
+            id="bot-token-field"
             type={showToken ? "text" : "password"}
             placeholder={t.bot.tokenPlaceholder}
             value={config.discordToken}
@@ -389,6 +393,7 @@ export default function BotTab(props: TabProps) {
           </div>
         )}
         <input
+          id="bot-channel-field"
           type="text"
           placeholder={t.bot.channelPlaceholder}
           value={config.channelId}
@@ -575,7 +580,7 @@ export default function BotTab(props: TabProps) {
       </div>
 
       {/* OBS connection (obs-websocket) */}
-      <div className="flex flex-col gap-2">
+      <div id="obs-connection-section" className="flex flex-col gap-2">
         <div className="flex items-center gap-1.5">
           <Plug className="w-3 h-3 text-white/30" />
           <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.obsTitle}</label>
@@ -612,7 +617,7 @@ export default function BotTab(props: TabProps) {
                 type="button"
                 onClick={() => setShowObsPassword((v) => !v)}
                 className="absolute right-3 text-white/25 hover:text-white/60 transition-colors"
-                title={showObsPassword ? "Hide password" : "Show password"}
+                title={showObsPassword ? t.bot.hidePassword : t.bot.showPassword}
               >
                 {showObsPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               </button>

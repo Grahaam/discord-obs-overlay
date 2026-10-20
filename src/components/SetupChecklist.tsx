@@ -108,10 +108,17 @@ export default function SetupChecklist({ onClose, setActiveTab, t }: SetupCheckl
     setTimeout(() => setCopied(false), 2500);
   };
 
-  // Both the bot and the OBS connection settings live in the "Discord Bot" tab
-  const goToBotTab = () => {
+  // Both the bot and the OBS connection settings live in the "Discord Bot" tab.
+  // After the tab has rendered, scroll to the first of `targetIds` that exists.
+  const goToBotTab = (...targetIds: string[]) => {
     setActiveTab("credentials");
     onClose();
+    setTimeout(() => {
+      for (const id of targetIds) {
+        const el = document.getElementById(id);
+        if (el) return el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 100);
   };
 
   const d = status?.details;
@@ -158,7 +165,12 @@ export default function SetupChecklist({ onClose, setActiveTab, t }: SetupCheckl
             {botHint}
             {status && !status.bot && (
               <div>
-                <button onClick={goToBotTab} className={linkBtn}>
+                <button
+                  onClick={() =>
+                    goToBotTab("bot-channel-issue", d?.channelConfigured ? "bot-token-field" : "bot-channel-field")
+                  }
+                  className={linkBtn}
+                >
                   {t.setup.botGo}
                 </button>
               </div>
@@ -183,13 +195,14 @@ export default function SetupChecklist({ onClose, setActiveTab, t }: SetupCheckl
               </button>
             </div>
             {!status?.overlay && <p className="mt-2 text-slate-400">{t.setup.overlayHow}</p>}
+            <p className="mt-2 text-slate-500">{t.setup.overlayUrlChanges}</p>
           </Row>
 
           <Row done={!!status?.obs} loading={loading} title={t.setup.obsTitle}>
             {obsHint}
             {status && !status.obs && (
               <div>
-                <button onClick={goToBotTab} className={linkBtn}>
+                <button onClick={() => goToBotTab("obs-connection-section")} className={linkBtn}>
                   {t.setup.obsGo}
                 </button>
               </div>
