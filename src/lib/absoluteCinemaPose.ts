@@ -20,7 +20,7 @@ const MIN_ELBOW_SPREAD = 1.3;
  * "Absolute Cinema" pose: both forearms raised, hands above the shoulders and spread wide.
  * Coordinates are normalized to the frame, with y growing downward.
  */
-export function isAbsoluteCinemaPose(landmarks: NormalizedLandmark[]): boolean {
+export function isAbsoluteCinemaPose(landmarks: Pick<NormalizedLandmark, "x" | "y" | "visibility">[]): boolean {
   const points = [L_SHOULDER, R_SHOULDER, L_ELBOW, R_ELBOW, L_WRIST, R_WRIST].map((i) => landmarks[i]);
   if (points.some((p) => !p || (p.visibility ?? 0) < MIN_VISIBILITY)) return false;
 

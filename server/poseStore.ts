@@ -79,9 +79,7 @@ export function defaultBuiltinPose(settings: LegacyPoseSettings): Pose {
   };
 }
 
-export function visiblePoses(file: PosesFile): Pose[] {
-  return file.poses.filter((pose) => !pose.builtinId || !file.hiddenBuiltins.includes(pose.builtinId));
-}
+export { visiblePoses } from "../src/lib/poseMedia.js";
 
 type PoseStoreEvents = {
   change: (file: PosesFile) => void;
