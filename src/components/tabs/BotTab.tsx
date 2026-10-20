@@ -1,4 +1,5 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import type { DiscordGuildInfo } from "../../types";
 import { TabProps } from "./types";
 import {
   AlertTriangle,
@@ -19,6 +20,7 @@ import {
   Clapperboard,
   FolderOpen,
   Plug,
+  RefreshCw,
 } from "lucide-react";
 
 const PLATFORM_DOMAINS: Record<string, string> = {
@@ -53,6 +55,22 @@ export default function BotTab(props: TabProps) {
   const [cobaltOpen, setCobaltOpen] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
   const soundPreviewRef = useRef<HTMLAudioElement | null>(null);
+
+  // Servers/channels the bot can see, for the channel dropdown. Only available once the bot is connected.
+  const [guilds, setGuilds] = useState<DiscordGuildInfo[]>([]);
+  const loadChannels = useCallback(async () => {
+    try {
+      const res = await fetch("/api/discord/channels");
+      if (!res.ok) return setGuilds([]);
+      setGuilds((await res.json()).guilds ?? []);
+    } catch {
+      setGuilds([]);
+    }
+  }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (botStatus?.status === "connected") void loadChannels();
+  }, [botStatus?.status, loadChannels]);
 
   const cookieDomainStatus = useMemo(() => {
     if (!config?.youtubeCookiesContent) return [];
@@ -173,23 +191,25 @@ export default function BotTab(props: TabProps) {
     </button>
   );
 
+  const permLabelFor = (perm: string) =>
+    ({
+      ViewChannel: t.bot.permViewChannel,
+      ReadMessageHistory: t.bot.permReadMessageHistory,
+      SendMessages: t.bot.permSendMessages,
+    })[perm] ?? perm;
+
   // Fill the localized template with the names Discord gave us (server/channelCheck.ts).
   const describeChannelIssue = () => {
     const issue = botStatus.channelIssue;
     if (!issue) return "";
     if (issue.kind === "not_found") return t.bot.channelNotFound.replace("{id}", issue.channelId);
-    const permLabels: Record<string, string> = {
-      ViewChannel: t.bot.permViewChannel,
-      ReadMessageHistory: t.bot.permReadMessageHistory,
-      SendMessages: t.bot.permSendMessages,
-    };
     const bot = botStatus.botUser.split("#")[0];
     return t.bot.channelNoAccess
       .replace("{bot}", bot)
       .replace("{channel}", issue.channelName ?? issue.channelId)
       .replace("{guild}", issue.guildName ?? "")
       .replace("{role}", issue.botRole ?? bot)
-      .replace("{missing}", issue.missing.map((p) => permLabels[p] ?? p).join(", "));
+      .replace("{missing}", issue.missing.map(permLabelFor).join(", "));
   };
 
   return (
@@ -339,6 +359,35 @@ export default function BotTab(props: TabProps) {
           <Hash className="w-3 h-3 text-cyan-400/60" />
           <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.channel}</label>
         </div>
+        {guilds.length > 0 && (
+          <div className="flex gap-2">
+            <select
+              value={guilds.some((g) => g.channels.some((c) => c.id === config.channelId)) ? config.channelId : ""}
+              onChange={(e) => e.target.value && setConfig({ ...config, channelId: e.target.value })}
+              className={`${inputBase} text-cyan-200 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/15`}
+            >
+              <option value="">{t.bot.channelPick}</option>
+              {guilds.map((g) => (
+                <optgroup key={g.id} label={g.name}>
+                  {g.channels.map((c) => (
+                    <option key={c.id} value={c.id} disabled={!c.readable}>
+                      #{c.name}
+                      {c.readable ? "" : ` (${t.bot.channelUnreadable}: ${c.missing.map(permLabelFor).join(", ")})`}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={loadChannels}
+              title={t.bot.channelRefresh}
+              className="shrink-0 px-3 rounded-lg border border-white/[0.08] text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         <input
           type="text"
           placeholder={t.bot.channelPlaceholder}
