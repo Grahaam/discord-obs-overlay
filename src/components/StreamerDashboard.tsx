@@ -23,7 +23,7 @@ import {
 import { UIConfig, LogEntry, AlertPayload, BotStatus, MediaType, ServerLogEntry } from "../types";
 import { locales, Language } from "../locales";
 import NowPlayingPreview from "./NowPlayingPreview";
-import TutorialOverlay from "./TutorialOverlay";
+import SetupChecklist from "./SetupChecklist";
 import BotTab from "./tabs/BotTab";
 import StylingTab from "./tabs/StylingTab";
 import ModerationTab from "./tabs/ModerationTab";
@@ -42,7 +42,7 @@ export default function StreamerDashboard() {
     "credentials"
   );
   const [saveLoading, setSaveLoading] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("hasSeenTutorial"));
+  const [showSetup, setShowSetup] = useState(() => !localStorage.getItem("hasSeenTutorial"));
   const { queue: pendingQueue, nowPlaying, reorder, wsStatus, socket } = useQueueStore();
   const [config, setConfig] = useState<UIConfig>({
     discordToken: "",
@@ -342,11 +342,11 @@ export default function StreamerDashboard() {
 
   return (
     <div className="min-h-screen bg-[#050508] text-[#e0e0e6] flex flex-col font-sans selection:bg-indigo-600 selection:text-white relative overflow-x-hidden">
-      {showTutorial && (
-        <TutorialOverlay
-          onComplete={() => {
+      {showSetup && (
+        <SetupChecklist
+          onClose={() => {
             localStorage.setItem("hasSeenTutorial", "true");
-            setShowTutorial(false);
+            setShowSetup(false);
           }}
           setActiveTab={setActiveTab}
           t={t}
@@ -371,6 +371,13 @@ export default function StreamerDashboard() {
 
         {/* Right controls */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={() => setShowSetup(true)}
+            className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-semibold text-white/70 hover:text-white transition cursor-pointer"
+          >
+            {t.setup.reopen}
+          </button>
+
           {/* Language */}
           <select
             value={config.language}
