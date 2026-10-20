@@ -1,11 +1,5 @@
-import {
-  ChannelType,
-  PermissionFlagsBits,
-  type Client,
-  type GuildBasedChannel,
-  type NewsChannel,
-  type TextChannel,
-} from "discord.js";
+import { ChannelType, PermissionFlagsBits, type Client, type GuildBasedChannel } from "discord.js";
+import { logger } from "./logger.js";
 import type { ChannelIssue, DiscordGuildInfo } from "../src/types.js";
 
 // What the bot needs in the alert channel: see messages, read them, reply.
@@ -54,21 +48,26 @@ export function listTextChannels<T extends ListableChannel>(
 
 /** Servers the bot is in, with their text channels. Reads the login cache like checkChannelAccess. */
 export async function listGuildChannels(client: Client<true>): Promise<DiscordGuildInfo[]> {
-  return Promise.all(
+  // allSettled: one server failing fetchMe must not empty the whole list
+  const results = await Promise.allSettled(
     [...client.guilds.cache.values()].map(async (guild) => {
       const me = guild.members.me ?? (await guild.members.fetchMe());
       return {
         id: guild.id,
         name: guild.name,
-        channels: listTextChannels(
-          guild.channels.cache
-            .filter((c): c is TextChannel | NewsChannel => c.isTextBased() && !c.isThread() && !c.isVoiceBased())
-            .values(),
-          (c) => c.permissionsFor(me)
+        // Threads have no position: the only narrowing left, the type filter is in listTextChannels
+        channels: listTextChannels(guild.channels.cache.filter((c) => !c.isThread()).values(), (c) =>
+          c.permissionsFor(me)
         ),
       };
     })
   );
+  const guilds: DiscordGuildInfo[] = [];
+  for (const result of results) {
+    if (result.status === "fulfilled") guilds.push(result.value);
+    else logger.warn({ err: result.reason }, "Could not list channels of a Discord server");
+  }
+  return guilds;
 }
 
 /**
