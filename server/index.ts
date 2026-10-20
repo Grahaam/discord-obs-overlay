@@ -20,6 +20,7 @@ import { logger } from "./logger.js";
 import { trollExpand, trollRestore } from "./obsManager.js";
 import { createPoseAlert } from "./poseAlert.js";
 import { APP_PATHS, DATA_PATHS } from "./paths.js";
+import { overlayClients, markAlertStarted } from "./setupStatus.js";
 
 dotenv.config({ path: DATA_PATHS.envFile });
 
@@ -157,7 +158,11 @@ async function runServer() {
       });
     });
 
+    // Sent by the OBS overlay page only (not the dashboard): feeds the setup checklist
+    socket.on("register_overlay", () => overlayClients.add(socket.id));
+
     socket.on("alert_started", (alertId: string) => {
+      markAlertStarted(alertId);
       const alert =
         alertManager.getAlerts().find((a) => a.id === alertId) ??
         (currentlyPlaying?.id === alertId ? currentlyPlaying : null);
@@ -200,7 +205,7 @@ async function runServer() {
       if (pending && (await pending)) trollRestore().catch(() => {});
     });
 
-    socket.on("disconnect", () => {});
+    socket.on("disconnect", () => overlayClients.remove(socket.id));
 
     // Playback state updates from overlay clients (broadcast to other clients)
     socket.on(

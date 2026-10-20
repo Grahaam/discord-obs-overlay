@@ -18,6 +18,7 @@ import { botManager } from "./discordBotManager.js";
 import { resolveMediaFromLink, _ytDlpCustomPath } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
 import { testObsConnection } from "./obsManager.js";
+import { computeSetupStatus, cached, overlayClients, wasAlertStarted } from "./setupStatus.js";
 
 // Helper to get yt-dlp version
 let _ytDlpVersionCache: string | null = null;
@@ -125,6 +126,23 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     }
     const password = body.data.password === OBS_PASSWORD_MASK ? undefined : body.data.password;
     res.json(await testObsConnection({ port: body.data.port, password }));
+  });
+
+  // Setup checklist state, polled every 2 s by the dashboard. The OBS probe opens a real websocket
+  // (up to ~3 s), so its result is shared for a few seconds between polls.
+  const cachedObsTest = cached(5000, () => testObsConnection());
+  app.get("/api/setup-status", async (req, res) => {
+    const testAlertId = typeof req.query.testAlertId === "string" ? req.query.testAlertId : undefined;
+    res.json(
+      computeSetupStatus({
+        botStatus: botManager.status,
+        channelConfigured: !!settingsManager.settings.channelId,
+        channelIssue: botManager.channelIssue,
+        overlayClients: overlayClients.count(),
+        obs: await cachedObsTest(),
+        testAlertSeen: wasAlertStarted(testAlertId),
+      })
+    );
   });
 
   // Save Settings
