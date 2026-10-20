@@ -110,7 +110,7 @@ export default function PoseDetector({ isLeader }: { isLeader: boolean }) {
         if (landmarks && isAbsoluteCinemaPose(landmarks)) {
           poseSince ??= now;
           if (now - poseSince >= HOLD_MS) {
-            useQueueStore.getState().socketRef.current?.emit("pose_detected", { pose: "absolute_cinema" });
+            useQueueStore.getState().socketRef.current?.emit("pose_detected", { poseId: "absolute-cinema" });
             poseSince = null;
           }
         } else {

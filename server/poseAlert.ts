@@ -1,23 +1,67 @@
+import type { Pose, PoseAlertPayload } from "../src/types.js";
+import { hasMedia } from "../src/lib/poseMedia.js";
+import { poseStore, visiblePoses } from "./poseStore.js";
 import { settingsManager } from "./settingsManager.js";
+import { restoreOverlay } from "./obsManager.js";
 
-export interface PoseAlertPayload {
-  imageUrl: string;
-  soundUrl: string;
+export type PoseAlertControllerDeps = {
+  getPoses: () => Pose[];
+  isEnabled: () => boolean;
+  now: () => number;
+  setTimer: typeof setTimeout;
+  clearTimer: typeof clearTimeout;
+  onStuck: () => void;
+};
+
+export function createPoseAlertController(deps: PoseAlertControllerDeps) {
+  let playing = false;
+  let playingTimer: ReturnType<typeof setTimeout> | undefined;
+  const lastTriggeredAt = new Map<string, number>();
+
+  const done = () => {
+    if (playingTimer) {
+      deps.clearTimer(playingTimer);
+      playingTimer = undefined;
+    }
+    playing = false;
+  };
+
+  const trigger = (poseId: string, opts: { ignoreCooldown?: boolean } = {}): PoseAlertPayload | null => {
+    if (playing || (!opts.ignoreCooldown && !deps.isEnabled())) return null;
+    const pose = deps.getPoses().find((candidate) => candidate.id === poseId);
+    if (!pose || !pose.enabled || !hasMedia(pose)) return null;
+
+    const now = deps.now();
+    const last = lastTriggeredAt.get(pose.id);
+    if (!opts.ignoreCooldown && last !== undefined && now - last < pose.cooldownSeconds * 1000) return null;
+
+    if (!opts.ignoreCooldown) lastTriggeredAt.set(pose.id, now);
+    playing = true;
+    playingTimer = deps.setTimer(
+      () => {
+        playingTimer = undefined;
+        playing = false;
+        deps.onStuck();
+      },
+      (pose.media.maxDurationSeconds + 5) * 1000
+    );
+    return { poseId: pose.id, media: pose.media };
+  };
+
+  return {
+    trigger,
+    done,
+    isPlaying: () => playing,
+  };
 }
 
-let lastTriggeredAt = 0;
-
-/**
- * Returns the "Absolute Cinema" alert to show, or null when the feature is off
- * or still in cooldown. The cooldown lives here so a misbehaving client can't spam alerts.
- */
-export function createPoseAlert(): PoseAlertPayload | null {
-  const s = settingsManager.settings;
-  if (!s.poseDetectionEnabled || !s.poseAlertImageUrl) return null;
-
-  const now = Date.now();
-  if (now - lastTriggeredAt < (s.poseCooldownSeconds ?? 30) * 1000) return null;
-  lastTriggeredAt = now;
-
-  return { imageUrl: s.poseAlertImageUrl, soundUrl: s.poseAlertSoundUrl || "" };
-}
+export const poseAlertController = createPoseAlertController({
+  getPoses: () => visiblePoses(poseStore.get()),
+  isEnabled: () => settingsManager.settings.poseDetectionEnabled === true,
+  now: Date.now,
+  setTimer: setTimeout,
+  clearTimer: clearTimeout,
+  onStuck: () => {
+    restoreOverlay().catch(() => {});
+  },
+});

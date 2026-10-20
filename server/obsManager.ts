@@ -109,8 +109,8 @@ function describe(t: any) {
   };
 }
 
-export async function trollExpand(): Promise<boolean> {
-  if (_saved) return false; // already expanded (e.g. troll and pose alert at once) — don't overwrite the original transform
+export async function expandOverlay(): Promise<boolean> {
+  if (_saved) return false; // already expanded — don't overwrite the original transform
   const obs = new OBSWebSocket();
   try {
     await obs.connect(obsUrl(), obsPassword());
@@ -141,7 +141,7 @@ export async function trollExpand(): Promise<boolean> {
     });
     return true;
   } catch (err) {
-    // troll continues without resize
+    // Continue without resizing
     logger.warn({ err: (err as Error).message }, "OBS overlay expand failed");
     return false;
   } finally {
@@ -149,7 +149,7 @@ export async function trollExpand(): Promise<boolean> {
   }
 }
 
-export async function trollRestore(): Promise<void> {
+export async function restoreOverlay(): Promise<void> {
   if (!_saved) return;
   const { sceneName, sceneItemId, transform } = _saved;
 

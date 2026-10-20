@@ -17,10 +17,11 @@ import { initDb, closeDb, loadPersistedAlerts, loadPersistedLogs, incrementMedia
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
-import { trollExpand, trollRestore } from "./obsManager.js";
-import { createPoseAlert } from "./poseAlert.js";
+import { expandOverlay, restoreOverlay } from "./obsManager.js";
+import { poseAlertController } from "./poseAlert.js";
 import { APP_PATHS, DATA_PATHS } from "./paths.js";
 import { overlayClients, markAlertStarted } from "./setupStatus.js";
+import { poseStore } from "./poseStore.js";
 
 dotenv.config({ path: DATA_PATHS.envFile });
 
@@ -29,6 +30,7 @@ const HEARTBEAT_INTERVAL_MS = 5000;
 
 async function runServer() {
   settingsManager.loadSettings();
+  poseStore.load();
 
   // Phase 1: cleanup orphaned downloads from previous run
   cleanupOrphanedTempFiles();
@@ -86,6 +88,7 @@ async function runServer() {
   app.use("/api/health", readLimiter);
   app.use("/api/setup-status", readLimiter);
   app.use("/api/obs-connection", readLimiter);
+  app.use("/api/poses", readLimiter);
   app.use("/api", writeLimiter);
 
   // Phase 4: CSP hardening — set via HTTP headers (more reliable in OBS than meta tags)
@@ -198,25 +201,26 @@ async function runServer() {
       io.emit("remove_queue_item", alertId);
     });
 
-    socket.on("troll_dismissed", () => {
-      trollRestore().catch(() => {});
-    });
-
-    socket.on("pose_detected", () => {
-      const alert = createPoseAlert();
+    socket.on("pose_detected", (payload: { poseId?: string }) => {
+      if (!payload?.poseId) return;
+      const alert = poseAlertController.trigger(payload.poseId);
       if (!alert) return;
-      logger.info("Absolute Cinema pose detected");
-      // Full priority: bypasses the alert queue, shown on top of whatever is playing
+      logger.info({ poseId: alert.poseId }, "Pose detected");
       io.emit("pose_alert", alert);
-      poseExpand ??= trollExpand().catch(() => false);
+      if (alert.media.fullscreen) poseExpand ??= expandOverlay().catch(() => false);
     });
 
     socket.on("pose_alert_done", async () => {
       // Wait for a still-running expand, and only restore if the pose alert did it,
-      // so an ongoing troll keeps its full screen
+      // so an unrelated overlay expansion keeps its full screen
+      poseAlertController.done();
       const pending = poseExpand;
       poseExpand = null;
-      if (pending && (await pending)) trollRestore().catch(() => {});
+      if (pending) {
+        if (await pending) restoreOverlay().catch(() => {});
+      } else {
+        restoreOverlay().catch(() => {});
+      }
     });
 
     socket.on("disconnect", () => overlayClients.remove(socket.id));
@@ -237,6 +241,7 @@ async function runServer() {
     });
   }
 
+  poseStore.on("change", (poses) => io.emit("poses_updated", poses));
   setupRoutes(app, io);
 
   // Pose detection assets: MediaPipe wasm runtime, downloaded model, and streamer-provided image/sound
@@ -248,35 +253,32 @@ async function runServer() {
   // New update check endpoint
   app.get("/api/check-update", async (req, res) => {
     try {
-        const pkg = JSON.parse(fs.readFileSync(APP_PATHS.packageJson, 'utf8'));
-        const response = await fetch(
-          "https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest",
-          {
-            signal: AbortSignal.timeout(5000),
-            headers: { Accept: "application/vnd.github+json" },
-          }
-        );
-        if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
-        const latest = await response.json();
-        const strip = (v: string) => v.replace(/^v/, "");
-        // Compare numerically, part by part: "!==" flagged an older release
-        // (v1.9.5 while running 2.0.0) as an update.
-        const isNewer = (a: string, b: string) => {
-          const pa = a.split(/[.-]/).map(Number);
-          const pb = b.split(/[.-]/).map(Number);
-          for (let i = 0; i < 3; i++) {
-            if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
-          }
-          return false;
-        };
-        res.json({
-            current: pkg.version,
-            latest: strip(latest.tag_name),
-            updateAvailable: isNewer(strip(latest.tag_name), pkg.version),
-            downloadUrl: latest.html_url,
-        });
+      const pkg = JSON.parse(fs.readFileSync(APP_PATHS.packageJson, "utf8"));
+      const response = await fetch("https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest", {
+        signal: AbortSignal.timeout(5000),
+        headers: { Accept: "application/vnd.github+json" },
+      });
+      if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
+      const latest = await response.json();
+      const strip = (v: string) => v.replace(/^v/, "");
+      // Compare numerically, part by part: "!==" flagged an older release
+      // (v1.9.5 while running 2.0.0) as an update.
+      const isNewer = (a: string, b: string) => {
+        const pa = a.split(/[.-]/).map(Number);
+        const pb = b.split(/[.-]/).map(Number);
+        for (let i = 0; i < 3; i++) {
+          if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+        }
+        return false;
+      };
+      res.json({
+        current: pkg.version,
+        latest: strip(latest.tag_name),
+        updateAvailable: isNewer(strip(latest.tag_name), pkg.version),
+        downloadUrl: latest.html_url,
+      });
     } catch (_e) {
-        res.status(500).json({ error: "Update check failed" });
+      res.status(500).json({ error: "Update check failed" });
     }
   });
 
@@ -325,7 +327,7 @@ async function runServer() {
     shuttingDown = true;
     logger.info({ reason }, "Shutting down");
     clearInterval(heartbeatInterval);
-    await trollRestore().catch(() => {});
+    await restoreOverlay().catch(() => {});
     await botManager.shutdown().catch(() => {});
     io.close();
     httpServer.close();

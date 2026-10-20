@@ -19,6 +19,10 @@ import { resolveMediaFromLink, _ytDlpCustomPath } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
 import { testObsConnection } from "./obsManager.js";
 import { computeSetupStatus, cached, overlayClients, wasAlertStarted } from "./setupStatus.js";
+import { poseStore, posesFileSchema } from "./poseStore.js";
+import { poseAlertController } from "./poseAlert.js";
+import { expandOverlay, restoreOverlay } from "./obsManager.js";
+import { safeAssetName, validateUpload } from "./userAssets.js";
 
 // Helper to get yt-dlp version
 let _ytDlpVersionCache: string | null = null;
@@ -95,6 +99,65 @@ function isUrlSafeToProxy(rawUrl: string): boolean {
 const OBS_PASSWORD_MASK = "••••••••••••••••••••";
 
 export function setupRoutes(app: express.Express, io: SocketServer) {
+  app.post("/api/user-assets", express.raw({ type: "*/*", limit: "50mb" }), (req, res) => {
+    const filename = req.header("X-Filename");
+    if (!filename || !Buffer.isBuffer(req.body)) {
+      res.status(400).json({ error: "Missing file" });
+      return;
+    }
+    let original: string;
+    try {
+      original = decodeURIComponent(filename);
+    } catch {
+      res.status(400).json({ error: "Invalid filename" });
+      return;
+    }
+    const check = validateUpload(original, req.body.subarray(0, 16), req.body.length);
+    if (!check.ok) {
+      res.status(check.error === "size" ? 413 : 400).json({ error: check.error });
+      return;
+    }
+    fs.mkdirSync(DATA_PATHS.userAssetsDir, { recursive: true });
+    const name = safeAssetName(original, check.ext);
+    fs.writeFileSync(path.join(DATA_PATHS.userAssetsDir, name), req.body);
+    res.status(201).json({ url: `/user-assets/${name}` });
+  });
+  app.get("/api/poses", (_req, res) => {
+    res.json(poseStore.get());
+  });
+
+  app.put("/api/poses", (req, res) => {
+    const parsed = posesFileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid poses file" });
+      return;
+    }
+    try {
+      poseStore.save(parsed.data);
+      res.json(poseStore.get());
+    } catch (err) {
+      logger.error({ err }, "Failed to save poses");
+      res.status(400).json({ error: "Invalid poses file" });
+    }
+  });
+
+  app.post("/api/poses/:id/preview", (req, res) => {
+    const alert = poseAlertController.trigger(req.params.id, { ignoreCooldown: true });
+    if (!alert) {
+      res.status(409).json({ error: "Pose unavailable or another alert is playing" });
+      return;
+    }
+    io.emit("pose_alert", alert);
+    if (alert.media.fullscreen) {
+      expandOverlay()
+        .then((expanded) => {
+          if (expanded && !poseAlertController.isPlaying()) restoreOverlay().catch(() => {});
+        })
+        .catch(() => {});
+    }
+    res.json(alert);
+  });
+
   // Get Settings
   app.get("/api/settings", (req, res) => {
     const safeSettings = {

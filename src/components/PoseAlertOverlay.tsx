@@ -1,29 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueueStore } from "../store/queueStore";
+import type { PoseAlertPayload } from "../types";
 
-// 2 s in total: fully visible, then image and sound fade out together
-const VISIBLE_MS = 1500;
 const FADE_MS = 500;
-
-interface PoseAlertPayload {
-  imageUrl: string;
-  soundUrl: string;
-}
 
 interface PoseAlertOverlayProps {
   onShow?: () => void;
   onHide?: () => void;
 }
 
-/** Full-screen "Absolute Cinema" flash: shown above everything, then fades out. */
+/** Full-screen pose alert: media ends first, then fades out before notifying the server. */
 export default function PoseAlertOverlay({ onShow, onHide }: PoseAlertOverlayProps) {
   const { socket } = useQueueStore();
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [alert, setAlert] = useState<PoseAlertPayload | null>(null);
   const [fading, setFading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  // Refs so the socket handler always calls the latest callbacks without re-subscribing
+  const finishedRef = useRef(false);
+  const finishRef = useRef<() => void>(() => {});
   const onShowRef = useRef(onShow);
   const onHideRef = useRef(onHide);
+
   useEffect(() => {
     onShowRef.current = onShow;
     onHideRef.current = onHide;
@@ -31,64 +29,105 @@ export default function PoseAlertOverlay({ onShow, onHide }: PoseAlertOverlayPro
 
   useEffect(() => {
     if (!socket) return;
-    let audio: HTMLAudioElement | null = null;
-    let fadeInterval: ReturnType<typeof setInterval> | undefined;
-    const stopSound = () => {
-      clearInterval(fadeInterval);
-      audio?.pause();
-      audio = null;
-    };
+
     const clearTimers = () => {
       timersRef.current.forEach(clearTimeout);
       timersRef.current = [];
     };
-    const handler = ({ imageUrl: img, soundUrl }: PoseAlertPayload) => {
-      clearTimers();
-      stopSound();
-      onShowRef.current?.();
-      setImageUrl(img);
-      setFading(false);
-      if (soundUrl) {
-        audio = new Audio(soundUrl);
-        audio.play().catch((err) => console.warn("[PoseAlertOverlay] sound blocked", err));
+    const stopAudio = () => {
+      if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = undefined;
+      audioRef.current?.pause();
+      audioRef.current = null;
+    };
+    const finish = () => {
+      if (finishedRef.current) return;
+      finishedRef.current = true;
+      setFading(true);
+      const audio = audioRef.current;
+      if (audio) {
+        let step = 0;
+        const steps = 10;
+        fadeIntervalRef.current = setInterval(() => {
+          step++;
+          audio.volume = Math.max(0, audio.volume - 1 / steps);
+          if (step >= steps && fadeIntervalRef.current) {
+            clearInterval(fadeIntervalRef.current);
+            fadeIntervalRef.current = undefined;
+          }
+        }, FADE_MS / steps);
       }
-      timersRef.current = [
+      timersRef.current.push(
         setTimeout(() => {
-          setFading(true);
-          // Fade the sound with the image (audio volume has no CSS transition, so step it down)
-          const fadingAudio = audio;
-          if (!fadingAudio) return;
-          const steps = 10;
-          let step = 0;
-          fadeInterval = setInterval(() => {
-            step++;
-            fadingAudio.volume = Math.max(0, 1 - step / steps);
-          }, FADE_MS / steps);
-        }, VISIBLE_MS),
-        setTimeout(() => {
-          stopSound();
-          setImageUrl(null);
+          stopAudio();
+          setAlert(null);
+          setFading(false);
           onHideRef.current?.();
           socket.emit("pose_alert_done");
-        }, VISIBLE_MS + FADE_MS),
-      ];
+        }, FADE_MS)
+      );
     };
+    finishRef.current = finish;
+
+    const handler = (next: PoseAlertPayload) => {
+      clearTimers();
+      stopAudio();
+      finishedRef.current = false;
+      onShowRef.current?.();
+      setFading(false);
+      setAlert(next);
+
+      const { media } = next;
+      if (media.type === "image" && media.soundUrl) {
+        const audio = new Audio(media.soundUrl);
+        audio.volume = media.volume;
+        audio.addEventListener("ended", finish);
+        audio.addEventListener("error", finish);
+        audioRef.current = audio;
+        audio.play().catch((err) => console.warn("[PoseAlertOverlay] sound blocked", err));
+      } else if (media.type === "image" && media.durationSeconds) {
+        timersRef.current.push(setTimeout(finish, media.durationSeconds * 1000));
+      }
+      timersRef.current.push(setTimeout(finish, media.maxDurationSeconds * 1000));
+    };
+
     socket.on("pose_alert", handler);
     return () => {
       socket.off("pose_alert", handler);
       clearTimers();
-      stopSound();
+      stopAudio();
+      finishRef.current = () => {};
     };
   }, [socket]);
 
-  if (!imageUrl) return null;
+  if (!alert) return null;
 
   return (
     <div
       className="fixed inset-0 z-[10000] bg-black flex items-center justify-center pointer-events-none transition-opacity ease-out"
       style={{ opacity: fading ? 0 : 1, transitionDuration: `${FADE_MS}ms` }}
     >
-      <img src={imageUrl} alt="" className="w-full h-full object-contain" />
+      {alert.media.type === "video" ? (
+        <video
+          src={alert.media.videoUrl}
+          autoPlay
+          playsInline
+          muted={false}
+          className="w-full h-full object-contain"
+          onCanPlay={(event) => {
+            event.currentTarget.volume = alert.media.volume;
+          }}
+          onEnded={() => finishRef.current()}
+          onError={() => finishRef.current()}
+        />
+      ) : (
+        <img
+          src={alert.media.imageUrl}
+          alt=""
+          className="w-full h-full object-contain"
+          onError={() => finishRef.current()}
+        />
+      )}
     </div>
   );
 }

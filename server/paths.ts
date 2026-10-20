@@ -34,6 +34,7 @@ export const DATA_PATHS = {
   dbFile: path.join(dataDir, "overlay.db"),
   mediaCacheDir: path.join(dataDir, "media_cache"),
   binDir: path.join(dataDir, "bin"),
+  posesFile: path.join(dataDir, "poses.json"),
   // Streamer-provided image/sound for the pose alert (served at /user-assets).
   userAssetsDir: path.join(dataDir, "user-assets"),
 };

@@ -10,6 +10,50 @@ export type AlertPosition =
   | "bottom-center"
   | "bottom-right";
 export type AlertAnimation = "slide-up" | "fade" | "zoom" | "bounce";
+export type BodyPart = "arms" | "legs" | "head";
+
+export interface NormalizedPoint {
+  x: number;
+  y: number;
+  visibility: number;
+}
+
+export interface PoseMedia {
+  type: "image" | "video";
+  imageUrl?: string;
+  soundUrl?: string;
+  videoUrl?: string;
+  volume: number;
+  durationSeconds?: number;
+  maxDurationSeconds: number;
+  fullscreen: boolean;
+}
+
+export interface PoseAlertPayload {
+  poseId: string;
+  media: PoseMedia;
+}
+
+export interface Pose {
+  id: string;
+  name: string;
+  kind: "custom" | "builtin";
+  builtinId?: "absolute-cinema";
+  enabled: boolean;
+  template?: NormalizedPoint[];
+  bodyParts: BodyPart[];
+  threshold: number;
+  mirror: boolean;
+  holdMs: number;
+  cooldownSeconds: number;
+  media: PoseMedia;
+}
+
+export interface PosesFile {
+  version: 1;
+  poses: Pose[];
+  hiddenBuiltins: string[];
+}
 
 export interface UIConfig {
   discordToken: string;
