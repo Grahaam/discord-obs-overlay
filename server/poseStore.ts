@@ -6,6 +6,7 @@ import type { BodyPart, Pose, PosesFile, PoseMedia } from "../src/types.js";
 import { DATA_PATHS } from "./paths.js";
 import { settingsManager } from "./settingsManager.js";
 import { logger } from "./logger.js";
+import { cleanupUnusedUploads } from "./userAssets.js";
 
 const bodyPartSchema = z.enum(["arms", "legs", "head"]);
 const pointSchema = z.object({
@@ -154,6 +155,12 @@ export class PoseStore {
       throw err;
     }
     this.setCurrent(complete);
+    const referencedUrls = new Set(
+      complete.poses.flatMap((pose) =>
+        [pose.media.imageUrl, pose.media.soundUrl, pose.media.videoUrl].filter((url): url is string => Boolean(url))
+      )
+    );
+    cleanupUnusedUploads(DATA_PATHS.userAssetsDir, referencedUrls);
     this.events.emit("change", complete);
   }
 
