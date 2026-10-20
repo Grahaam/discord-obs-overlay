@@ -44,10 +44,10 @@ Express + Socket.IO server (Vite React SPA) that runs **standalone** (`npm start
 
 ### Electron shell (`electron/`)
 
-| File          | Role                                                                                                                                                                          |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `main.cjs`    | Lifecycle: free-port probe, `utilityProcess` server fork, health wait, main/wizard windows, tray, IPC                                                                         |
-| `preload.cjs` | `contextBridge` exposes `electronAPI.setupToken` / `listChannels` / `setupChannel` / `openExternal` / `getPort` (contextIsolation on, nodeIntegration off)                                                                    |
+| File          | Role                                                                                                                                                                                           |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main.cjs`    | Lifecycle: free-port probe, `utilityProcess` server fork, health wait, main/wizard windows, tray, IPC                                                                                          |
+| `preload.cjs` | `contextBridge` exposes `electronAPI.setupToken` / `listChannels` / `setupChannel` / `openExternal` / `getPort` (contextIsolation on, nodeIntegration off)                                     |
 | `wizard.html` | First-run setup UI; `setup-token` / `setup-channel` IPC push token then channelId through the server's `/api/settings` (reconnects bot), surface bad-token errors before opening the dashboard |
 
 **UX goal**: one-click installer → one-click launch → first-run wizard. Main window hides to tray on close (`app.isQuitting` gates real quit); tray "Quit" asks the server to shut down over `parentPort` (restores OBS, closes DB), hard kill after 5 s.
@@ -76,11 +76,12 @@ Express + Socket.IO server (Vite React SPA) that runs **standalone** (`npm start
 
 React 19 + Tailwind CSS v4 + Socket.IO client.
 
-| Component           | Route           | Purpose                                                           |
-| ------------------- | --------------- | ----------------------------------------------------------------- |
-| `StreamerDashboard` | `/` (dashboard) | Config panel: Discord bot, alert settings, queue management, logs |
-| `OBSOverlayView`    | `/overlay`      | Full-screen transparent overlay for OBS browser source            |
-| `TutorialOverlay`   | —               | First-run onboarding wizard                                       |
+| Component           | Route           | Purpose                                                                                                                         |
+| ------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `StreamerDashboard` | `/` (dashboard) | Config panel: Discord bot, alert settings, queue management, logs                                                               |
+| `OBSOverlayView`    | `/overlay`      | Full-screen transparent overlay for OBS browser source                                                                          |
+| `TutorialOverlay`   | —               | First-run onboarding wizard                                                                                                     |
+| `SetupChecklist`    | —               | Live setup checklist (bot, overlay, OBS, test alert, optional cookies), polls `GET /api/setup-status` (`server/setupStatus.ts`) |
 
 `src/types.ts` defines shared types used by both frontend and server (`AlertPayload`, `UIConfig`, `LogEntry`, `BotStatus`).
 
@@ -98,9 +99,10 @@ React 19 + Tailwind CSS v4 + Socket.IO client.
 ### Key constraints
 
 - `DISCORD_TOKEN` stored in `.env` only, never in `settings.json`
-- `cookies.txt` (Netscape format) used by yt-dlp for authenticated YouTube downloads
+- `cookies.txt` (Netscape format; setting key `youtubeCookiesContent` for historic reasons) is used by yt-dlp for Instagram / TikTok / Reddit only; YouTube downloads never use cookies
 - `media_cache/` holds downloaded files; `*.tmp` = in-progress download (cleaned on startup)
-- Rate limits: write endpoints 300 req/15 min, read/polling 2000 req/15 min
+- Rate limits: write endpoints 300 req/15 min, read/polling 5000 req/15 min
+- Host-header check (`index.ts`): requests whose `Host` isn't `127.0.0.1:PORT` / `localhost:PORT` get a 403 (DNS-rebinding guard)
 - Socket.IO CORS locked to `localhost:PORT` + `127.0.0.1:PORT` (Electron loads the `127.0.0.1` origin)
 - Electron: the wizard IPC handlers (`setup-token`, `list-channels`, `setup-channel`, `open-external`) verify `event.sender === wizardWindow.webContents`; token+channelId persist via the server's `/api/settings`, never written behind the fork
 - `SIZE_LIMITS` in `mediaWorkerQueue.ts` are per-type hard limits (image 10 MB, video 50 MB); `mediaMaxSizeMB` in settings is the user-configurable soft limit for Discord attachments
