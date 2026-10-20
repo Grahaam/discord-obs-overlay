@@ -317,20 +317,22 @@ async function ensureServer(dataDir) {
 /** Poll /api/bot-status until the bot is connected, errored, or we time out. */
 function waitForBotConnection(port, timeoutMs = 20000) {
   const deadline = Date.now() + timeoutMs;
+  let lastError = null;
   return new Promise((resolve, reject) => {
     async function poll() {
       try {
-        const res = await fetch(`http://127.0.0.1:${port}/api/bot-status`);
-        const { status, errorMsg } = await res.json();
+        const { status, errorMsg } = await serverJson(`http://127.0.0.1:${port}/api/bot-status`);
         if (status === "connected") return resolve();
         if (status === "error") {
           return reject(new Error(errorMsg || "Bot connection failed — check your token."));
         }
-      } catch {
-        // transient server hiccup — keep polling until the deadline
+      } catch (e) {
+        // transient hiccup or an HTTP error from serverJson: keep polling, but report it if we time out
+        lastError = e;
       }
       if (Date.now() > deadline) {
-        return reject(new Error("Timed out waiting for the Discord bot to connect."));
+        const detail = lastError ? ` Last error: ${lastError.message}` : "";
+        return reject(new Error(`Timed out waiting for the Discord bot to connect.${detail}`));
       }
       setTimeout(poll, 500);
     }
