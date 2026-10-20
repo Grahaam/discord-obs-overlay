@@ -23,7 +23,19 @@
   !insertmacro MUI_PAGE_WELCOME
 !macroend
 
+; The app is unpacked from one compressed archive with logging turned off
+; (SetDetailsPrint none), so "Show details" would stay empty: print a short summary
+; of what was done instead. Bilingual, like the rest of this file.
+!macro customInstall
+  SetDetailsPrint both
+  DetailPrint "Application installée dans / installed in: $INSTDIR"
+  DetailPrint "Raccourcis créés / shortcuts created: Bureau, menu Démarrer / Desktop, Start menu"
+  DetailPrint "Vos données / your data (réglages, token, cookies): $APPDATA\${PRODUCT_NAME}"
+!macroend
+
 !macro customUnInstall
+  SetDetailsPrint both
+  DetailPrint "Application supprimée / app removed: $INSTDIR"
   ; Auto-updates run the old uninstaller before installing the new version: never ask
   ; (and never delete) then. Silent uninstalls (/S) keep the data too.
   ${ifNot} ${isUpdated}
@@ -42,9 +54,13 @@
       !ifdef APP_PACKAGE_NAME
         RMDir /r "$APPDATA\${APP_PACKAGE_NAME}"
       !endif
+      DetailPrint "Données supprimées / data deleted: $APPDATA\${PRODUCT_NAME}"
       ${if} $installMode == "all"
         SetShellVarContext all
       ${endif}
+      Goto livechat_data_done
     livechat_keep_data:
+      DetailPrint "Données conservées / data kept: $APPDATA\${PRODUCT_NAME}"
+    livechat_data_done:
   ${endif}
 !macroend
