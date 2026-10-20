@@ -8,7 +8,8 @@ const n = (points: ReturnType<typeof skeleton>) => normalise(points, 1)!;
 
 test("same pose scores highly and different poses score low", () => {
   assert.ok(scorePose(n(armsUp), n(armsUp), arms)! >= 95);
-  assert.ok(scorePose(n(armsUp), n(tPose), arms)! < 60);
+  // 63 since angles wrap correctly (the T-pose arm sits on atan2's ±180° seam); still far below the 80 default
+  assert.ok(scorePose(n(armsUp), n(tPose), arms)! < 70);
   assert.ok(scorePose(n(handsOnHead), n(armsUp), arms)! < 80);
 });
 
@@ -66,4 +67,25 @@ test("hold tracker applies timing, hysteresis, best match and deletion", () => {
   assert.equal(tracker.update([], 1000), null);
   assert.equal(tracker.update(score(90), 1000), null);
   assert.equal(tracker.update(score(90), 1600), "a");
+});
+
+test("an arm pointing sideways still matches when the wrist jitters across the horizontal", () => {
+  // atan2 jumps from +180° to -180° there: a one-pixel wobble must not drop the score
+  const up = skeleton({
+    11: [0.4, 0.5],
+    12: [0.6, 0.5],
+    13: [0.25, 0.5],
+    14: [0.75, 0.5],
+    15: [0.1, 0.499],
+    16: [0.9, 0.5],
+  });
+  const down = skeleton({
+    11: [0.4, 0.5],
+    12: [0.6, 0.5],
+    13: [0.25, 0.5],
+    14: [0.75, 0.5],
+    15: [0.1, 0.501],
+    16: [0.9, 0.5],
+  });
+  assert.ok(scorePose(n(up), n(down), arms)! >= 95);
 });

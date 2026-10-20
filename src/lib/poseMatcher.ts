@@ -39,6 +39,12 @@ function angle(a: NormalizedPoint, b: NormalizedPoint, c: NormalizedPoint): numb
   return Math.atan2(Math.abs(abx * cby - aby * cbx), abx * cbx + aby * cby);
 }
 
+/** Smallest difference between two angles (0–π): 179° and -179° are 2° apart, not 358°. */
+function angleDiff(a: number, b: number): number {
+  const d = a - b;
+  return Math.abs(Math.atan2(Math.sin(d), Math.cos(d)));
+}
+
 function angleFeatures(points: NormalizedPoint[], bodyParts: BodyPart[]): number[] {
   const features: number[] = [];
   if (bodyParts.includes("arms")) {
@@ -74,10 +80,8 @@ function scoreOne(live: NormalizedPoint[], template: NormalizedPoint[], bodyPart
   const angleScore =
     liveAngles.length === 0
       ? 1
-      : liveAngles.reduce(
-          (sum, value, index) => sum + (1 - Math.min(Math.abs(value - templateAngles[index]), Math.PI) / Math.PI),
-          0
-        ) / liveAngles.length;
+      : liveAngles.reduce((sum, value, index) => sum + (1 - angleDiff(value, templateAngles[index]) / Math.PI), 0) /
+        liveAngles.length;
   const positionScore =
     indices.reduce((sum, index) => {
       const dx = live[index].x - template[index].x;
