@@ -3,7 +3,7 @@ import path from "path";
 import { logger } from "./logger.js";
 import { DATA_PATHS } from "./paths.js";
 import dotenv from "dotenv";
-import { upsertEnvVar } from "./envFile.js";
+import { readEnvVar, upsertEnvVar } from "./envFile.js";
 
 const SETTINGS_FILE = DATA_PATHS.settingsFile;
 const ENV_FILE = DATA_PATHS.envFile;
@@ -112,14 +112,16 @@ export class SettingsManager {
       this.settings = { ...defaultSettings, ...loaded };
 
       // Override from .env if present
-      const envToken = process.env.DISCORD_TOKEN;
+      // Parsed with readEnvVar (inverse of the writer) so quotes/backslashes in a password survive
+      const envText = fs.existsSync(ENV_FILE) ? fs.readFileSync(ENV_FILE, "utf8") : "";
+      const envToken = readEnvVar(envText, "DISCORD_TOKEN") ?? process.env.DISCORD_TOKEN;
       if (envToken) {
         this.settings.discordToken = envToken.replace(/^"|"$/g, "").trim();
       }
 
-      const envObsPassword = process.env.OBS_WEBSOCKET_PASSWORD;
+      const envObsPassword = readEnvVar(envText, "OBS_WEBSOCKET_PASSWORD") ?? process.env.OBS_WEBSOCKET_PASSWORD;
       if (envObsPassword) {
-        this.settings.obsWebsocketPassword = envObsPassword.replace(/^"|"$/g, "");
+        this.settings.obsWebsocketPassword = envObsPassword;
       }
 
       // Load cookies from cookies.txt
