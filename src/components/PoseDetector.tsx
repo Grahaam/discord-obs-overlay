@@ -8,7 +8,7 @@ const FRAME_INTERVAL_MS = 100; // ~10 fps is plenty for a held pose
 const FRAME_WIDTH = 320;
 const HOLD_MS = 600;
 const RETRY_MS = 5000;
-const CONN_CHECK_MS = 2000;
+const CONN_CHECK_MS = 10_000;
 
 interface ObsConnection {
   port: number;
@@ -82,7 +82,9 @@ export default function PoseDetector({ isLeader }: { isLeader: boolean }) {
         // Re-read the settings now and then: a changed port/password must replace a healthy connection
         if (!obsConnected || performance.now() - lastConnCheck >= CONN_CHECK_MS) {
           lastConnCheck = performance.now();
-          const conn: ObsConnection = await fetch("/api/obs-connection").then((r) => r.json());
+          const res = await fetch("/api/obs-connection");
+          if (!res.ok) throw new Error(`obs-connection: HTTP ${res.status}`);
+          const conn: ObsConnection = await res.json();
           if (obsConnected && (conn.port !== usedConn?.port || conn.password !== usedConn?.password)) {
             await obs.disconnect().catch(() => {});
             obsConnected = false;
