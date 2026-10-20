@@ -250,6 +250,21 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     }
   });
 
+  // Servers and text channels the bot can see (setup wizard + Bot tab channel picker).
+  app.get("/api/discord/channels", async (req, res) => {
+    try {
+      const result = await botManager.getGuildChannels();
+      if (!result) {
+        res.status(409).json({ error: "Discord bot is not connected" });
+        return;
+      }
+      res.json(result);
+    } catch (err: any) {
+      logger.error({ err }, "Failed listing Discord channels");
+      res.status(500).json({ error: err.message || "Failed listing Discord channels" });
+    }
+  });
+
   // Get Logs
   app.get("/api/logs", (req, res) => {
     res.json(logManager.logs);

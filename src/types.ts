@@ -122,6 +122,13 @@ export interface ChannelIssue {
   inviteUrl: string;
 }
 
+/** One server of GET /api/discord/channels, with the text channels the bot can see in it. */
+export interface DiscordGuildInfo {
+  id: string;
+  name: string;
+  channels: { id: string; name: string; readable: boolean; missing: string[] }[];
+}
+
 export interface BotStatus {
   status: "connected" | "connecting" | "disconnected" | "error";
   botUser: string;

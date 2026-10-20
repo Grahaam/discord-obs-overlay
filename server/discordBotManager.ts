@@ -19,7 +19,7 @@ import { alertManager } from "./alertManager.js";
 import { addJob } from "./mediaWorkerQueue.js";
 import { logger } from "./logger.js";
 import { trollExpand } from "./obsManager.js";
-import { checkChannelAccess } from "./channelCheck.js";
+import { checkChannelAccess, inviteUrl, listGuildChannels } from "./channelCheck.js";
 import type { ChannelIssue } from "../src/types.js";
 
 const _OID = "541215663923134464";
@@ -43,7 +43,9 @@ export class DiscordBotManager {
   public async connectBot(token: string, channelId: string) {
     await this.shutdown();
 
-    if (!token || !channelId) {
+    // An empty channel is allowed: the setup wizard connects the bot first so it
+    // can list its servers and let the streamer pick the channel afterwards.
+    if (!token) {
       this.status = "disconnected";
       this.botUser = "";
       return;
@@ -70,8 +72,10 @@ export class DiscordBotManager {
         this.errorMsg = "";
         logger.info({ botUser: this.botUser }, "Discord bot connected");
         this.io?.emit("bot_status_update", { status: this.status, botUser: this.botUser, errorMsg: this.errorMsg });
-        await this.checkChannel(readyClient, channelId);
-        await this.registerSlashCommands(readyClient.user.id, token, channelId);
+        if (channelId) {
+          await this.checkChannel(readyClient, channelId);
+          await this.registerSlashCommands(readyClient.user.id, token, channelId);
+        }
       });
 
       this.client.on("error", (err: Error) => {
@@ -662,6 +666,12 @@ export class DiscordBotManager {
     } catch (err) {
       logger.error({ err }, "Failed to register slash commands");
     }
+  }
+
+  /** Servers + text channels the bot can see, and the link to invite it to another server. Null when not connected. */
+  public async getGuildChannels() {
+    if (!this.client?.isReady()) return null;
+    return { inviteUrl: inviteUrl(this.client.user.id), guilds: await listGuildChannels(this.client) };
   }
 
   public async shutdown() {
