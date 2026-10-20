@@ -80,7 +80,7 @@ export const locales = {
       cookiesStep4:
         "Cliquez sur l'extension, Export (format Netscape), collez ici tout le contenu du fichier, puis Sauvegardez.",
       cookiesWarning:
-        "Attention : des cookies = une session connectée. Quiconque possède cookies.txt est connecté en tant que ce compte : ne le partagez jamais, ni votre dossier de réglages. Ré-exportez-les quand les téléchargements échouent (les sessions expirent). YouTube n'a pas besoin de cookies.",
+        "Utilisez un compte Instagram / TikTok jetable, jamais votre compte principal ni celui du stream. Des cookies = une session connectée. Quiconque possède cookies.txt est connecté en tant que ce compte : ne le partagez jamais, ni votre dossier de réglages. Ré-exportez-les quand les téléchargements échouent (les sessions expirent). YouTube n'a pas besoin de cookies.",
       tokenHide: "Masquer le token",
       tokenShow: "Afficher le token",
       cobaltTitle: "Cobalt (Optionnel)",
@@ -339,7 +339,7 @@ export const locales = {
       cookiesStep3: "Log in with the throwaway account on instagram.com / tiktok.com.",
       cookiesStep4: "Click the extension, Export (Netscape format), paste the whole file content here, then Save.",
       cookiesWarning:
-        "Warning: cookies = a logged-in session. Anyone holding cookies.txt is signed in as that account, so never share it or your settings folder. Re-export when downloads start failing (sessions expire). YouTube doesn't need cookies.",
+        "Use a throwaway Instagram / TikTok account, never your main or the stream's. Cookies are a logged-in session. Anyone holding cookies.txt is signed in as that account, so never share it or your settings folder. Re-export when downloads start failing (sessions expire). YouTube doesn't need cookies.",
       tokenHide: "Hide token",
       tokenShow: "Show token",
       cobaltTitle: "Cobalt (Optional)",
@@ -595,7 +595,7 @@ export const locales = {
       cookiesStep3: "Wog in wif da thwowaway account on instagram.com / tiktok.com.",
       cookiesStep4: "Cwick da extension, Expowt (Netscape fowmat), paste da whowe fiwe content hewe, den Save~",
       cookiesWarning:
-        "Wawning: cookies = a wogged-in session. Anyonye howding cookies.txt is signed in as dat account, so nyevew shawe it ow youw settings fowdew~ We-expowt when downwoads stawt faiwing (sessions expiwe). YouTube doesn't nyeed cookies.",
+        "Use a thwowaway Instagwam / TikTok account, nyevew youw main ow da stweam's~ Cookies awe a wogged-in session. Anyonye howding cookies.txt is signed in as dat account, so nyevew shawe it ow youw settings fowdew~ We-expowt when downwoads stawt faiwing (sessions expiwe). YouTube doesn't nyeed cookies.",
       tokenHide: "Hide tokyn~",
       tokenShow: "Show tokyn~",
       cobaltTitle: "Cobawt (Optionaw, nya~)",
@@ -858,7 +858,7 @@ export const locales = {
       cookiesStep4:
         "Cwiquez suw w'extension, Expowt (fowmat Netscape), cowwez ici tout we contenu du fichiew, puis Sauvegawdez~",
       cookiesWarning:
-        "Attention : des cookies = une session connectée. Quiconque possède cookies.txt est connecté en tant que ce compte : ne we pawtagez jamais, ni votwe dossiew de wéglages~ Wé-expowtez-wes quand wes téwéchawgements échouent (wes sessions expiwent). YouTube n'a pas besoin de cookies.",
+        "Utiwisez un compte Instagwam / TikTok jetabwe, jamais votwe compte pwincipaw ni cewui du stweam~ Des cookies = une session connectée. Quiconque possède cookies.txt est connecté en tant que ce compte : ne we pawtagez jamais, ni votwe dossiew de wéglages~ Wé-expowtez-wes quand wes téwéchawgements échouent (wes sessions expiwent). YouTube n'a pas besoin de cookies.",
       tokenHide: "Cachew we token~",
       tokenShow: "Afficher we token~",
       cobaltTitle: "Cobawt (Optionnew, nya~)",
