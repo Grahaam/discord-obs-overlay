@@ -13,6 +13,7 @@
 - [Configuration OBS](#configuration-obs)
 - [Tester une alerte](#tester-une-alerte)
 - [Installation depuis les sources](#installation-depuis-les-sources)
+- [Ancienne version en ligne de commande](#ancienne-version-en-ligne-de-commande)
 - [Documentation détaillée](#documentation-détaillée)
 - [English](#english)
 
@@ -22,20 +23,22 @@
 
 Téléchargez l'installeur correspondant à votre système depuis la page [Releases](https://github.com/Grahaam/discord-obs-overlay/releases) :
 
-| Système | Fichier |
-|---------|---------|
-| Windows | `LiveChat-Setup-2.0.0.exe` (NSIS) |
-| macOS (Apple Silicon) | `LiveChat-2.0.0-arm64.dmg` |
-| macOS (Intel) | `LiveChat-2.0.0-x64.dmg` |
-| Linux | `LiveChat-2.0.0.AppImage` |
+| Système               | Fichier                           |
+| --------------------- | --------------------------------- |
+| Windows               | `LiveChat-Setup-2.0.0.exe` (NSIS) |
+| macOS (Apple Silicon) | `LiveChat-2.0.0-arm64.dmg`        |
+| macOS (Intel)         | `LiveChat-2.0.0-x64.dmg`          |
+| Linux                 | `LiveChat-2.0.0.AppImage`         |
 
 Aucune installation de Node.js, `yt-dlp` ou `ffmpeg` n'est requise — tout est embarqué.
 
 ## Premier lancement
 
-1. Lancez **LiveChat**. Une fenêtre d'assistant s'ouvre.
-2. Collez votre **Token de bot Discord** et l'**ID du salon textuel** à surveiller.
-3. Cliquez sur **Terminer**. Le tableau de bord s'ouvre.
+1. Lancez **LiveChat**. Un assistant en 3 étapes s'ouvre :
+   1. **Créer votre bot** : il vous guide dans le Portail Développeur Discord (sans oublier **Message Content Intent**).
+   2. **Coller le token** : le bot se connecte, puis le bouton **Inviter le bot sur mon serveur** l'ajoute à votre serveur.
+   3. **Choisir le salon** dans la liste. Les salons que le bot ne peut pas lire sont grisés, avec la raison.
+2. Cliquez sur **Terminer**. Le tableau de bord s'ouvre avec une **liste de vérification** qui coche chaque étape au fur et à mesure (bot, overlay dans OBS, connexion OBS, alerte de test). Vous pouvez la rouvrir depuis l'en-tête du tableau de bord.
 
 L'application reste accessible via une icône dans la barre des tâches. Fermer la fenêtre la masque dans la barre — utilisez **Quitter** depuis le menu de l'icône pour fermer totalement.
 
@@ -53,6 +56,15 @@ Détails : [docs/OBS-SETUP.md](docs/OBS-SETUP.md).
 ## Tester une alerte
 
 Tableau de bord → bouton **Tester l'alerte**. L'overlay doit afficher l'alerte de démonstration.
+
+## Ancienne version en ligne de commande
+
+Avant la 2.0.0, LiveChat s'installait avec `install.bat` / `install.sh` puis se lançait avec `launch.bat` / `launch.sh`, dans une fenêtre de commande. Cette version n'est plus maintenue, mais elle reste disponible :
+
+- **Dernière version script : [v1.9.5](https://github.com/Grahaam/discord-obs-overlay/releases/tag/v1.9.5)** sur la page Releases. Elle ne reçoit plus de mises à jour.
+- Les scripts sont toujours dans le dépôt et lancent le même serveur que l'application (`npm start`), sans fenêtre ni icône système. Voir [Installation depuis les sources](#installation-depuis-les-sources).
+
+Pour la plupart des streamers, l'installeur est plus simple : rien à installer à côté, mises à jour automatiques sur Windows et Linux.
 
 ---
 
@@ -135,6 +147,8 @@ npm run build
 npm start              # standalone server
 npm run electron:dev   # Electron shell
 ```
+
+**Legacy command-line version:** before 2.0.0, LiveChat was installed with `install.bat` / `install.sh` and run with `launch.bat` / `launch.sh`. That version is no longer maintained; the last one is [v1.9.5](https://github.com/Grahaam/discord-obs-overlay/releases/tag/v1.9.5). The scripts are still in the repo and run the same server as the app (`npm start`), without a window or tray icon.
 
 See [docs/INSTALL.md](docs/INSTALL.md), [docs/CONFIG.md](docs/CONFIG.md), [docs/OBS-SETUP.md](docs/OBS-SETUP.md), [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
