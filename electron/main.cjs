@@ -163,7 +163,7 @@ function createMainWindow(port) {
 function createWizardWindow() {
   wizardWindow = new BrowserWindow({
     width: 520,
-    height: 500,
+    height: 640,
     resizable: false,
     title: "LiveChat — Setup",
     webPreferences: {
@@ -173,6 +173,11 @@ function createWizardWindow() {
     },
   });
   wizardWindow.loadFile(path.join(__dirname, "wizard.html"));
+  // Same as the main window: never let a link spawn a bare Electron window.
+  wizardWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) shell.openExternal(url);
+    return { action: "deny" };
+  });
   wizardWindow.on("closed", () => {
     wizardWindow = null;
     // If setup was never completed there is no tray or main window — quit cleanly.
@@ -291,16 +296,40 @@ function waitForBotConnection(port, timeoutMs = 20000) {
   });
 }
 
-ipcMain.handle("complete-setup", async (event, { token, channelId }) => {
+function assertWizardSender(event) {
   // Only accept calls from the wizard window.
   if (!wizardWindow || event.sender !== wizardWindow.webContents) {
     throw new Error("Unauthorized sender");
   }
+}
+
+/** Save settings through the server's own API (see the comment in setup-token). */
+async function saveSettings(port, patch) {
+  const base = `http://127.0.0.1:${port}`;
+  const current = await (await fetch(`${base}/api/settings`)).json();
+  const res = await fetch(`${base}/api/settings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...current, ...patch }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Saving settings failed (HTTP ${res.status})`);
+  }
+}
+
+async function fetchChannels(port) {
+  const res = await fetch(`http://127.0.0.1:${port}/api/discord/channels`);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `Listing channels failed (HTTP ${res.status})`);
+  return body;
+}
+
+// Wizard step 2: boot the server, connect the bot with the pasted token (no channel yet).
+ipcMain.handle("setup-token", async (event, { token }) => {
+  assertWizardSender(event);
   if (typeof token !== "string" || !token.trim()) {
     throw new Error("Token is required");
-  }
-  if (typeof channelId !== "string" || !/^\d+$/.test(channelId)) {
-    throw new Error("Channel ID must be a numeric snowflake");
   }
 
   const dataDir = isDev ? app.getAppPath() : app.getPath("userData");
@@ -312,26 +341,56 @@ ipcMain.handle("complete-setup", async (event, { token, channelId }) => {
   // settings.json in its cwd (dataDir) AND (re)connects the Discord bot —
   // writing the files ourselves after the fork would leave the bot
   // disconnected until the next app restart.
-  const base = `http://127.0.0.1:${port}`;
-  const current = await (await fetch(`${base}/api/settings`)).json();
-  const res = await fetch(`${base}/api/settings`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...current, discordToken: token.trim(), channelId }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Saving settings failed (HTTP ${res.status})`);
+  await saveSettings(port, { discordToken: token.trim(), channelId: "" });
+
+  // The settings API only reconnects when the token changed. After a failed
+  // attempt re-pasting the same token would otherwise keep the old error.
+  const { status } = await (await fetch(`http://127.0.0.1:${port}/api/bot-status`)).json();
+  if (status === "error" || status === "disconnected") {
+    await fetch(`http://127.0.0.1:${port}/api/bot-reconnect`, { method: "POST" });
   }
 
-  // Surface bad tokens here instead of claiming success and opening a
-  // dashboard with a dead bot.
+  // Surface bad tokens here instead of claiming success and moving on with a dead bot.
+  await waitForBotConnection(port);
+
+  const { botUser } = await (await fetch(`http://127.0.0.1:${port}/api/bot-status`)).json();
+  const { inviteUrl } = await fetchChannels(port);
+  return { botTag: botUser, inviteUrl };
+});
+
+// Wizard step 3: servers/channels the bot can see (also used by the Refresh button).
+ipcMain.handle("list-channels", async (event) => {
+  assertWizardSender(event);
+  if (!serverPort) throw new Error("Server not started");
+  return fetchChannels(serverPort);
+});
+
+// Wizard step 3 "Finish": save the channel, then switch to the dashboard.
+ipcMain.handle("setup-channel", async (event, { channelId }) => {
+  assertWizardSender(event);
+  if (typeof channelId !== "string" || !/^\d+$/.test(channelId)) {
+    throw new Error("Channel ID must be a numeric snowflake");
+  }
+  if (!serverPort) throw new Error("Server not started");
+  const port = serverPort;
+
+  await saveSettings(port, { channelId });
+  // Channel changes reconnect the bot; wait so the dashboard opens on a live bot.
   await waitForBotConnection(port);
 
   createMainWindow(port);
   createTray(port);
   startAutoUpdate(port);
   wizardWindow?.close();
+});
+
+// The wizard cannot open links itself (contextIsolation); restrict to the Discord pages it links to.
+ipcMain.handle("open-external", (event, url) => {
+  assertWizardSender(event);
+  if (typeof url !== "string" || !/^https:\/\/discord\.com\//.test(url)) {
+    throw new Error("URL not allowed");
+  }
+  return shell.openExternal(url);
 });
 
 ipcMain.handle("get-port", () => serverPort);
@@ -344,12 +403,24 @@ ipcMain.handle("open-user-assets", async () => {
   if (err) throw new Error(err);
 });
 
+/**
+ * The wizard writes settings.json as soon as the token is saved (step 2), so
+ * the file alone does not mean setup finished: a user who closed the wizard
+ * before picking a channel must see it again.
+ */
+function isSetupComplete(dataDir) {
+  try {
+    const settings = JSON.parse(fs.readFileSync(path.join(dataDir, "settings.json"), "utf8"));
+    return typeof settings.channelId === "string" && settings.channelId !== "";
+  } catch {
+    return false;
+  }
+}
+
 // ── App lifecycle ──────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
   const dataDir = isDev ? app.getAppPath() : app.getPath("userData");
-  const hasSettings = fs.existsSync(path.join(dataDir, "settings.json"));
-
-  if (!hasSettings) {
+  if (!isSetupComplete(dataDir)) {
     createWizardWindow();
     return;
   }

@@ -121,7 +121,7 @@ Download the installer for your OS from [Releases](https://github.com/Grahaam/di
 
 ### First run
 
-Launch LiveChat → the setup wizard asks for your **Discord bot token** and **channel ID** → finish → the dashboard opens. The app lives in the system tray; closing the window hides it there.
+Launch LiveChat → the setup wizard walks you through creating your **Discord bot**, pasting its **token**, inviting it to your server and **picking the channel** → finish → the dashboard opens. The app lives in the system tray; closing the window hides it there.
 
 ### OBS
 

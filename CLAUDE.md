@@ -40,15 +40,15 @@ Express + Socket.IO server (Vite React SPA) that runs **standalone** (`npm start
 
 **Dev mode**: `server/index.ts` runs via `tsx` (no watch mode, so restart after editing `server/`), Vite imported dynamically as middleware (HMR).
 **Production**: `dist/server.mjs` (ESM, esbuild `--packages=external`) serves pre-built `dist/` as static files.
-**Electron**: `main.cjs` forks `dist/server.mjs` via `utilityProcess` on a free port (3000–3099), waits on `/api/health`, then opens a `BrowserWindow` at `http://127.0.0.1:<port>` + a system tray. First run (no `settings.json`) shows `wizard.html` to capture bot token + channel ID before the dashboard opens.
+**Electron**: `main.cjs` forks `dist/server.mjs` via `utilityProcess` on a free port (3000–3099), waits on `/api/health`, then opens a `BrowserWindow` at `http://127.0.0.1:<port>` + a system tray. First run (no `settings.json`, or one without a `channelId`) shows the 3-step `wizard.html` (create bot, paste token + invite, pick channel from `GET /api/discord/channels`) before the dashboard opens.
 
 ### Electron shell (`electron/`)
 
 | File          | Role                                                                                                                                                                          |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `main.cjs`    | Lifecycle: free-port probe, `utilityProcess` server fork, health wait, main/wizard windows, tray, IPC                                                                         |
-| `preload.cjs` | `contextBridge` exposes `electronAPI.completeSetup` / `getPort` (contextIsolation on, nodeIntegration off)                                                                    |
-| `wizard.html` | First-run setup UI; `complete-setup` IPC pushes token+channelId through the server's `/api/settings` (reconnects bot), surfaces bad-token errors before opening the dashboard |
+| `preload.cjs` | `contextBridge` exposes `electronAPI.setupToken` / `listChannels` / `setupChannel` / `openExternal` / `getPort` (contextIsolation on, nodeIntegration off)                                                                    |
+| `wizard.html` | First-run setup UI; `setup-token` / `setup-channel` IPC push token then channelId through the server's `/api/settings` (reconnects bot), surface bad-token errors before opening the dashboard |
 
 **UX goal**: one-click installer → one-click launch → first-run wizard. Main window hides to tray on close (`app.isQuitting` gates real quit); tray "Quit" asks the server to shut down over `parentPort` (restores OBS, closes DB), hard kill after 5 s.
 
@@ -102,5 +102,5 @@ React 19 + Tailwind CSS v4 + Socket.IO client.
 - `media_cache/` holds downloaded files; `*.tmp` = in-progress download (cleaned on startup)
 - Rate limits: write endpoints 300 req/15 min, read/polling 2000 req/15 min
 - Socket.IO CORS locked to `localhost:PORT` + `127.0.0.1:PORT` (Electron loads the `127.0.0.1` origin)
-- Electron: `complete-setup` IPC verifies `event.sender === wizardWindow.webContents`; token+channelId persist via the server's `/api/settings`, never written behind the fork
+- Electron: the wizard IPC handlers (`setup-token`, `list-channels`, `setup-channel`, `open-external`) verify `event.sender === wizardWindow.webContents`; token+channelId persist via the server's `/api/settings`, never written behind the fork
 - `SIZE_LIMITS` in `mediaWorkerQueue.ts` are per-type hard limits (image 10 MB, video 50 MB); `mediaMaxSizeMB` in settings is the user-configurable soft limit for Discord attachments
