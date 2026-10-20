@@ -142,7 +142,9 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
     recorder.phase.kind === "countdown" ? (
       <span className="text-7xl font-bold text-white drop-shadow-lg">{recorder.phase.seconds}</span>
     ) : recorder.phase.kind === "capturing" ? (
-      <span className="rounded-lg bg-red-600/80 px-3 py-1.5 text-xs font-mono text-white">{labels.recording}</span>
+      <span className="rounded-lg bg-red-600/80 px-3 py-1.5 text-xs font-mono text-white">
+        {labels.recording} {recorder.phase.good}/{recorder.phase.needed}
+      </span>
     ) : statusText ? (
       <span className="max-w-xs px-4 text-center text-xs font-mono text-white/50">{statusText}</span>
     ) : cameraReady && !frame?.landmarks ? (

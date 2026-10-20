@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { armsUp, handsOnHead, rightArmUp, skeleton, tPose } from "./poseFixtures.js";
-import { averageTemplate, createHoldTracker, normalise, scorePose } from "./poseMatcher.js";
+import { averageTemplate, createHoldTracker, isUsableFrame, normalise, scorePose } from "./poseMatcher.js";
 
 const arms = { bodyParts: ["arms"] as ["arms"], mirror: false };
 const n = (points: ReturnType<typeof skeleton>) => normalise(points, 1)!;
@@ -88,4 +88,11 @@ test("an arm pointing sideways still matches when the wrist jitters across the h
     16: [0.9, 0.5],
   });
   assert.ok(scorePose(n(up), n(down), arms)! >= 95);
+});
+
+test("isUsableFrame needs every masked joint visible", () => {
+  assert.equal(isUsableFrame(armsUp, 1, ["arms"]), true);
+  const hiddenWrist = armsUp.map((p, i) => (i === 15 ? { ...p, visibility: 0.3 } : p));
+  assert.equal(isUsableFrame(hiddenWrist, 1, ["arms"]), false);
+  assert.equal(isUsableFrame(hiddenWrist, 1, ["head"]), true);
 });

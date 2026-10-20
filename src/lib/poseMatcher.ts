@@ -123,14 +123,20 @@ export function similarity(a: NormalizedPoint[], b: NormalizedPoint[], bodyParts
   return scorePose(a, b, { bodyParts, mirror: false }) ?? 0;
 }
 
+/** True when a raw frame shows every joint of these body parts clearly enough to become part of a template. */
+export function isUsableFrame(landmarks: NormalizedPoint[], aspect: number, bodyParts: BodyPart[]): boolean {
+  const frame = normalise(landmarks, aspect);
+  return frame !== null && visible(frame, maskedIndices(bodyParts));
+}
+
 export function averageTemplate(
   frames: NormalizedPoint[][],
   aspect: number,
   bodyParts: BodyPart[]
 ): NormalizedPoint[] | null {
   const good = frames
-    .map((frame) => normalise(frame, aspect))
-    .filter((frame): frame is NormalizedPoint[] => frame !== null && visible(frame, maskedIndices(bodyParts)));
+    .filter((frame) => isUsableFrame(frame, aspect, bodyParts))
+    .map((frame) => normalise(frame, aspect)!);
   if (good.length < MIN_GOOD_FRAMES) return null;
   return good[0].map((_, index) => ({
     x: good.reduce((sum, frame) => sum + frame[index].x, 0) / good.length,
