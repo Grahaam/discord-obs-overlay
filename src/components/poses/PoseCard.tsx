@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Eye, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, Circle, Eye, Trash2 } from "lucide-react";
 import type { BodyPart, Pose } from "../../types";
 import { hasMedia } from "../../lib/poseMedia";
 import PoseMediaEditor from "./PoseMediaEditor";
@@ -12,10 +12,49 @@ interface Props {
   onChange: (pose: Pose) => void;
   onDelete: () => void;
   onPreview: () => Promise<string | null>;
+  onOpenChange: (open: boolean) => void;
+  /** Re-records the template (custom poses only) */
+  onRecord?: () => void;
+  recordDisabled: boolean;
+  /** Live match % from the dashboard camera; undefined while the camera is off */
+  liveScore?: number | null;
+  /** Name of another pose this one looks too much like */
+  similarTo?: string;
   labels: Record<string, string>;
 }
 
-export default function PoseCard({ pose, onChange, onDelete, onPreview, labels }: Props) {
+function MatchBar({ score, threshold, label }: { score: number | null; threshold: number; label: string }) {
+  const value = Math.round(score ?? 0);
+  const matched = score !== null && score >= threshold;
+  return (
+    <div className="flex items-center gap-2 w-28 shrink-0" title={`${label}: ${score === null ? "–" : `${value} %`}`}>
+      <div className="relative h-1.5 flex-1 rounded bg-white/[0.06] overflow-hidden">
+        <div
+          className={`absolute inset-y-0 left-0 transition-all ${matched ? "bg-emerald-400" : "bg-white/25"}`}
+          style={{ width: `${value}%` }}
+        />
+        {/* Threshold marker */}
+        <div className="absolute inset-y-0 w-px bg-violet-300/70" style={{ left: `${threshold}%` }} />
+      </div>
+      <span className={`text-[10px] font-mono w-8 text-right ${matched ? "text-emerald-300" : "text-white/35"}`}>
+        {score === null ? "–" : `${value}%`}
+      </span>
+    </div>
+  );
+}
+
+export default function PoseCard({
+  pose,
+  onChange,
+  onDelete,
+  onPreview,
+  onOpenChange,
+  onRecord,
+  recordDisabled,
+  liveScore,
+  similarTo,
+  labels,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState<string | null>(null); // null while not editing
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -43,13 +82,19 @@ export default function PoseCard({ pose, onChange, onDelete, onPreview, labels }
         <Toggle checked={pose.enabled} onChange={(enabled) => set({ enabled })} ariaLabel={labels.poseEnabled} />
         <button
           type="button"
-          onClick={() => setOpen(!open)}
+          onClick={() => {
+            setOpen(!open);
+            onOpenChange(!open);
+          }}
           aria-expanded={open}
           className="flex-1 flex items-center gap-2 text-left text-sm font-semibold text-white/80"
         >
           {pose.name}
           <ChevronDown className={`w-3.5 h-3.5 text-white/30 transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
+        {liveScore !== undefined && (
+          <MatchBar score={liveScore} threshold={pose.kind === "builtin" ? 100 : pose.threshold} label={labels.match} />
+        )}
         {pose.kind === "builtin" && (
           <span className="rounded bg-violet-500/15 px-2 py-0.5 text-[10px] font-mono text-violet-300">
             {labels.builtin}
@@ -70,6 +115,13 @@ export default function PoseCard({ pose, onChange, onDelete, onPreview, labels }
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {similarTo && (
+        <div className="flex items-center gap-2 px-4 pb-3 -mt-1 text-[10px] font-mono text-amber-300/80">
+          <AlertTriangle className="w-3 h-3 shrink-0" />
+          {labels.tooSimilar.replace("{name}", similarTo)}
+        </div>
+      )}
 
       {open && (
         <div className="flex flex-col gap-4 border-t border-white/[0.05] px-4 py-4">
@@ -102,6 +154,17 @@ export default function PoseCard({ pose, onChange, onDelete, onPreview, labels }
                 </div>
               </div>
               <Toggle checked={pose.mirror} onChange={(mirror) => set({ mirror })} label={labels.mirror} />
+              {onRecord && (
+                <button
+                  type="button"
+                  disabled={recordDisabled}
+                  onClick={onRecord}
+                  className="self-start flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono text-white/60 hover:text-white disabled:opacity-40"
+                >
+                  <Circle className="w-3 h-3 fill-red-400 text-red-400" />
+                  {labels.rerecord}
+                </button>
+              )}
             </>
           )}
 
