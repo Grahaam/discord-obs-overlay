@@ -1,0 +1,48 @@
+version: 2
+updates:
+  # Electron: daily, own PR, security-critical
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: daily
+    allow:
+      - dependency-name: electron
+    open-pull-requests-limit: 3
+
+  # Everything else: weekly, grouped to cut PR noise
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      types:
+        patterns: ["@types/*"]
+      eslint:
+        patterns: ["eslint*", "@typescript-eslint/*", "prettier*"]
+      vite-tailwind:
+        patterns: ["vite", "@vitejs/*", "@tailwindcss/*", "tailwindcss"]
+      react:
+        patterns: ["react", "react-dom", "@types/react*"]
+      test:
+        patterns: ["@playwright/*", "playwright*"]
+      electron-build:
+        patterns: ["electron-builder", "@electron/*", "app-builder-*"]
+      prod-minor-patch:
+        dependency-type: production
+        update-types: ["minor", "patch"]
+      dev-minor-patch:
+        dependency-type: development
+        update-types: ["minor", "patch"]
+    ignore:
+      # electron handled by the daily job above
+      - dependency-name: electron
+
+  # GitHub Actions: monthly, grouped minor/patch
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      minor-actions-dependencies:
+        update-types: ["minor", "patch"]

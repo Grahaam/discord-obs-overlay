@@ -13,7 +13,13 @@ export default defineConfig(() => {
     },
     server: {
       hmr: process.env.DISABLE_HMR !== "true" ? { overlay: false } : false,
-      watch: process.env.DISABLE_HMR === "true" ? null : {},
+      // Ignore build output and runtime dirs — electron-builder writes the
+      // packaged app into dist-electron/ and media downloads churn media_cache/,
+      // both of which otherwise trigger a Vite full-page-reload storm in dev.
+      watch:
+        process.env.DISABLE_HMR === "true"
+          ? null
+          : { ignored: ["**/dist-electron/**", "**/media_cache/**", "**/.venv/**", "**/bin/**"] },
     },
   };
 });

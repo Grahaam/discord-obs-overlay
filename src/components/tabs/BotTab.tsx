@@ -1,4 +1,5 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import type { DiscordGuildInfo } from "../../types";
 import { TabProps } from "./types";
 import {
   AlertTriangle,
@@ -16,6 +17,10 @@ import {
   Play,
   Pause,
   ChevronDown,
+  Clapperboard,
+  FolderOpen,
+  Plug,
+  RefreshCw,
 } from "lucide-react";
 
 const PLATFORM_DOMAINS: Record<string, string> = {
@@ -42,11 +47,30 @@ export default function BotTab(props: TabProps) {
   } = props;
 
   const [showToken, setShowToken] = useState(false);
+  const [showObsPassword, setShowObsPassword] = useState(false);
+  const [obsTesting, setObsTesting] = useState(false);
+  const [obsTestResult, setObsTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [capturingShortcut, setCapturingShortcut] = useState(false);
   const [soundPreviewPlaying, setSoundPreviewPlaying] = useState(false);
   const [cobaltOpen, setCobaltOpen] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
   const soundPreviewRef = useRef<HTMLAudioElement | null>(null);
+
+  // Servers/channels the bot can see, for the channel dropdown. Only available once the bot is connected.
+  const [guilds, setGuilds] = useState<DiscordGuildInfo[]>([]);
+  const loadChannels = useCallback(async () => {
+    try {
+      const res = await fetch("/api/discord/channels");
+      if (!res.ok) return setGuilds([]);
+      setGuilds((await res.json()).guilds ?? []);
+    } catch {
+      setGuilds([]);
+    }
+  }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (botStatus?.status === "connected") void loadChannels();
+  }, [botStatus?.status, loadChannels]);
 
   const cookieDomainStatus = useMemo(() => {
     if (!config?.youtubeCookiesContent) return [];
@@ -75,6 +99,34 @@ export default function BotTab(props: TabProps) {
   }, [config]);
 
   if (config === undefined || setConfig === undefined || botStatus === undefined || t === undefined) return null;
+
+  const handleObsTest = async () => {
+    setObsTesting(true);
+    setObsTestResult(null);
+    try {
+      const res = await fetch("/api/obs/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ port: config.obsWebsocketPort ?? 4455, password: config.obsWebsocketPassword ?? "" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setObsTestResult({ ok: true, message: t.bot.obsTestOk.replace("{version}", data.obsVersion) });
+      } else {
+        const message =
+          data.errorCode === "unreachable"
+            ? t.bot.obsTestUnreachable
+            : data.errorCode === "auth_failed"
+              ? t.bot.obsTestAuthFailed
+              : `${t.bot.obsTestOther} ${data.error ?? ""}`;
+        setObsTestResult({ ok: false, message });
+      }
+    } catch {
+      setObsTestResult({ ok: false, message: t.bot.obsTestOther });
+    } finally {
+      setObsTesting(false);
+    }
+  };
 
   const inputBase =
     "bg-[#08080f] w-full border border-white/[0.07] rounded-lg px-4 py-2.5 text-sm font-mono placeholder:text-white/15 focus:outline-none transition-all";
@@ -121,6 +173,45 @@ export default function BotTab(props: TabProps) {
     ? config.youtubeCookiesContent.split("\n").filter((l) => l.trim() && !l.startsWith("#")).length
     : 0;
 
+  // Shared by the green "connected" banner and the channel-issue banner, which
+  // replaces it: pausing the overlay is still useful while the channel is fixed.
+  const pauseButton = (
+    <button
+      type="button"
+      onClick={toggleOverlayPause}
+      disabled={togglingPause}
+      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider border transition-all disabled:opacity-40 ${
+        paused
+          ? "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
+          : "border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+      }`}
+    >
+      {paused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+      {paused ? "Resume" : "Pause"}
+    </button>
+  );
+
+  const permLabelFor = (perm: string) =>
+    ({
+      ViewChannel: t.bot.permViewChannel,
+      ReadMessageHistory: t.bot.permReadMessageHistory,
+      SendMessages: t.bot.permSendMessages,
+    })[perm] ?? perm;
+
+  // Fill the localized template with the names Discord gave us (server/channelCheck.ts).
+  const describeChannelIssue = () => {
+    const issue = botStatus.channelIssue;
+    if (!issue) return "";
+    if (issue.kind === "not_found") return t.bot.channelNotFound.replace("{id}", issue.channelId);
+    const bot = botStatus.botUser.split("#")[0];
+    return t.bot.channelNoAccess
+      .replace("{bot}", bot)
+      .replace("{channel}", issue.channelName ?? issue.channelId)
+      .replace("{guild}", issue.guildName ?? "")
+      .replace("{role}", issue.botRole ?? bot)
+      .replace("{missing}", issue.missing.map(permLabelFor).join(", "));
+  };
+
   return (
     <div className="flex flex-col gap-5 animate-fade-in">
       {/* Header */}
@@ -150,6 +241,34 @@ export default function BotTab(props: TabProps) {
         </div>
       )}
 
+      {/* Connected, but Discord hides the alert channel from the bot (see server/channelCheck.ts) */}
+      {botStatus.status === "connected" && botStatus.channelIssue && (
+        <div
+          id="bot-channel-issue"
+          className="relative overflow-hidden rounded-xl border border-amber-500/25 bg-amber-950/15 p-4"
+        >
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500 rounded-r-full" />
+          <div className="flex gap-3 items-start pl-2">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex flex-1 flex-col gap-2">
+              <span className="text-xs font-bold font-mono text-amber-300 uppercase tracking-wider">
+                {t.bot.channelIssueTitle}
+              </span>
+              <span className="text-[11px] font-mono text-amber-200/70">{describeChannelIssue()}</span>
+              <a
+                href={botStatus.channelIssue.inviteUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="self-start rounded border border-amber-500/30 px-2 py-1 text-[10px] font-mono text-amber-300 hover:border-amber-400/60"
+              >
+                {t.bot.inviteBot}
+              </a>
+            </div>
+            {pauseButton}
+          </div>
+        </div>
+      )}
+
       {botStatus.status === "connecting" && (
         <div className="relative overflow-hidden rounded-xl border border-amber-500/25 bg-amber-950/10 p-4">
           <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-400 rounded-r-full animate-pulse" />
@@ -162,7 +281,7 @@ export default function BotTab(props: TabProps) {
         </div>
       )}
 
-      {botStatus.status === "connected" && (
+      {botStatus.status === "connected" && !botStatus.channelIssue && (
         <div
           className={`relative overflow-hidden rounded-xl border p-4 transition-colors duration-300 ${
             paused ? "border-amber-500/25 bg-amber-950/15" : "border-emerald-500/25 bg-emerald-950/15"
@@ -197,19 +316,7 @@ export default function BotTab(props: TabProps) {
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={toggleOverlayPause}
-              disabled={togglingPause}
-              className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider border transition-all disabled:opacity-40 ${
-                paused
-                  ? "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
-                  : "border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
-              }`}
-            >
-              {paused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
-              {paused ? "Resume" : "Pause"}
-            </button>
+            {pauseButton}
           </div>
         </div>
       )}
@@ -222,6 +329,7 @@ export default function BotTab(props: TabProps) {
         </div>
         <div className="relative flex items-center">
           <input
+            id="bot-token-field"
             type={showToken ? "text" : "password"}
             placeholder={t.bot.tokenPlaceholder}
             value={config.discordToken}
@@ -231,7 +339,7 @@ export default function BotTab(props: TabProps) {
           <button
             onClick={() => setShowToken((v) => !v)}
             className="absolute right-3 text-white/25 hover:text-white/60 transition-colors"
-            title={showToken ? "Hide token" : "Show token"}
+            title={showToken ? t.bot.tokenHide : t.bot.tokenShow}
           >
             {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
@@ -255,7 +363,37 @@ export default function BotTab(props: TabProps) {
           <Hash className="w-3 h-3 text-cyan-400/60" />
           <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.channel}</label>
         </div>
+        {guilds.length > 0 && (
+          <div className="flex gap-2">
+            <select
+              value={guilds.some((g) => g.channels.some((c) => c.id === config.channelId)) ? config.channelId : ""}
+              onChange={(e) => e.target.value && setConfig({ ...config, channelId: e.target.value })}
+              className={`${inputBase} text-cyan-200 focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/15`}
+            >
+              <option value="">{t.bot.channelPick}</option>
+              {guilds.map((g) => (
+                <optgroup key={g.id} label={g.name}>
+                  {g.channels.map((c) => (
+                    <option key={c.id} value={c.id} disabled={!c.readable}>
+                      #{c.name}
+                      {c.readable ? "" : ` (${t.bot.channelUnreadable}: ${c.missing.map(permLabelFor).join(", ")})`}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={loadChannels}
+              title={t.bot.channelRefresh}
+              className="shrink-0 px-3 rounded-lg border border-white/[0.08] text-white/50 hover:text-white/80 hover:border-white/20 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
         <input
+          id="bot-channel-field"
           type="text"
           placeholder={t.bot.channelPlaceholder}
           value={config.channelId}
@@ -441,8 +579,173 @@ export default function BotTab(props: TabProps) {
         <span className="text-[10px] text-white/20 font-mono">{t.bot.alertSoundHelp}</span>
       </div>
 
+      {/* OBS connection (obs-websocket) */}
+      <div id="obs-connection-section" className="flex flex-col gap-2">
+        <div className="flex items-center gap-1.5">
+          <Plug className="w-3 h-3 text-white/30" />
+          <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.obsTitle}</label>
+        </div>
+        <div className="grid grid-cols-[110px_1fr] gap-2">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-mono text-white/30">{t.bot.obsPort}</span>
+            <input
+              type="number"
+              min={1}
+              max={65535}
+              value={config.obsWebsocketPort ?? 4455}
+              onChange={(e) => setConfig({ ...config, obsWebsocketPort: Number(e.target.value) })}
+              onBlur={(e) =>
+                setConfig({
+                  ...config,
+                  obsWebsocketPort: Math.min(65535, Math.max(1, Math.round(Number(e.target.value)) || 4455)),
+                })
+              }
+              className={`${inputBase} text-white/70 focus:border-white/20`}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-mono text-white/30">{t.bot.obsPassword}</span>
+            <div className="relative flex items-center">
+              <input
+                type={showObsPassword ? "text" : "password"}
+                placeholder={t.bot.obsPasswordPlaceholder}
+                value={config.obsWebsocketPassword ?? ""}
+                onChange={(e) => setConfig({ ...config, obsWebsocketPassword: e.target.value })}
+                className={`${inputBase} text-white/70 focus:border-white/20 pr-10`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowObsPassword((v) => !v)}
+                className="absolute right-3 text-white/25 hover:text-white/60 transition-colors"
+                title={showObsPassword ? t.bot.hidePassword : t.bot.showPassword}
+              >
+                {showObsPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] text-white/20 font-mono">{t.bot.obsHelp}</span>
+          <button
+            type="button"
+            onClick={handleObsTest}
+            disabled={obsTesting}
+            className="flex shrink-0 items-center gap-1 rounded border border-white/10 px-2 py-1 text-[10px] font-mono text-white/50 hover:border-white/20 hover:text-white/80 disabled:opacity-50"
+          >
+            {obsTesting && <Loader2 className="w-3 h-3 animate-spin" />}
+            {t.bot.obsTest}
+          </button>
+        </div>
+        {obsTestResult && (
+          <span className={`text-[10px] font-mono ${obsTestResult.ok ? "text-emerald-400/80" : "text-red-400/80"}`}>
+            {obsTestResult.message}
+          </span>
+        )}
+      </div>
+
+      {/* "Absolute Cinema" pose detection */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-1.5">
+          <Clapperboard className="w-3 h-3 text-white/30" />
+          <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.poseTitle}</label>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer group">
+          <div
+            className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all ${
+              config.poseDetectionEnabled
+                ? "bg-violet-600 border-violet-500"
+                : "bg-transparent border-white/20 group-hover:border-white/40"
+            }`}
+          >
+            <input
+              type="checkbox"
+              className="hidden"
+              checked={config.poseDetectionEnabled || false}
+              onChange={(e) => setConfig({ ...config, poseDetectionEnabled: e.target.checked })}
+            />
+            {config.poseDetectionEnabled && (
+              <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </div>
+          <span className="text-[10px] font-mono text-white/40 group-hover:text-white/70 transition-colors leading-snug">
+            {t.bot.poseEnable}
+          </span>
+        </label>
+        {config.poseDetectionEnabled && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono text-white/30">{t.bot.poseSource}</span>
+                <input
+                  type="text"
+                  placeholder="Webcam"
+                  value={config.poseCameraSource || ""}
+                  onChange={(e) => setConfig({ ...config, poseCameraSource: e.target.value })}
+                  className={`${inputBase} text-white/70 focus:border-white/20`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono text-white/30">{t.bot.poseCooldown}</span>
+                <input
+                  type="number"
+                  min={5}
+                  max={3600}
+                  value={config.poseCooldownSeconds ?? 30}
+                  onChange={(e) => setConfig({ ...config, poseCooldownSeconds: Number(e.target.value) })}
+                  // min/max only affect the spinner arrows, not typing. Clamp on blur so a
+                  // typed value like 2 can't fail the server's 5–3600 validation on save.
+                  onBlur={(e) =>
+                    setConfig({
+                      ...config,
+                      poseCooldownSeconds: Math.min(3600, Math.max(5, Number(e.target.value) || 30)),
+                    })
+                  }
+                  className={`${inputBase} text-white/70 focus:border-white/20`}
+                />
+              </div>
+            </div>
+            <span className="text-[10px] text-white/20 font-mono">{t.bot.poseSourceHelp}</span>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono text-white/30">{t.bot.poseImage}</span>
+                <input
+                  type="text"
+                  value={config.poseAlertImageUrl || ""}
+                  onChange={(e) => setConfig({ ...config, poseAlertImageUrl: e.target.value })}
+                  className={`${inputBase} text-white/70 focus:border-white/20`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-mono text-white/30">{t.bot.poseSound}</span>
+                <input
+                  type="text"
+                  value={config.poseAlertSoundUrl || ""}
+                  onChange={(e) => setConfig({ ...config, poseAlertSoundUrl: e.target.value })}
+                  className={`${inputBase} text-white/70 focus:border-white/20`}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] text-white/20 font-mono">{t.bot.poseMediaHelp}</span>
+              {window.electronAPI && (
+                <button
+                  type="button"
+                  onClick={() => window.electronAPI?.openUserAssets().catch(console.error)}
+                  className="flex shrink-0 items-center gap-1 rounded border border-white/10 px-2 py-1 text-[10px] font-mono text-white/50 hover:border-white/20 hover:text-white/80"
+                >
+                  <FolderOpen className="w-3 h-3" />
+                  {t.bot.openUserAssets}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
       {/* Cookies — terminal window */}
-      <div className="flex flex-col gap-1.5">
+      <div id="cookies-section" className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <FileText className="w-3 h-3 text-white/30" />
@@ -533,9 +836,38 @@ export default function BotTab(props: TabProps) {
             className="bg-[#04060b] w-full px-4 py-3 text-xs font-mono min-h-[120px] text-emerald-400/70 placeholder:text-white/12 focus:outline-none resize-none"
           />
         </div>
-        <div className="bg-violet-950/15 border border-violet-500/10 rounded-lg p-2.5">
-          <span className="text-[10px] text-violet-200/40 font-mono leading-relaxed">{t.bot.cookiesHelp}</span>
-        </div>
+        <details className="bg-violet-950/15 border border-violet-500/10 rounded-lg p-2.5">
+          <summary className="text-[10px] text-violet-200/60 font-mono cursor-pointer">{t.bot.cookiesHowTo}</summary>
+          <ol className="mt-2 ml-4 list-decimal flex flex-col gap-1 text-[10px] text-violet-200/40 font-mono leading-relaxed">
+            <li>{t.bot.cookiesStep1}</li>
+            <li>
+              {t.bot.cookiesStep2}{" "}
+              <a
+                href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc"
+                target="_blank"
+                rel="noreferrer"
+                className="text-violet-400/70 hover:text-violet-300 underline"
+              >
+                Chrome Web Store
+              </a>{" "}
+              /{" "}
+              <a
+                href="https://addons.mozilla.org/firefox/addon/get-cookies-txt-locally/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-violet-400/70 hover:text-violet-300 underline"
+              >
+                Firefox Add-ons
+              </a>
+            </li>
+            <li>{t.bot.cookiesStep3}</li>
+            <li>{t.bot.cookiesStep4}</li>
+            <li>{t.bot.cookiesStep5}</li>
+          </ol>
+        </details>
+        <p className="text-[10px] text-amber-300/70 font-mono leading-relaxed bg-amber-950/15 border border-amber-500/15 rounded-lg p-2.5">
+          {t.bot.cookiesWarning}
+        </p>
       </div>
 
       {/* Cobalt */}

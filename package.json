@@ -1,8 +1,75 @@
 {
-  "name": "discord-obs-overlay",
+  "name": "livechat",
+  "author": "CramoiSel",
   "private": true,
-  "version": "1.9.5",
+  "version": "2.0.0",
   "type": "module",
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "com.livechat",
+    "productName": "LiveChat",
+    "asar": false,
+    "npmRebuild": false,
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "node_modules/**",
+      "package.json",
+      "models/**"
+    ],
+    "win": {
+      "icon": "electron/assets/icon.png",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "icon": "electron/assets/icon.png",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "icon": "electron/assets/icon.png",
+      "artifactName": "${productName}-${version}.${ext}",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Grahaam",
+        "repo": "discord-obs-overlay"
+      }
+    ],
+    "nsis": {
+      "include": "electron/installer.nsh",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": [
+        "en_US",
+        "fr_FR"
+      ]
+    }
+  },
   "scripts": {
     "postinstall": "node scripts/setup-yt-dlp.cjs",
     "dev": "node scripts/run-with-venv.cjs tsx server/index.ts",
@@ -15,12 +82,23 @@
     "format": "prettier --write .",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
+    "test:unit": "node --import tsx --test \"server/**/*.test.ts\" \"scripts/**/*.test.cjs\"",
     "test:media": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts",
-    "test:media:filter": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts --filter"
+    "test:media:filter": "node scripts/run-with-venv.cjs tsx scripts/test-media-queue.ts --filter",
+    "gen-icons": "node scripts/gen-icons.cjs",
+    "electron:rebuild": "node scripts/electron-rebuild.cjs",
+    "electron:dev": "npm run build && node scripts/fetch-pose-model.cjs && npm run electron:rebuild && electron .",
+    "electron:build": "npm run build && npm run electron:rebuild && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs && electron-builder --publish never",
+    "electron:build:win": "npm run build && npm run electron:rebuild && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs --platform win32 && electron-builder --win --publish never",
+    "electron:build:mac": "npm run build && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs --platform darwin && npm run electron:rebuild -- --arch arm64 && electron-builder --mac --arm64 --publish never && npm run electron:rebuild -- --arch x64 && electron-builder --mac --x64 --publish never",
+    "electron:build:linux": "npm run build && npm run electron:rebuild && node scripts/fetch-pose-model.cjs && node scripts/fetch-ytdlp.cjs --platform linux && electron-builder --linux --publish never",
+    "predev": "node scripts/ensure-node-native.cjs && node scripts/fetch-pose-model.cjs --optional",
+    "prestart": "node scripts/ensure-node-native.cjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
+    "@mediapipe/tasks-vision": "^1.1.1",
     "@tailwindcss/vite": "^4.1.14",
     "@types/express-rate-limit": "^5.1.3",
     "audiomotion-analyzer": "^4.5.4",
@@ -28,6 +106,7 @@
     "better-sqlite3": "^12.10.0",
     "discord.js": "^14.26.4",
     "dotenv": "^17.2.3",
+    "electron-updater": "^6.8.9",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "ffmpeg-static": "^5.3.0",
@@ -57,6 +136,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.60.0",
     "@types/better-sqlite3": "^7.6.13",
@@ -69,6 +149,8 @@
     "@typescript-eslint/parser": "^8.60.0",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.21",
+    "electron": "35.7.5",
+    "electron-builder": "^25.1.8",
     "esbuild": "^0.28.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
@@ -83,5 +165,13 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.60.0",
     "vite": "^8.0.14"
+  },
+  "allowScripts": {
+    "electron@35.7.5": true,
+    "better-sqlite3@12.10.0": true,
+    "esbuild@0.28.0": true,
+    "ffmpeg-static@5.3.0": true,
+    "re2@1.24.1": true,
+    "youtube-dl-exec@3.1.7": true
   }
 }

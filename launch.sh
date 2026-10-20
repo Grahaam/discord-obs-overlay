@@ -36,7 +36,7 @@ export NODE_ENV=production
 
 echo ""
 echo "============================================="
-echo "  Discord OBS Overlay is starting..."
+echo "  LiveChat is starting..."
 echo ""
 echo "  Dashboard:          http://127.0.0.1:3000"
 echo "  OBS Overlay source: http://127.0.0.1:3000/overlay"

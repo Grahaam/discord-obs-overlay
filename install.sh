@@ -4,7 +4,7 @@ cd "$(dirname "$0")"
 
 echo ""
 echo "============================================="
-echo "  Discord OBS Overlay - Setup"
+echo "  LiveChat - Setup"
 echo "============================================="
 echo ""
 

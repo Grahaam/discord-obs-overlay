@@ -1,11 +1,11 @@
 import { createRequire } from "module";
 import { execFileSync } from "child_process";
-import path from "path";
 import { logger } from "./logger.js";
+import { DATA_PATHS } from "./paths.js";
 
 const _require = createRequire(import.meta.url);
 
-export const CACHE_DIR = path.join(process.cwd(), "media_cache");
+export const CACHE_DIR = DATA_PATHS.mediaCacheDir;
 
 export const FFMPEG_BIN: string = (() => {
   // Try ffmpeg-static first

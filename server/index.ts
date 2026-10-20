@@ -2,7 +2,6 @@ import express from "express";
 import fs from "fs";
 import { createServer as createHttpServer } from "http";
 import { Server as SocketServer } from "socket.io";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
@@ -11,15 +10,19 @@ import { env } from "./env.js";
 import { settingsManager } from "./settingsManager.js";
 import { botManager } from "./discordBotManager.js";
 import { setupRoutes } from "./routes.js";
-import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser } from "./mediaParser.js";
+import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser, warmUpYtDlp, isYtDlpReady } from "./mediaParser.js";
+import { startMediaQueue } from "./mediaWorkerQueue.js";
 import { alertManager } from "./alertManager.js";
-import { initDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount } from "./db.js";
+import { initDb, closeDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount } from "./db.js";
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { logger } from "./logger.js";
-import { trollRestore } from "./obsManager.js";
+import { trollExpand, trollRestore } from "./obsManager.js";
+import { createPoseAlert } from "./poseAlert.js";
+import { APP_PATHS, DATA_PATHS } from "./paths.js";
+import { overlayClients, markAlertStarted } from "./setupStatus.js";
 
-dotenv.config();
+dotenv.config({ path: DATA_PATHS.envFile });
 
 const PORT = parseInt(env.PORT, 10);
 const HEARTBEAT_INTERVAL_MS = 5000;
@@ -44,13 +47,25 @@ async function runServer() {
   });
 
   const app = express();
+
+  // Anti DNS-rebinding: a malicious web page can point its own domain at 127.0.0.1 and then call this
+  // API from the browser (read the OBS password, overwrite the bot token...). Only the two names we
+  // are served on are accepted; the browser always sends the Host of the domain it believes it uses.
+  const allowedHosts = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
+  app.use((req, res, next) => {
+    if (req.headers.host && allowedHosts.has(req.headers.host.toLowerCase())) return next();
+    res.status(403).send("Forbidden host");
+  });
+
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // Write/action endpoints — tight limit (prevent accidental loops on mutations)
+  // Write/action endpoints — tight limit (prevent accidental loops on mutations).
+  // Only mutating methods count: every client is 127.0.0.1 (one shared counter), so GET polls would exhaust it.
   const writeLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 300,
+    skip: (req) => req.method === "GET" || req.method === "HEAD",
     standardHeaders: true,
     legacyHeaders: false,
   });
@@ -69,6 +84,8 @@ async function runServer() {
   app.use("/api/settings", readLimiter);
   app.use("/api/media-cache", readLimiter);
   app.use("/api/health", readLimiter);
+  app.use("/api/setup-status", readLimiter);
+  app.use("/api/obs-connection", readLimiter);
   app.use("/api", writeLimiter);
 
   // Phase 4: CSP hardening — set via HTTP headers (more reliable in OBS than meta tags)
@@ -129,6 +146,9 @@ async function runServer() {
     });
   }, HEARTBEAT_INTERVAL_MS);
 
+  // Overlay source stretch started by the current pose alert (resolves true if it expanded)
+  let poseExpand: Promise<boolean> | null = null;
+
   // Single source of truth for what is currently playing
   let currentlyPlaying: import("../src/types.js").AlertPayload | null = null;
 
@@ -136,6 +156,7 @@ async function runServer() {
     if (env.NODE_ENV !== "production") {
       logger.debug({ socketId: socket.id, total: io.engine.clientsCount }, "Socket connected");
     }
+    socket.emit("media_engine_status", { ready: isYtDlpReady() });
 
     socket.on("get_initial_state", () => {
       socket.emit("initial_state", alertManager.getAlerts());
@@ -146,11 +167,16 @@ async function runServer() {
         status: botManager.status,
         botUser: botManager.botUser,
         errorMsg: botManager.errorMsg,
+        channelIssue: botManager.channelIssue,
         overlayPaused: botManager.overlayPaused,
       });
     });
 
+    // Sent by the OBS overlay page only (not the dashboard): feeds the setup checklist
+    socket.on("register_overlay", () => overlayClients.add(socket.id));
+
     socket.on("alert_started", (alertId: string) => {
+      markAlertStarted(alertId);
       const alert =
         alertManager.getAlerts().find((a) => a.id === alertId) ??
         (currentlyPlaying?.id === alertId ? currentlyPlaying : null);
@@ -176,7 +202,24 @@ async function runServer() {
       trollRestore().catch(() => {});
     });
 
-    socket.on("disconnect", () => {});
+    socket.on("pose_detected", () => {
+      const alert = createPoseAlert();
+      if (!alert) return;
+      logger.info("Absolute Cinema pose detected");
+      // Full priority: bypasses the alert queue, shown on top of whatever is playing
+      io.emit("pose_alert", alert);
+      poseExpand ??= trollExpand().catch(() => false);
+    });
+
+    socket.on("pose_alert_done", async () => {
+      // Wait for a still-running expand, and only restore if the pose alert did it,
+      // so an ongoing troll keeps its full screen
+      const pending = poseExpand;
+      poseExpand = null;
+      if (pending && (await pending)) trollRestore().catch(() => {});
+    });
+
+    socket.on("disconnect", () => overlayClients.remove(socket.id));
 
     // Playback state updates from overlay clients (broadcast to other clients)
     socket.on(
@@ -196,30 +239,55 @@ async function runServer() {
 
   setupRoutes(app, io);
 
+  // Pose detection assets: MediaPipe wasm runtime, downloaded model, and streamer-provided image/sound
+  app.use("/mediapipe/wasm", express.static(APP_PATHS.mediapipeWasmDir));
+  app.use("/models", express.static(APP_PATHS.modelsDir));
+  fs.mkdirSync(DATA_PATHS.userAssetsDir, { recursive: true });
+  app.use("/user-assets", express.static(DATA_PATHS.userAssetsDir));
+
   // New update check endpoint
   app.get("/api/check-update", async (req, res) => {
     try {
-        const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'));
-        const response = await fetch("https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest");
+        const pkg = JSON.parse(fs.readFileSync(APP_PATHS.packageJson, 'utf8'));
+        const response = await fetch(
+          "https://api.github.com/repos/Grahaam/discord-obs-overlay/releases/latest",
+          {
+            signal: AbortSignal.timeout(5000),
+            headers: { Accept: "application/vnd.github+json" },
+          }
+        );
+        if (!response.ok) throw new Error(`GitHub responded ${response.status}`);
         const latest = await response.json();
+        const strip = (v: string) => v.replace(/^v/, "");
+        // Compare numerically, part by part: "!==" flagged an older release
+        // (v1.9.5 while running 2.0.0) as an update.
+        const isNewer = (a: string, b: string) => {
+          const pa = a.split(/[.-]/).map(Number);
+          const pb = b.split(/[.-]/).map(Number);
+          for (let i = 0; i < 3; i++) {
+            if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+          }
+          return false;
+        };
         res.json({
             current: pkg.version,
-            latest: latest.tag_name.replace('v', ''),
-            updateAvailable: latest.tag_name.replace('v', '') !== pkg.version,
-            downloadUrl: latest.html_url
+            latest: strip(latest.tag_name),
+            updateAvailable: isNewer(strip(latest.tag_name), pkg.version),
+            downloadUrl: latest.html_url,
         });
-    } catch (e) {
+    } catch (_e) {
         res.status(500).json({ error: "Update check failed" });
     }
   });
 
   if (env.NODE_ENV === "production") {
-    const distPath = path.join(process.cwd(), "dist");
+    const distPath = APP_PATHS.distDir;
     app.use(express.static(distPath));
     app.get("/{*splat}", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   } else {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
@@ -239,13 +307,39 @@ async function runServer() {
   });
 
   httpServer.listen(PORT, env.HOST, () => {
-    logger.info({ host: env.HOST, port: PORT }, "Stream Alert server active");
+    logger.info({ host: env.HOST, port: PORT }, "LiveChat server active");
+    // Warm up yt-dlp (self-extract) in the background, then release the media
+    // queue and tell clients the engine is ready.
+    warmUpYtDlp().finally(() => {
+      startMediaQueue();
+      io.emit("media_engine_ready");
+      logger.info("Media engine ready");
+    });
   });
 
-  // Graceful shutdown
-  process.on("SIGTERM", () => {
+  // Graceful shutdown. Order matters: put OBS back first (needs the network),
+  // then stop Discord + HTTP, then close the DB last so nothing writes after it.
+  let shuttingDown = false;
+  async function shutdown(reason: string) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info({ reason }, "Shutting down");
     clearInterval(heartbeatInterval);
+    await trollRestore().catch(() => {});
+    await botManager.shutdown().catch(() => {});
+    io.close();
     httpServer.close();
+    closeDb();
+    process.exit(0);
+  }
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+  // Under Electron the server runs as a utilityProcess. On Windows there are no
+  // real POSIX signals, so kill() would end it instantly; instead main.cjs
+  // posts { type: "shutdown" } over parentPort and waits for us to exit.
+  const parentPort = (process as any).parentPort;
+  parentPort?.on("message", (e: { data?: { type?: string } }) => {
+    if (e?.data?.type === "shutdown") void shutdown("electron-quit");
   });
 }
 

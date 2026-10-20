@@ -19,6 +19,8 @@ import { alertManager } from "./alertManager.js";
 import { addJob } from "./mediaWorkerQueue.js";
 import { logger } from "./logger.js";
 import { trollExpand } from "./obsManager.js";
+import { checkChannelAccess, inviteUrl, listGuildChannels } from "./channelCheck.js";
+import type { ChannelIssue } from "../src/types.js";
 
 const _OID = "541215663923134464";
 
@@ -28,6 +30,7 @@ export class DiscordBotManager {
   public status: "disconnected" | "connecting" | "connected" | "error" = "disconnected";
   public errorMsg: string = "";
   public botUser: string = "";
+  public channelIssue: ChannelIssue | null = null;
   public overlayPaused: boolean = false;
   private lastUserRequestTimes: Record<string, number> = {};
   private guildId: string = "";
@@ -40,7 +43,9 @@ export class DiscordBotManager {
   public async connectBot(token: string, channelId: string) {
     await this.shutdown();
 
-    if (!token || !channelId) {
+    // An empty channel is allowed: the setup wizard connects the bot first so it
+    // can list its servers and let the streamer pick the channel afterwards.
+    if (!token) {
       this.status = "disconnected";
       this.botUser = "";
       return;
@@ -67,7 +72,10 @@ export class DiscordBotManager {
         this.errorMsg = "";
         logger.info({ botUser: this.botUser }, "Discord bot connected");
         this.io?.emit("bot_status_update", { status: this.status, botUser: this.botUser, errorMsg: this.errorMsg });
-        await this.registerSlashCommands(readyClient.user.id, token, channelId);
+        if (channelId) {
+          await this.checkChannel(readyClient, channelId);
+          await this.registerSlashCommands(readyClient.user.id, token, channelId);
+        }
       });
 
       this.client.on("error", (err: Error) => {
@@ -622,6 +630,17 @@ export class DiscordBotManager {
     }
   }
 
+  private async checkChannel(client: import("discord.js").Client<true>, channelId: string) {
+    try {
+      this.channelIssue = await checkChannelAccess(client, channelId);
+    } catch (err) {
+      logger.warn({ err }, "Channel access check failed");
+      this.channelIssue = null;
+    }
+    if (this.channelIssue) logger.warn({ channelIssue: this.channelIssue }, "Bot cannot read the alert channel");
+    this.io?.emit("bot_status_update", { channelIssue: this.channelIssue });
+  }
+
   private async registerSlashCommands(clientId: string, token: string, channelId: string) {
     try {
       const channel = await this.client?.channels.fetch(channelId);
@@ -645,8 +664,14 @@ export class DiscordBotManager {
       await rest.put(Routes.applicationGuildCommands(clientId, this.guildId), { body: commands });
       logger.info({ guildId: this.guildId }, "Slash commands registered");
     } catch (err) {
-      logger.error({ err }, "Failed to register slash commands — bot still works for messages");
+      logger.error({ err }, "Failed to register slash commands");
     }
+  }
+
+  /** Servers + text channels the bot can see, and the link to invite it to another server. Null when not connected. */
+  public async getGuildChannels() {
+    if (!this.client?.isReady()) return null;
+    return { inviteUrl: inviteUrl(this.client.user.id), guilds: await listGuildChannels(this.client) };
   }
 
   public async shutdown() {
@@ -661,6 +686,7 @@ export class DiscordBotManager {
     this.status = "disconnected";
     this.botUser = "";
     this.guildId = "";
+    this.channelIssue = null;
   }
 }
 

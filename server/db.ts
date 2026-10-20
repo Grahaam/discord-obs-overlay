@@ -1,11 +1,11 @@
-import path from "path";
 import { createRequire } from "module";
 import { AlertPayload } from "../src/types.js";
 import type { LogEntry } from "../src/types.js";
 import { logger } from "./logger.js";
+import { DATA_PATHS } from "./paths.js";
 
 const _require = createRequire(import.meta.url);
-const DB_PATH = path.join(process.cwd(), "overlay.db");
+const DB_PATH = DATA_PATHS.dbFile;
 const MAX_LOG_ROWS = 1000;
 const LOG_TRIM_INTERVAL = 100;
 
@@ -21,6 +21,16 @@ function withDb<T>(fn: (d: any) => T, caller: string): T | undefined {
     logger.error({ err: err.message, caller }, "Database operation failed");
     return undefined;
   }
+}
+
+/** Close the DB so WAL contents are checkpointed into overlay.db before exit. */
+export function closeDb(): void {
+  try {
+    db?.close();
+  } catch (err: any) {
+    logger.error({ err: err.message }, "Failed to close database");
+  }
+  db = null;
 }
 
 export function initDb(): void {

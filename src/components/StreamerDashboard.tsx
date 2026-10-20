@@ -23,7 +23,7 @@ import {
 import { UIConfig, LogEntry, AlertPayload, BotStatus, MediaType, ServerLogEntry } from "../types";
 import { locales, Language } from "../locales";
 import NowPlayingPreview from "./NowPlayingPreview";
-import TutorialOverlay from "./TutorialOverlay";
+import SetupChecklist from "./SetupChecklist";
 import BotTab from "./tabs/BotTab";
 import StylingTab from "./tabs/StylingTab";
 import ModerationTab from "./tabs/ModerationTab";
@@ -35,13 +35,14 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { SortableQueueItem } from "./SortableQueueItem";
 import { useQueueStore } from "../store/queueStore";
 import UpdateNotification from "./UpdateNotification";
+import MediaEngineBadge from "./MediaEngineBadge";
 
 export default function StreamerDashboard() {
   const [activeTab, setActiveTab] = useState<"credentials" | "styling" | "moderation" | "simulator" | "health">(
     "credentials"
   );
   const [saveLoading, setSaveLoading] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("hasSeenTutorial"));
+  const [showSetup, setShowSetup] = useState(() => !localStorage.getItem("hasSeenTutorial"));
   const { queue: pendingQueue, nowPlaying, reorder, wsStatus, socket } = useQueueStore();
   const [config, setConfig] = useState<UIConfig>({
     discordToken: "",
@@ -341,13 +342,14 @@ export default function StreamerDashboard() {
 
   return (
     <div className="min-h-screen bg-[#050508] text-[#e0e0e6] flex flex-col font-sans selection:bg-indigo-600 selection:text-white relative overflow-x-hidden">
-      {showTutorial && (
-        <TutorialOverlay
-          onComplete={() => {
+      {showSetup && (
+        <SetupChecklist
+          onClose={() => {
             localStorage.setItem("hasSeenTutorial", "true");
-            setShowTutorial(false);
+            setShowSetup(false);
           }}
           setActiveTab={setActiveTab}
+          t={t}
         />
       )}
 
@@ -364,11 +366,18 @@ export default function StreamerDashboard() {
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-[0_0_18px_rgba(99,102,241,0.55)] transition-transform hover:scale-110 duration-200">
             <Tv className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-base sm:text-lg tracking-tight text-white">StreamAlerts</span>
+          <span className="font-bold text-base sm:text-lg tracking-tight text-white">LiveChat</span>
         </div>
 
         {/* Right controls */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={() => setShowSetup(true)}
+            className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-xs font-semibold text-white/70 hover:text-white transition cursor-pointer"
+          >
+            {t.setup.reopen}
+          </button>
+
           {/* Language */}
           <select
             value={config.language}
@@ -938,6 +947,7 @@ export default function StreamerDashboard() {
             )}
           </div>
           <UpdateNotification />
+          <MediaEngineBadge />
         </section>
       </main>
     </div>

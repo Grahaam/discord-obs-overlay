@@ -13,6 +13,8 @@ export type AlertAnimation = "slide-up" | "fade" | "zoom" | "bounce";
 
 export interface UIConfig {
   discordToken: string;
+  obsWebsocketPort?: number;
+  obsWebsocketPassword?: string;
   channelId: string;
   alertDuration: number;
   syncDurationWithMedia: boolean;
@@ -38,6 +40,11 @@ export interface UIConfig {
   cobaltApiKey?: string;
   mediaQuality?: "720" | "1080" | "1440" | "2160";
   mediaPersistentPlaysThreshold?: number;
+  poseDetectionEnabled?: boolean;
+  poseCameraSource?: string;
+  poseCooldownSeconds?: number;
+  poseAlertImageUrl?: string;
+  poseAlertSoundUrl?: string;
 }
 
 /** Canonical media type — shared by alerts and logs. "react-player" is not used. */
@@ -102,10 +109,31 @@ export interface Sparkle {
   bg: string;
 }
 
+/** Why the bot can't read the configured channel (see server/channelCheck.ts). */
+export interface ChannelIssue {
+  /** not_found: no server the bot is in has this channel. no_access: found, but permissions block it. */
+  kind: "not_found" | "no_access";
+  channelId: string;
+  channelName?: string;
+  guildName?: string;
+  botRole?: string;
+  /** Missing permission names, e.g. ["ViewChannel"]. */
+  missing: string[];
+  inviteUrl: string;
+}
+
+/** One server of GET /api/discord/channels, with the text channels the bot can see in it. */
+export interface DiscordGuildInfo {
+  id: string;
+  name: string;
+  channels: { id: string; name: string; readable: boolean; missing: string[] }[];
+}
+
 export interface BotStatus {
   status: "connected" | "connecting" | "disconnected" | "error";
   botUser: string;
   errorMsg: string;
+  channelIssue?: ChannelIssue | null;
   overlayPaused?: boolean;
   health?: {
     cache: {

@@ -6,50 +6,74 @@ on:
       - "v*.*.*"
 
 jobs:
-  build-release:
-    runs-on: windows-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # latest*.yml + .blockmap are what electron-updater reads to find and
+          # (delta-)download a new version, so they must be on the GitHub Release.
+          - os: windows-latest
+            target: win
+            artifact_glob: |
+              dist-electron/*Setup*.exe
+              dist-electron/*Setup*.exe.blockmap
+              dist-electron/latest.yml
+          - os: macos-latest
+            target: mac
+            # No latest-mac.yml: macOS auto-update needs a signed build (see docs/CODE-SIGNING.md).
+            artifact_glob: dist-electron/*.dmg
+          - os: ubuntu-latest
+            target: linux
+            artifact_glob: |
+              dist-electron/*.AppImage
+              dist-electron/latest-linux.yml
+
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          python-version: "3.10"
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
-      - name: Install and Build
-        run: |
-          npm install
-          npm run build
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Package Release Artifact
-        run: |
-          python -c "
-          import shutil, os
-          os.makedirs('release_package', exist_ok=True)
-          for item in ['dist', 'scripts', 'package.json', 'package-lock.json',
-                       'install.bat', 'install.sh',
-                       'launch.bat', 'launch.sh', 'docker-compose.cobalt.yml', 'README.md']:
-              dst = os.path.join('release_package', os.path.basename(item))
-              if os.path.isdir(item): shutil.copytree(item, dst)
-              else: shutil.copy2(item, dst)
-          shutil.make_archive('discord-obs-overlay-release', 'zip', 'release_package')
-          "
+      - name: Build installer (${{ matrix.target }})
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run electron:build:${{ matrix.target }}
 
-      - name: Validate Docker Compose
-        shell: bash
-        run: docker compose -f docker-compose.cobalt.yml config --quiet
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: livechat-${{ matrix.target }}
+          path: ${{ matrix.artifact_glob }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: artifacts
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
-          files: discord-obs-overlay-release.zip
+          files: artifacts/**/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true

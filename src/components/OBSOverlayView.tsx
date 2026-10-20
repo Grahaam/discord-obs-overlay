@@ -6,6 +6,8 @@ import { locales, Language } from "../locales";
 import { useQueueStore } from "../store/queueStore";
 import { usePlaybackController } from "../hooks/usePlaybackController";
 import { useLeaderElection } from "../hooks/useLeaderElection";
+import PoseAlertOverlay from "./PoseAlertOverlay";
+import PoseDetector from "./PoseDetector";
 
 const FONT_MAP: Record<string, string> = {
   sans: "system-ui, -apple-system, sans-serif",
@@ -89,6 +91,13 @@ export default function OBSOverlayView() {
 
   const { queue, setQueue, queueRef, wsStatus, socketRef } = useQueueStore();
 
+  // Tell the server this socket is the OBS overlay page (not the dashboard) so the setup checklist can detect it.
+  // The dashboard's preview is a plain component (NowPlayingPreview), not an iframe of /overlay, so only this
+  // view ever registers. Re-sent after each reconnect since the server forgets a socket when it disconnects.
+  useEffect(() => {
+    if (wsStatus === "connected") socketRef.current?.emit("register_overlay");
+  }, [wsStatus, socketRef]);
+
   // Register playback control callbacks with store
   useEffect(() => {
     const { setSkipCallback, setPauseCallback, setResumeCallback } = useQueueStore.getState();
@@ -150,6 +159,22 @@ export default function OBSOverlayView() {
       if (isPaused) togglePause();
     };
   }, [isPaused, togglePause]);
+
+  // Pose alert has full priority: pause the current alert under it, then resume —
+  // unless the streamer had already paused it themselves.
+  const pausedForPoseRef = useRef(false);
+  const handlePoseAlertShow = useCallback(() => {
+    if (active && !isPaused) {
+      pausedForPoseRef.current = true;
+      pauseRef.current();
+    }
+  }, [active, isPaused]);
+  const handlePoseAlertHide = useCallback(() => {
+    if (pausedForPoseRef.current) {
+      pausedForPoseRef.current = false;
+      resumeRef.current();
+    }
+  }, []);
 
   useEffect(() => {
     // keep refs in sync so store callbacks call the latest functions
@@ -601,6 +626,9 @@ export default function OBSOverlayView() {
           </div>
         )}
       </div>
+      <PoseAlertOverlay onShow={handlePoseAlertShow} onHide={handlePoseAlertHide} />
+      {/* Shares this view's leader lock: a second useLeaderElection() in the same tab would wait forever */}
+      <PoseDetector isLeader={isLeader} />
     </div>
   );
 }

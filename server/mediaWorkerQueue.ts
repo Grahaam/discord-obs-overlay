@@ -3,7 +3,7 @@ import { logger } from "./logger.js";
 
 const MAX_QUEUE_SIZE = 50;
 
-const mediaQueue = new PQueue({ concurrency: 4 });
+const mediaQueue = new PQueue({ concurrency: 4, autoStart: false });
 
 // Per-type file size limits in bytes
 export const SIZE_LIMITS = {
@@ -12,6 +12,11 @@ export const SIZE_LIMITS = {
   video: 5000 * 1024 * 1024, // 5000MB
   audio: 15 * 1024 * 1024, // 15MB
 };
+
+/** Begin processing queued media jobs. Called once the yt-dlp warm-up finishes. */
+export function startMediaQueue(): void {
+  mediaQueue.start();
+}
 
 export function addJob<T>(id: string, fn: () => Promise<T | null>): Promise<T | null> {
   if (mediaQueue.size >= MAX_QUEUE_SIZE) {

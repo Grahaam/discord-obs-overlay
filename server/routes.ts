@@ -10,12 +10,15 @@ import { Server as SocketServer } from "socket.io";
 import os from "os";
 import { exec } from "child_process";
 import { logger } from "./logger.js";
+import { DATA_PATHS } from "./paths.js";
 import { settingsManager } from "./settingsManager.js";
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { botManager } from "./discordBotManager.js";
 import { resolveMediaFromLink, _ytDlpCustomPath } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
+import { testObsConnection } from "./obsManager.js";
+import { computeSetupStatus, cached, overlayClients, wasAlertStarted } from "./setupStatus.js";
 
 // Helper to get yt-dlp version
 let _ytDlpVersionCache: string | null = null;
@@ -44,7 +47,7 @@ async function getCacheStats() {
   if (_cacheStatsCache && Date.now() < _cacheStatsExpiry) {
     return _cacheStatsCache;
   }
-  const cacheDir = path.join(process.cwd(), "media_cache");
+  const cacheDir = DATA_PATHS.mediaCacheDir;
   if (!fs.existsSync(cacheDir)) {
     _cacheStatsCache = { totalSize: 0, fileCount: 0 };
     _cacheStatsExpiry = Date.now() + 60_000;
@@ -89,22 +92,71 @@ function isUrlSafeToProxy(rawUrl: string): boolean {
   }
 }
 
+const OBS_PASSWORD_MASK = "••••••••••••••••••••";
+
 export function setupRoutes(app: express.Express, io: SocketServer) {
   // Get Settings
   app.get("/api/settings", (req, res) => {
     const safeSettings = {
       ...settingsManager.settings,
-      discordToken: settingsManager.settings.discordToken ? "••••••••••••••••••••" : "",
+      discordToken: settingsManager.settings.discordToken ? OBS_PASSWORD_MASK : "",
+      obsWebsocketPassword: settingsManager.settings.obsWebsocketPassword ? OBS_PASSWORD_MASK : "",
     };
     res.json(safeSettings);
+  });
+
+  // The overlay page (an OBS browser source) connects to obs-websocket itself, so it needs the real password.
+  // This returns a secret in clear text: safe only because the server listens on 127.0.0.1 (see server/index.ts).
+  app.get("/api/obs-connection", (req, res) => {
+    res.json({
+      port: settingsManager.settings.obsWebsocketPort,
+      password: settingsManager.settings.obsWebsocketPassword,
+    });
+  });
+
+  // Test an obs-websocket connection. Body fields are optional: missing ones fall back to the stored settings,
+  // and the masked password means "keep the stored one" (the dashboard only ever holds the mask).
+  app.post("/api/obs/test", async (req, res) => {
+    const body = z
+      .object({ port: z.number().int().min(1).max(65535).optional(), password: z.string().optional() })
+      .safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ error: "Validation failed" });
+      return;
+    }
+    const password = body.data.password === OBS_PASSWORD_MASK ? undefined : body.data.password;
+    res.json(await testObsConnection({ port: body.data.port, password }));
+  });
+
+  // Setup checklist state, polled every 2 s by the dashboard. The OBS probe opens a real websocket
+  // (up to ~3 s), so its result is shared for a few seconds between polls.
+  const cachedObsTest = cached(5000, () => testObsConnection());
+  app.get("/api/setup-status", async (req, res) => {
+    const testAlertId = typeof req.query.testAlertId === "string" ? req.query.testAlertId : undefined;
+    res.json(
+      computeSetupStatus({
+        botStatus: botManager.status,
+        channelConfigured: !!settingsManager.settings.channelId,
+        channelIssue: botManager.channelIssue,
+        overlayClients: overlayClients.count(),
+        obs: await cachedObsTest(),
+        testAlertSeen: wasAlertStarted(testAlertId),
+        // Same source syncCookiesFile uses (it deletes cookies.txt when the content is empty)
+        cookiesConfigured: !!settingsManager.settings.youtubeCookiesContent?.trim(),
+      })
+    );
   });
 
   // Save Settings
   app.post("/api/settings", async (req, res) => {
     try {
-      logger.info({ body: req.body }, "Received settings update");
+      // Never log secrets
+      const { discordToken: _t, obsWebsocketPassword: _p, youtubeCookiesContent: _c, ...loggableBody } = req.body ?? {};
+      logger.info({ body: loggableBody }, "Received settings update");
       const SettingsSchema = z.object({
         discordToken: z.string().optional(),
+        obsWebsocketPort: z.number().int().min(1).max(65535).optional(),
+        obsWebsocketPassword: z.string().optional(),
         channelId: z.string(),
         alertDuration: z.number().min(500).max(60000),
         syncDurationWithMedia: z.boolean(),
@@ -141,6 +193,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         cobaltApiUrl: z.string().optional(),
         cobaltApiKey: z.string().optional(),
         mediaQuality: z.enum(["720", "1080", "1440", "2160"]).optional(),
+        poseDetectionEnabled: z.boolean().optional(),
+        poseCameraSource: z.string().optional(),
+        poseCooldownSeconds: z.number().min(5).max(3600).optional(),
+        poseAlertImageUrl: z.string().optional(),
+        poseAlertSoundUrl: z.string().optional(),
       });
       const incoming = SettingsSchema.parse(req.body);
       const originalToken = settingsManager.settings.discordToken;
@@ -148,7 +205,12 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
       const updatedSettings = {
         ...settingsManager.settings,
-        discordToken: incoming.discordToken === "••••••••••••••••••••" ? originalToken : incoming.discordToken || "",
+        discordToken: incoming.discordToken === OBS_PASSWORD_MASK ? originalToken : incoming.discordToken || "",
+        obsWebsocketPort: incoming.obsWebsocketPort ?? settingsManager.settings.obsWebsocketPort,
+        obsWebsocketPassword:
+          incoming.obsWebsocketPassword === OBS_PASSWORD_MASK
+            ? settingsManager.settings.obsWebsocketPassword
+            : (incoming.obsWebsocketPassword ?? settingsManager.settings.obsWebsocketPassword),
         channelId: incoming.channelId || "",
         alertDuration: incoming.alertDuration || 8000,
         syncDurationWithMedia: incoming.syncDurationWithMedia ?? true,
@@ -173,6 +235,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         cobaltApiUrl: incoming.cobaltApiUrl ?? settingsManager.settings.cobaltApiUrl ?? "",
         cobaltApiKey: incoming.cobaltApiKey ?? settingsManager.settings.cobaltApiKey ?? "",
         mediaQuality: incoming.mediaQuality ?? settingsManager.settings.mediaQuality ?? "1080",
+        poseDetectionEnabled: incoming.poseDetectionEnabled ?? settingsManager.settings.poseDetectionEnabled,
+        poseCameraSource: incoming.poseCameraSource ?? settingsManager.settings.poseCameraSource,
+        poseCooldownSeconds: incoming.poseCooldownSeconds ?? settingsManager.settings.poseCooldownSeconds,
+        poseAlertImageUrl: incoming.poseAlertImageUrl ?? settingsManager.settings.poseAlertImageUrl,
+        poseAlertSoundUrl: incoming.poseAlertSoundUrl ?? settingsManager.settings.poseAlertSoundUrl,
       };
 
       settingsManager.saveSettings(updatedSettings);
@@ -188,7 +255,8 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         success: true,
         settings: {
           ...updatedSettings,
-          discordToken: updatedSettings.discordToken ? "••••••••••••••••••••" : "",
+          discordToken: updatedSettings.discordToken ? OBS_PASSWORD_MASK : "",
+          obsWebsocketPassword: updatedSettings.obsWebsocketPassword ? OBS_PASSWORD_MASK : "",
         },
       });
     } catch (err: any) {
@@ -199,6 +267,21 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       }
       logger.error({ err }, "Failed storing configurations");
       res.status(500).json({ error: err.message || "Failed storing configurations" });
+    }
+  });
+
+  // Servers and text channels the bot can see (setup wizard + Bot tab channel picker).
+  app.get("/api/discord/channels", async (req, res) => {
+    try {
+      const result = await botManager.getGuildChannels();
+      if (!result) {
+        res.status(409).json({ error: "Discord bot is not connected" });
+        return;
+      }
+      res.json(result);
+    } catch (err: any) {
+      logger.error({ err }, "Failed listing Discord channels");
+      res.status(500).json({ error: err.message || "Failed listing Discord channels" });
     }
   });
 
@@ -240,6 +323,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       status: botManager.status,
       botUser: botManager.botUser,
       errorMsg: botManager.errorMsg,
+      channelIssue: botManager.channelIssue,
       overlayPaused: botManager.overlayPaused,
       health: {
         cache: {
@@ -267,7 +351,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
       // Calculate the hash of the URL to find potential cached files
       const urlHash = crypto.createHash("md5").update(url).digest("hex");
-      const possibleCachedFile = path.join(process.cwd(), "media_cache", `${urlHash}.mp4`);
+      const possibleCachedFile = path.join(DATA_PATHS.mediaCacheDir, `${urlHash}.mp4`);
 
       // Clear any potentially cached failures or old versions
       if (fs.existsSync(possibleCachedFile)) {
@@ -469,7 +553,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
 
   // Clear media cache
   app.post("/api/cache/clear", async (req, res) => {
-    const cacheDir = path.join(process.cwd(), "media_cache");
+    const cacheDir = DATA_PATHS.mediaCacheDir;
     if (!fs.existsSync(cacheDir)) {
       _cacheStatsCache = null;
       return res.json({ success: true, deleted: 0 });
@@ -507,7 +591,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     if (filename.includes("..") || filename.includes("/")) {
       return res.status(400).send("Invalid filename");
     }
-    const filepath = path.join(process.cwd(), "media_cache", filename);
+    const filepath = path.join(DATA_PATHS.mediaCacheDir, filename);
     if (!fs.existsSync(filepath)) {
       return res.status(404).send("File not found");
     }
