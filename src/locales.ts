@@ -210,6 +210,25 @@ export const locales = {
       reconnect: "Reconnecter",
       andMore: "et {n} de plus",
     },
+    tutorial: {
+      welcomeTitle: "Bienvenue sur LiveChat !",
+      welcomeDesc: "Apprenons ensemble à configurer vos alertes Discord pour le stream. C'est rapide et facile !",
+      welcomeButton: "Commencer le tutoriel",
+      botTitle: "1. Le Bot Discord",
+      botDesc:
+        "Pour commencer, vous devez lier le bot à votre Discord.\nAllez dans 'Paramètres du Bot Discord', insérez l'identifiant du salon textuel où les médias seront envoyés, et si vous en avez un, votre Token.",
+      obsTitle: "2. Ajouter dans OBS",
+      obsDesc:
+        "Dans le panneau à droite, trouvez la carte 'Lien de l'Overlay OBS'. Copiez l'URL et ajoutez-la dans OBS en tant que 'Source Navigateur'. Cochez 'Refroidir la source quand non visible'.",
+      testTitle: "3. Tester l'affichage",
+      testDesc:
+        "Pour tester, ouvrez l'onglet 'Simulateur' et envoyez une alerte de test. Elle apparaîtra dans la Preview à droite et dans votre OBS !",
+      doneTitle: "C'est tout bon !",
+      doneDesc:
+        "Vos paramètres sont sauvegardés automatiquement lorsque vous cliquez sur 'Sauvegarder la configuration'. Profitez bien de vos lives !",
+      next: "Suivant",
+      finish: "Terminer",
+    },
   },
   en: {
     dashboardTitle: "Dashboard",
@@ -419,6 +438,24 @@ export const locales = {
       reconnect: "Reconnect",
       andMore: "+{n} more",
     },
+    tutorial: {
+      welcomeTitle: "Welcome to LiveChat!",
+      welcomeDesc: "Let's learn together how to set up your Discord alerts for the stream. It's quick and easy!",
+      welcomeButton: "Start the tutorial",
+      botTitle: "1. The Discord Bot",
+      botDesc:
+        "To begin, you need to link the bot to your Discord.\nGo to 'Discord Bot Settings', enter the ID of the text channel where the media will be sent and, if you have one, your Token.",
+      obsTitle: "2. Add to OBS",
+      obsDesc:
+        "In the panel on the right, find the 'OBS Overlay Link' card. Copy the URL and add it to OBS as a 'Browser Source'. Check 'Shutdown source when not visible'.",
+      testTitle: "3. Test the display",
+      testDesc:
+        "To test, open the 'Simulator' tab and send a test alert. It will appear in the Preview on the right and in your OBS!",
+      doneTitle: "All set!",
+      doneDesc: "Your settings are saved automatically when you click 'Save configuration'. Enjoy your streams!",
+      next: "Next",
+      finish: "Finish",
+    },
   },
   "uwu-en": {
     dashboardTitle: "Dashbowd UwU",
@@ -626,6 +663,24 @@ export const locales = {
       seek: "Seek~",
       reconnect: "Weconnect Bawt",
       andMore: "+{n} mowe~",
+    },
+    tutorial: {
+      welcomeTitle: "Wewcome to LiveChat UwU!",
+      welcomeDesc: "Wet's weawn togethew how to set up youw Discowd awewts fow the stweam. It's quick and easy~!",
+      welcomeButton: "Stawt the tutowiaw~",
+      botTitle: "1. The Discowd Bot",
+      botDesc:
+        "To begin, you need to wink the bot to youw Discowd.\nGo to 'Discowd Bot Settings', enter the ID of the text channew whewe the media wiww be sent and, if you have one, youw Token~",
+      obsTitle: "2. Add to OBS",
+      obsDesc:
+        "In the panew on the wight, find the 'OBS Ovewway Wink' cawd. Copy the UWL and add it to OBS as a 'Bwowsew Souwce'. Check 'Shutdown souwce when not visibwe' UwU.",
+      testTitle: "3. Test the dispway",
+      testDesc:
+        "To test, open the 'Simuwatow' tab and send a test awewt. It'll appeaw in the Pweview on the wight and in youw OBS OwO!",
+      doneTitle: "All good~!",
+      doneDesc: "Youw settings awe saved automaticawwy when you click 'Save configuwation'. Enjoy youw wives UwU!",
+      next: "Next UwU",
+      finish: "Finish OwO",
     },
   },
   "uwu-fr": {
@@ -837,6 +892,25 @@ export const locales = {
       seek: "Seek~",
       reconnect: "Weconnect Bawt",
       andMore: "et {n} de pwus~",
+    },
+    tutorial: {
+      welcomeTitle: "Bienvenue suw LiveChat UwU !",
+      welcomeDesc: "Apprenons ensemble à configuwer vos awewtes Discowd pouw le stweam. C'est wapide et facile~ !",
+      welcomeButton: "Commencew le tutowiel~",
+      botTitle: "1. Le Bawt Discowd",
+      botDesc:
+        "Pouw commencew, vous devez wier le bawt à votwe Discowd.\nAwwez dans 'Paramètwes du Bawt Discowd', insérez l'identifiant du salon textuew où les médias sewont envoyés, et si vous en avez un, votwe Token~",
+      obsTitle: "2. Ajouter dans OBS",
+      obsDesc:
+        "Dans le panneau à dwoite, twouvez la cawte 'Wien de l'Ovewway OBS'. Copiez l'UWL et ajoutez-la dans OBS en tant que 'Souwce Navigateuw'. Cochez 'Wefwoidir la souwce quand non visibwe' UwU.",
+      testTitle: "3. Tester l'affichage",
+      testDesc:
+        "Pouw tester, ouvwez l'onglet 'Simuwateuw' et envoyez une awewte de test. Elle appawaîwa dans la Pweview à dwoite et dans votwe OBS !",
+      doneTitle: "C'est tout bon~ !",
+      doneDesc:
+        "Vos paramètwes sont sauvegawdés automatiquement lorsque vous cwiquez suw 'Sauvegawder la configuwation'. Pwofitez bien de vos lives OwO !",
+      next: "Suivant UwU",
+      finish: "Tewminew OwO",
     },
   },
 };

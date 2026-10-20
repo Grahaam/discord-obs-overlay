@@ -349,6 +349,7 @@ export default function StreamerDashboard() {
             setShowTutorial(false);
           }}
           setActiveTab={setActiveTab}
+          t={t}
         />
       )}
 
@@ -365,7 +366,7 @@ export default function StreamerDashboard() {
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-[0_0_18px_rgba(99,102,241,0.55)] transition-transform hover:scale-110 duration-200">
             <Tv className="w-4 h-4 text-white" />
           </div>
-          <span className="font-bold text-base sm:text-lg tracking-tight text-white">StreamAlerts</span>
+          <span className="font-bold text-base sm:text-lg tracking-tight text-white">LiveChat</span>
         </div>
 
         {/* Right controls */}

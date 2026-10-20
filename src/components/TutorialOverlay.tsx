@@ -1,62 +1,60 @@
 import React, { useState } from "react";
 import { X, ArrowRight, Check, Play, Settings, Tv } from "lucide-react";
+import { locales } from "../locales";
 
 interface TutorialOverlayProps {
   onComplete: () => void;
   setActiveTab: (tab: any) => void;
+  t: (typeof locales)["fr"];
 }
 
-export default function TutorialOverlay({ onComplete, setActiveTab }: TutorialOverlayProps) {
+export default function TutorialOverlay({ onComplete, setActiveTab, t }: TutorialOverlayProps) {
   const [step, setStep] = useState(0);
 
   const steps = [
     {
-      title: "Bienvenue sur StreamAlerts !",
-      description: "Apprenons ensemble à configurer vos alertes Discord pour le stream. C'est rapide et facile !",
+      title: t.tutorial.welcomeTitle,
+      description: t.tutorial.welcomeDesc,
       icon: <Check className="w-10 h-10 text-emerald-400" />,
       action: () => setStep(1),
-      buttonText: "Commencer le tutoriel",
+      buttonText: t.tutorial.welcomeButton,
       tab: "credentials",
     },
     {
-      title: "1. Le Bot Discord",
-      description:
-        "Pour commencer, vous devez lier le bot à votre Discord.\nAllez dans 'Paramètres du Bot Discord', insérez l'identifiant du salon textuel où les médias seront envoyés, et si vous en avez un, votre Token.",
+      title: t.tutorial.botTitle,
+      description: t.tutorial.botDesc,
       icon: <Settings className="w-10 h-10 text-indigo-400" />,
       action: () => {
         setActiveTab("credentials");
         setStep(2);
       },
-      buttonText: "Suivant",
+      buttonText: t.tutorial.next,
       tab: "credentials",
     },
     {
-      title: "2. Ajouter dans OBS",
-      description:
-        "Dans le panneau à droite, trouvez la carte 'Lien de l'Overlay OBS'. Copiez l'URL et ajoutez-la dans OBS en tant que 'Source Navigateur'. Cochez 'Refroidir la source quand non visible'.",
+      title: t.tutorial.obsTitle,
+      description: t.tutorial.obsDesc,
       icon: <Tv className="w-10 h-10 text-rose-400" />,
       action: () => setStep(3),
-      buttonText: "Suivant",
+      buttonText: t.tutorial.next,
       tab: "credentials",
     },
     {
-      title: "3. Tester l'affichage",
-      description:
-        "Pour tester, ouvrez l'onglet 'Simulateur' et envoyez une alerte de test. Elle apparaîtra dans la Preview à droite et dans votre OBS !",
+      title: t.tutorial.testTitle,
+      description: t.tutorial.testDesc,
       icon: <Play className="w-10 h-10 text-fuchsia-400" />,
       action: () => {
         setStep(4);
       },
-      buttonText: "Suivant",
+      buttonText: t.tutorial.next,
       tab: "credentials",
     },
     {
-      title: "C'est tout bon !",
-      description:
-        "Vos paramètres sont sauvegardés automatiquement lorsque vous cliquez sur 'Sauvegarder la configuration'. Profitez bien de vos lives !",
+      title: t.tutorial.doneTitle,
+      description: t.tutorial.doneDesc,
       icon: <Check className="w-10 h-10 text-emerald-400" />,
       action: onComplete,
-      buttonText: "Terminer",
+      buttonText: t.tutorial.finish,
       tab: "credentials",
     },
   ];
