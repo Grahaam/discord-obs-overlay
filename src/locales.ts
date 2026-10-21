@@ -64,6 +64,10 @@ export const locales = {
       statusIdle: "Indiquez la source caméra OBS ci-dessus pour vous voir ici.",
       statusLoading: "Chargement de la détection…",
       statusNoObs: "OBS est injoignable : vérifiez la connexion OBS dans l’onglet Bot.",
+      statusNoPicture:
+        "La source caméra n'a pas d'image dans OBS : vérifiez que la webcam est allumée (dans OBS, désactivez puis réactivez la source).",
+      missingLeftHandNew: "Main gauche non vue : gardez-la dans le cadre, face à la caméra.",
+      missingRightHandNew: "Main droite non vue : gardez-la dans le cadre, face à la caméra.",
       statusNoSource: "OBS ne trouve pas cette source : vérifiez son nom exact.",
       statusError: "Impossible de lire la caméra, nouvel essai dans 5 s…",
       noPerson: "Aucune personne détectée",
@@ -411,6 +415,10 @@ export const locales = {
       statusIdle: "Set the OBS camera source above to see yourself here.",
       statusLoading: "Loading detection…",
       statusNoObs: "Can't reach OBS: check the OBS connection in the Bot tab.",
+      statusNoPicture:
+        "The camera source has no picture in OBS: check the webcam is on (in OBS, deactivate then reactivate the source).",
+      missingLeftHandNew: "Left hand not seen: keep it inside the frame, facing the camera.",
+      missingRightHandNew: "Right hand not seen: keep it inside the frame, facing the camera.",
       statusNoSource: "OBS can't find this source: check its exact name.",
       statusError: "Can't read the camera, retrying in 5 s…",
       noPerson: "Nobody detected",
@@ -750,6 +758,10 @@ export const locales = {
       statusIdle: "Set the OBS camewa souwce above to see youwsewf hewe~",
       statusLoading: "Woading detection…",
       statusNoObs: "Can't weach OBS: check the OBS connection in the Bawt tab >_<",
+      statusNoPicture:
+        "The camewa souwce has no pictuwe in OBS: check the webcam is on (in OBS, deactivate then weactivate the souwce) >_<",
+      missingLeftHandNew: "Weft hand not seen: keep it inside the fwame, facing the camewa >_<",
+      missingRightHandNew: "Wight hand not seen: keep it inside the fwame, facing the camewa >_<",
       statusNoSource: "OBS can't find this souwce: check its exact name >_<",
       statusError: "Can't wead the camewa, wetwying in 5 s…",
       noPerson: "Nobody detected uwu",
@@ -1089,6 +1101,10 @@ export const locales = {
       statusIdle: "Indiquez wa souwce caméwa OBS ci-dessus pouw vous voiw ici~",
       statusLoading: "Chawgement de wa détection…",
       statusNoObs: "OBS est injoignabwe : véwifiez wa connexion OBS dans w’ongwet Bawt >_<",
+      statusNoPicture:
+        "Wa souwce caméwa n'a pas d'image dans OBS : véwifiez que wa webcam est awwumée (dans OBS, désactivez puis wéactivez wa souwce) >_<",
+      missingLeftHandNew: "Main gauche non vue : gawdez-wa dans we cadwe, face à wa caméwa >_<",
+      missingRightHandNew: "Main dwoite non vue : gawdez-wa dans we cadwe, face à wa caméwa >_<",
       statusNoSource: "OBS ne twouve pas cette souwce : véwifiez son nom exact >_<",
       statusError: "Impossibwe de wiwe wa caméwa, nouvew essai dans 5 s…",
       noPerson: "Aucune pewsonne détectée uwu",

@@ -17,6 +17,7 @@ export type PoseLandmarksStatus =
   | "ok"
   | "no-obs"
   | "no-source"
+  | "no-picture"
   | "error"
   /** Body detection works but the hand model failed to load (a warning: frames keep flowing) */
   | "hands-unavailable";
@@ -189,6 +190,8 @@ export function usePoseLandmarks({
           }));
         } catch (err) {
           if ((err as { code?: number }).code === OBS_RESOURCE_NOT_FOUND) setStatus("no-source");
+          // The source exists but is 0×0, e.g. a webcam that didn't come back after a restart
+          else if (/render screenshot/i.test((err as Error).message)) setStatus("no-picture");
           throw err;
         }
         const bitmap = await createImageBitmap(dataUrlToBlob(imageData));
@@ -207,7 +210,7 @@ export function usePoseLandmarks({
         schedule(FRAME_INTERVAL_MS);
       } catch (err) {
         console.warn("[usePoseLandmarks]", err);
-        setStatus((s) => (s === "no-obs" || s === "no-source" ? s : "error"));
+        setStatus((s) => (s === "no-obs" || s === "no-source" || s === "no-picture" ? s : "error"));
         schedule(RETRY_MS);
       }
     };

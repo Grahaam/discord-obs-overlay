@@ -76,6 +76,7 @@ const STATUS_LABEL: Record<PoseLandmarksStatus, string> = {
   ok: "",
   "no-obs": "statusNoObs",
   "no-source": "statusNoSource",
+  "no-picture": "statusNoPicture",
   error: "statusError",
   "hands-unavailable": "", // shown as a warning under the camera, the body still works
 };
@@ -94,8 +95,9 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
     const current = file;
     const target = targetRef.current;
     if (missing) {
-      const brandNew = missing === "body" && target.kind === "new";
-      return setRecordError(labels[brandNew ? "recordFailedNew" : RECORD_ERROR[missing]]);
+      // A brand-new pose has no "old pose" to keep: those messages drop that sentence
+      const key = target.kind === "new" ? `${RECORD_ERROR[missing]}New` : RECORD_ERROR[missing];
+      return setRecordError(labels[key]);
     }
     if (!current) return;
     if (target.kind === "new") {
