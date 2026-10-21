@@ -75,7 +75,7 @@ function createHandLandmarker(vision: Vision, delegate: Delegate): Promise<HandL
 /**
  * Grabs frames of an OBS source through obs-websocket (no webcam access needed) and runs
  * MediaPipe pose detection on them. Shared by the overlay detector and the dashboard
- * Poses tab, so both see exactly the same camera, crop and landmarks.
+ * Poses tab, so both see exactly the same camera framing and landmarks.
  * With `hands`, the hand model also runs on the whole (bigger) screenshot.
  */
 export function usePoseLandmarks({
