@@ -105,3 +105,66 @@ test("keeps the other media type's fields when switching type", () => {
   assert.equal(store.get().poses[0].media.imageUrl, "/user-assets/a.jpg");
   assert.equal(store.get().poses[0].media.videoUrl, "/user-assets/v.mp4");
 });
+
+const handTemplate = {
+  fingers: { thumb: "any", index: "up", middle: "down", ring: "down", pinky: "any" },
+  curls: { thumb: 0.2, index: 0, middle: 0.9, ring: 0.8, pinky: 0.5 },
+  position: { x: 0.1, y: -0.2 },
+  direction: { palm: 1.2, thumb: -0.4 },
+} as const;
+
+function customPose(overrides: Record<string, unknown> = {}) {
+  const base = defaultBuiltinPose(legacy());
+  return { ...base, id: "custom-1", name: "Custom", kind: "custom", builtinId: undefined, ...overrides } as never;
+}
+
+test("loads a file without hand fields unchanged", () => {
+  const file = makeFile();
+  const seeded = new PoseStore(file, legacy).load();
+  const custom = customPose({ bodyParts: ["arms"] });
+  fs.writeFileSync(file, JSON.stringify({ ...seeded, poses: [...seeded.poses, custom] }, null, 2));
+  const before = JSON.parse(fs.readFileSync(file, "utf8"));
+  const loaded = new PoseStore(file, legacy).load();
+  assert.deepEqual(JSON.parse(JSON.stringify(loaded)), before);
+});
+
+test("saves a pose with hands", () => {
+  const file = makeFile();
+  const store = new PoseStore(file, legacy);
+  const current = store.load();
+  const pose = customPose({
+    bodyParts: ["leftHand"],
+    hands: { left: handTemplate, gap: { x: 0.3, y: 0 } },
+    handPosition: false,
+  });
+  store.save({ ...current, poses: [...current.poses, pose] });
+  const back = new PoseStore(file, legacy).load().poses.find((p) => p.id === "custom-1");
+  assert.deepEqual(back?.hands?.left, handTemplate);
+  assert.equal(back?.handPosition, false);
+});
+
+test("rejects a ticked hand without its template", () => {
+  const file = makeFile();
+  const store = new PoseStore(file, legacy);
+  const current = store.load();
+  const before = fs.readFileSync(file, "utf8");
+  const pose = customPose({ bodyParts: ["rightHand"], hands: { left: handTemplate } });
+  assert.throws(() => store.save({ ...current, poses: [...current.poses, pose] }));
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+});
+
+test("skips (not crashes) a hand-edited file with a ticked hand and no template", () => {
+  const file = makeFile();
+  const seeded = new PoseStore(file, legacy).load();
+  const bad = customPose({ id: "bad-hand", bodyParts: ["leftHand"] });
+  const good = customPose({ id: "good", bodyParts: ["arms"] });
+  fs.writeFileSync(file, JSON.stringify({ ...seeded, poses: [...seeded.poses, bad, good] }));
+  const loaded = new PoseStore(file, legacy).load();
+  const ids = loaded.poses.map((p) => p.id);
+  assert.ok(ids.includes("good"));
+  assert.ok(!ids.includes("bad-hand"));
+  assert.equal(
+    fs.readdirSync(path.dirname(file)).some((n) => n.includes(".bad-")),
+    false
+  );
+});

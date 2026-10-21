@@ -8,7 +8,21 @@ import { settingsManager } from "./settingsManager.js";
 import { logger } from "./logger.js";
 import { cleanupUnusedUploads } from "./userAssets.js";
 
-const bodyPartSchema = z.enum(["arms", "legs", "head"]);
+const bodyPartSchema = z.enum(["arms", "legs", "head", "leftHand", "rightHand"]);
+const fingerStateSchema = z.enum(["up", "down", "any"]);
+const fingerRecord = <T extends z.ZodTypeAny>(value: T) =>
+  z.object({ thumb: value, index: value, middle: value, ring: value, pinky: value });
+const handTemplateSchema = z.object({
+  fingers: fingerRecord(fingerStateSchema),
+  curls: fingerRecord(z.number().min(0).max(1)),
+  position: z.object({ x: z.number().finite(), y: z.number().finite() }),
+  direction: z.object({ palm: z.number().finite(), thumb: z.number().finite() }),
+});
+const handsSchema = z.object({
+  left: handTemplateSchema.optional(),
+  right: handTemplateSchema.optional(),
+  gap: z.object({ x: z.number().finite(), y: z.number().finite() }).optional(),
+});
 const pointSchema = z.object({
   x: z.number().finite(),
   y: z.number().finite(),
@@ -27,7 +41,7 @@ const poseMediaSchema = z.object({
   fullscreen: z.boolean(),
 });
 
-const poseSchema = z.object({
+const poseObjectSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   kind: z.enum(["custom", "builtin"]),
@@ -40,6 +54,24 @@ const poseSchema = z.object({
   holdMs: z.number().int().min(1),
   cooldownSeconds: z.number().int().min(5).max(3600),
   media: poseMediaSchema,
+  hands: handsSchema.optional(),
+  handPosition: z.boolean().optional(),
+  handDirection: z.boolean().optional(),
+});
+
+type ParsedPose = z.infer<typeof poseObjectSchema>;
+
+// A ticked hand needs its recorded template
+function hasHandTemplates(pose: ParsedPose): boolean {
+  return (
+    (!pose.bodyParts.includes("leftHand") || Boolean(pose.hands?.left)) &&
+    (!pose.bodyParts.includes("rightHand") || Boolean(pose.hands?.right))
+  );
+}
+
+const poseSchema = poseObjectSchema.refine(hasHandTemplates, {
+  message: "A ticked hand needs its template",
+  path: ["hands"],
 });
 
 export const posesFileSchema = z.object({
@@ -47,6 +79,19 @@ export const posesFileSchema = z.object({
   poses: z.array(poseSchema),
   hiddenBuiltins: z.array(z.string()),
 });
+
+// Same shape without the hand check, so load() can drop single bad poses instead of the whole file
+const looseFileSchema = z.object({
+  version: z.literal(1),
+  poses: z.array(poseObjectSchema),
+  hiddenBuiltins: z.array(z.string()),
+});
+
+function isUsablePose(pose: ParsedPose): boolean {
+  if (hasHandTemplates(pose)) return true;
+  logger.warn({ poseId: pose.id }, "Dropping pose with a ticked hand but no template");
+  return false;
+}
 
 export type LegacyPoseSettings = {
   poseAlertImageUrl?: string;
@@ -105,9 +150,10 @@ export class PoseStore {
     }
 
     try {
-      const parsed = posesFileSchema.parse(JSON.parse(fs.readFileSync(this.file, "utf8")));
+      const loose = looseFileSchema.parse(JSON.parse(fs.readFileSync(this.file, "utf8")));
+      const parsed: PosesFile = { ...loose, poses: loose.poses.filter(isUsablePose) };
       const complete = this.withBuiltin(parsed);
-      if (complete.poses.length !== parsed.poses.length) {
+      if (complete.poses.length !== loose.poses.length) {
         this.save(complete);
         return this.get();
       }
