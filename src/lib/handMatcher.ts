@@ -30,7 +30,8 @@ const CHAINS: Record<Finger, number[]> = {
   pinky: [0, 17, 18, 19, 20],
 };
 
-function jointAngle(a: HandPoint, b: HandPoint, c: HandPoint): number {
+/** Angle at b, or null when a point coincides with b (the joint is unknown). */
+function jointAngle(a: HandPoint, b: HandPoint, c: HandPoint): number | null {
   const ux = a.x - b.x;
   const uy = a.y - b.y;
   const uz = a.z - b.z;
@@ -39,7 +40,7 @@ function jointAngle(a: HandPoint, b: HandPoint, c: HandPoint): number {
   const vz = c.z - b.z;
   const dot = ux * vx + uy * vy + uz * vz;
   const norm = Math.hypot(ux, uy, uz) * Math.hypot(vx, vy, vz);
-  if (norm < 1e-9) return Math.PI;
+  if (norm < 1e-9) return null;
   return Math.acos(Math.max(-1, Math.min(1, dot / norm)));
 }
 
@@ -48,10 +49,14 @@ export function fingerCurls(points: HandPoint[]): Record<Finger, number> {
   for (const finger of FINGERS) {
     const chain = CHAINS[finger];
     let bend = 0;
+    let unknown = false;
     for (let i = 1; i < chain.length - 1; i++) {
-      bend += Math.PI - jointAngle(points[chain[i - 1]], points[chain[i]], points[chain[i + 1]]);
+      const angle = jointAngle(points[chain[i - 1]], points[chain[i]], points[chain[i + 1]]);
+      if (angle === null) unknown = true;
+      else bend += Math.PI - angle;
     }
-    curls[finger] = Math.min(1, bend / (finger === "thumb" ? THUMB_BEND : FINGER_BEND));
+    // A degenerate joint says nothing: stay ambiguous rather than read straight
+    curls[finger] = unknown ? 0.5 : Math.min(1, bend / (finger === "thumb" ? THUMB_BEND : FINGER_BEND));
   }
   return curls;
 }

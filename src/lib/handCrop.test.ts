@@ -127,3 +127,22 @@ test("planHandCrops merges overlapping crops and keeps distant ones apart", () =
   assert.deepEqual(planHandCrops(a, undefined), { left: a });
   assert.deepEqual(planHandCrops(null, null), {});
 });
+
+const finite = (b: { cx: number; cy: number; size: number; angle: number }) =>
+  [b.cx, b.cy, b.size, b.angle].every(Number.isFinite);
+
+test("a zero-size follow box falls back to the body box", () => {
+  const body = skeleton({ 13: [0.32, 0.35], 15: [0.25, 0.15], 17: [0.22, 0.1], 19: [0.24, 0.09], 21: [0.27, 0.11] });
+  const point = { x: 0.5, y: 0.5, z: 0 };
+  const previous: HandReading = { points: Array.from({ length: 21 }, () => point), score: 1, time: 0 };
+  const box = handCrop(body, "left", frame, previous, 100)!;
+  assert.ok(box && finite(box));
+  assert.deepEqual(box, handCrop(body, "left", frame));
+});
+
+test("an elbow on the wrist gives angle 0, never NaN", () => {
+  const body = skeleton({ 13: [0.25, 0.15], 15: [0.25, 0.15], 17: [0.22, 0.1], 19: [0.24, 0.09], 21: [0.27, 0.11] });
+  const box = handCrop(body, "left", frame)!;
+  assert.ok(box && finite(box));
+  assert.equal(box.angle, 0);
+});

@@ -96,3 +96,11 @@ test("handsLookAlike", () => {
   assert.equal(handsLookAlike(pose(template(thumbsUp)), pose(template(thumbsUp))), true);
   assert.equal(handsLookAlike(pose(template(thumbsUp)), pose(template(victory))), false);
 });
+
+test("a finger with coincident points is ambiguous, not straight", () => {
+  const points = openPalm.map((p) => ({ ...p }));
+  for (const i of [6, 7, 8]) points[i] = { ...points[5] };
+  const curls = fingerCurls(points);
+  assert.equal(curls.index, 0.5);
+  assert.equal(fingerState("index", curls.index), "any");
+});

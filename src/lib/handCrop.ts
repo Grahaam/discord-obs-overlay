@@ -35,7 +35,9 @@ const BODY = {
 } as const;
 
 // Rotation that turns a frame vector (dx, dy) to point straight up (-y)
-const upAngle = (dx: number, dy: number) => -Math.PI / 2 - Math.atan2(dy, dx);
+const upAngle = (dx: number, dy: number) => (Math.hypot(dx, dy) < 1e-6 ? 0 : -Math.PI / 2 - Math.atan2(dy, dx));
+
+const isFinite4 = (b: CropBox) => [b.cx, b.cy, b.size, b.angle].every(Number.isFinite);
 
 export function handCrop(
   body: NormalizedPoint[],
@@ -49,19 +51,34 @@ export function handCrop(
   const elbow = body[ids.elbow];
   if (!wrist || !elbow || wrist.visibility < MIN_VISIBILITY) return null;
 
-  if (previous && now !== undefined && now - previous.time <= FOLLOW_MS && previous.points.length === 21) {
+  const follow = previous && now !== undefined ? followBox(previous, frame, now) : null;
+  if (follow) return follow;
+  const box = bodyBox(body, side, frame);
+  return isFinite4(box) && box.size > 0 ? box : null;
+}
+
+function followBox(previous: HandReading, frame: Frame, now: number): CropBox | null {
+  if (now - previous.time <= FOLLOW_MS && previous.points.length === 21) {
     const xs = previous.points.map((p) => p.x * frame.width);
     const ys = previous.points.map((p) => p.y * frame.height);
     const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
     const [wrist0, knuckle] = [previous.points[0], previous.points[9]];
-    return {
+    const box = {
       cx: (minX + maxX) / 2,
       cy: (minY + maxY) / 2,
       size: Math.max(maxX - minX, maxY - minY) * FOLLOW_MARGIN,
       angle: upAngle((knuckle.x - wrist0.x) * frame.width, (knuckle.y - wrist0.y) * frame.height),
     };
+    // A collapsed or non-finite previous hand cannot be followed: use the body box instead
+    if (box.size >= 1 && isFinite4(box)) return box;
   }
+  return null;
+}
 
+function bodyBox(body: NormalizedPoint[], side: HandSide, frame: Frame): CropBox {
+  const ids = BODY[side];
+  const wrist = body[ids.wrist];
+  const elbow = body[ids.elbow];
   const px = (p: NormalizedPoint) => ({ x: p.x * frame.width, y: p.y * frame.height });
   const w = px(wrist);
   const e = px(elbow);
