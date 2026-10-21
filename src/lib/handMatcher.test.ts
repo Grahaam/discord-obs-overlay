@@ -104,3 +104,16 @@ test("a finger with coincident points is ambiguous, not straight", () => {
   assert.equal(curls.index, 0.5);
   assert.equal(fingerState("index", curls.index), "any");
 });
+
+test('handsLookAlike gives the same answer in both orders when one thumb is "any"', () => {
+  const pose = (t: HandTemplate): Pose => ({ bodyParts: ["rightHand"], hands: { right: t } }) as unknown as Pose;
+  // Same fingers, but B ignores its thumb and its recorded thumb pointed the other way
+  const a = template(thumbsUp);
+  const b: HandTemplate = {
+    ...a,
+    fingers: { ...a.fingers, thumb: "any" },
+    direction: { ...a.direction, thumb: a.direction.thumb + Math.PI },
+  };
+  assert.equal(handsLookAlike(pose(a), pose(b)), handsLookAlike(pose(b), pose(a)));
+  assert.equal(handsLookAlike(pose(a), pose(b)), true);
+});

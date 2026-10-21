@@ -225,6 +225,8 @@ export function handsLookAlike(a: Pose, b: Pose): boolean {
     if (!agree) return false;
     const gap =
       position && sidesA.length === 2 && a.hands?.gap && b.hands?.gap ? gapScore(a.hands.gap, b.hands.gap) : undefined;
-    return combine(tb.curls, tb.position, tb.direction, ta, { position, direction, gapScore: gap }) > LOOK_ALIKE;
+    // If either pose ignores its thumb, so does the comparison (same answer in both orders)
+    const ref = tb.fingers.thumb === "any" ? { ...ta, fingers: { ...ta.fingers, thumb: "any" as const } } : ta;
+    return combine(tb.curls, tb.position, tb.direction, ref, { position, direction, gapScore: gap }) > LOOK_ALIKE;
   });
 }
