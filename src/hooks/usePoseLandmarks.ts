@@ -131,6 +131,7 @@ export function usePoseLandmarks({
     let handLandmarkers: HandLandmarkers | null = null;
     let handsFailed = false; // one failed load per hook instance, never retried
     let previousHands: LiveHands = {};
+    let handPassWarned = false;
     let bodyCtx: OffscreenCanvasRenderingContext2D | null = null;
     let cropCtx: OffscreenCanvasRenderingContext2D | null = null;
 
@@ -252,15 +253,24 @@ export function usePoseLandmarks({
       }
       cropCtx ??= new OffscreenCanvas(CROP_PX, CROP_PX).getContext("2d");
       if (!cropCtx) throw new Error("no 2d context");
-      const pass = runHandPass({
-        landmarkers: handLandmarkers,
-        ctx: cropCtx,
-        source: bitmap,
-        body: landmarks,
-        sides: { left: wantLeft, right: wantRight },
-        previous: previousHands,
-        now: time,
-      });
+      let pass;
+      try {
+        pass = runHandPass({
+          landmarkers: handLandmarkers,
+          ctx: cropCtx,
+          source: bitmap,
+          body: landmarks,
+          sides: { left: wantLeft, right: wantRight },
+          previous: previousHands,
+          now: time,
+        });
+      } catch (err) {
+        // A hand model error must not cost the body frame: skip the hands this frame
+        if (!handPassWarned) console.warn("[usePoseLandmarks] hand pass failed", err);
+        handPassWarned = true;
+        previousHands = {};
+        return next;
+      }
       previousHands = pass.hands; // a side not found this frame is dropped, not followed
       return { ...next, ...pass, frameWidth: bitmap.width, frameHeight: bitmap.height };
     };
