@@ -5,8 +5,8 @@ import { armsUp, tPose } from "./poseFixtures.js";
 import { normalise } from "./poseMatcher.js";
 import { detectablePoses, posesNeedHands, scoreFrame } from "./poseScoring.js";
 import type { HandReading } from "./handCrop.js";
-import { openPalm, thumbsUp, victory } from "./handFixtures.js";
-import { makeHandTemplate } from "./handMatcher.js";
+import { handSkeleton, openPalm, thumbsUp, victory } from "./handFixtures.js";
+import { makeHandTemplate, scoreHand } from "./handMatcher.js";
 
 const media = {
   type: "image" as const,
@@ -123,4 +123,63 @@ test("posesNeedHands lists only the hands enabled poses use", () => {
   assert.deepEqual(posesNeedHands([handPose("r")]), { left: false, right: true });
   assert.deepEqual(posesNeedHands([handPose("r", { enabled: false })]), { left: false, right: false });
   assert.deepEqual(posesNeedHands([handPose("r", { mirror: true })]), { left: true, right: true });
+});
+
+const STRAIGHT = { thumb: 0, index: 0, middle: 0, ring: 0, pinky: 0 };
+const flipX = (points: HandReading["points"]) => points.map((p) => ({ ...p, x: 1 - p.x }));
+const twoHands = (leftAt: [number, number], rightAt: [number, number], extra: Partial<Pose> = {}) => {
+  const L = handSkeleton(STRAIGHT, { cx: leftAt[0], cy: leftAt[1] });
+  const R = handSkeleton(STRAIGHT, { cx: rightAt[0], cy: rightAt[1] });
+  const left = handTemplate(L);
+  const right = handTemplate(R);
+  const pose = custom("gap", {
+    bodyParts: ["leftHand", "rightHand"],
+    template: undefined,
+    hands: { left, right, gap: { x: right.position.x - left.position.x, y: right.position.y - left.position.y } },
+    ...extra,
+  });
+  return { pose, L, R };
+};
+const spread = () => [handSkeleton(STRAIGHT, { cx: 0.3 }), handSkeleton(STRAIGHT, { cx: 0.7 })] as const;
+
+test("gap: hands at the recorded spacing pass", () => {
+  const { pose, L, R } = twoHands([0.4, 0.5], [0.6, 0.5]);
+  assert.ok(score(pose, { left: reading(L), right: reading(R) })! >= 95);
+});
+
+test("gap: the same hands far apart score clearly lower than without a recorded gap", () => {
+  const { pose } = twoHands([0.4, 0.5], [0.6, 0.5]);
+  const [L, R] = spread();
+  const withGap = score(pose, { left: reading(L), right: reading(R) })!;
+  const noGap = score({ ...pose, hands: { ...pose.hands!, gap: undefined } }, { left: reading(L), right: reading(R) })!;
+  assert.ok(withGap < noGap - 3, `${withGap} vs ${noGap}`);
+});
+
+test("gap: mirrored performance passes with mirror on, not off", () => {
+  const { pose, L, R } = twoHands([0.45, 0.5], [0.75, 0.6], { mirror: true });
+  const live = { left: reading(flipX(R)), right: reading(flipX(L)) };
+  assert.ok(score(pose, live)! >= 90);
+  assert.ok((score({ ...pose, mirror: false }, live) ?? 0) < 80);
+});
+
+test("gap: has no effect when hand position is off", () => {
+  const { pose } = twoHands([0.4, 0.5], [0.6, 0.5], { handPosition: false });
+  const [L, R] = spread();
+  const live = { left: reading(L), right: reading(R) };
+  const noGap = score({ ...pose, hands: { ...pose.hands!, gap: undefined } }, live);
+  assert.equal(score(pose, live), noGap);
+  assert.ok(noGap! >= 95);
+});
+
+test("mirror flips the template: a sideways, off-centre right hand is matched by the left", () => {
+  const right = handSkeleton(
+    { thumb: 0, index: 1, middle: 1, ring: 1, pinky: 1 },
+    { cx: 0.75, thumbAngle: 0.9, angle: Math.PI / 2 }
+  );
+  const template = handTemplate(right);
+  const pose = handPose("flip", { hands: { right: template }, mirror: true });
+  const leftReading = flipX(right);
+  assert.ok(score(pose, { left: reading(leftReading) })! >= 80);
+  // Without the flip (un-mirrored template against the swapped reading) it is clearly wrong
+  assert.ok(scoreHand(leftReading, armsUp, 1, template, { position: true, direction: true }) < 50);
 });
