@@ -155,10 +155,13 @@ function combine(
     weight += POSITION_WEIGHT;
   }
   if (opts.direction) {
-    const aligned =
-      (2 - (angleDiff(direction.palm, t.direction.palm) + angleDiff(direction.thumb, t.direction.thumb)) / Math.PI) / 2;
-    // Gate: a hand pointing more than 90 degrees away from its recording is a different gesture (thumbs up is not thumbs down).
-    if (aligned < 0.5) return 0;
+    // The thumb's direction only means something when the recording cares about the thumb
+    const diffs = [angleDiff(direction.palm, t.direction.palm)];
+    if (t.fingers.thumb !== "any") diffs.push(angleDiff(direction.thumb, t.direction.thumb));
+    // Gate on the worst angle, not the mean: a real thumbs down is diagonal, so the thumb turns ~110 degrees
+    // while the palm barely moves, and the mean stayed under 90 (thumbs up is not thumbs down).
+    if (Math.max(...diffs) > Math.PI / 2) return 0;
+    const aligned = diffs.reduce((sum, d) => sum + (1 - d / Math.PI), 0) / diffs.length;
     total += DIRECTION_WEIGHT * aligned;
     weight += DIRECTION_WEIGHT;
   }
