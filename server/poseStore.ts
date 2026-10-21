@@ -146,16 +146,21 @@ export class PoseStore {
     try {
       const loose = looseFileSchema.parse(JSON.parse(fs.readFileSync(this.file, "utf8")));
       const usable = loose.poses.filter(hasHandTemplates);
-      if (usable.length !== loose.poses.length) {
-        const dropped = loose.poses.filter((pose) => !hasHandTemplates(pose)).map((pose) => pose.id);
+      const dropped = loose.poses.filter((pose) => !hasHandTemplates(pose)).map((pose) => pose.id);
+      if (dropped.length > 0) {
         // The re-save below rewrites the file: keep the original, a recording is hard to recreate
         const backup = `${this.file}.bad-${Date.now()}`;
-        fs.copyFileSync(this.file, backup);
+        try {
+          fs.copyFileSync(this.file, backup);
+        } catch (copyErr) {
+          logger.error({ err: copyErr, file: this.file }, "Failed to back up poses file before dropping poses");
+        }
         logger.warn({ poseIds: dropped, backup }, "Dropping poses with a ticked hand but no template");
       }
       const parsed: PosesFile = { ...loose, poses: usable };
       const complete = this.withBuiltin(parsed);
-      if (complete.poses.length !== loose.poses.length) {
+      const builtinReAdded = complete.poses.length > usable.length;
+      if (dropped.length > 0 || builtinReAdded) {
         this.save(complete);
         return this.get();
       }

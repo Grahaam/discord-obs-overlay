@@ -169,3 +169,23 @@ test("skips (not crashes) a hand-edited file with a ticked hand and no template"
   assert.equal(fs.readFileSync(path.join(path.dirname(file), backup), "utf8"), original);
   assert.ok(!fs.readFileSync(file, "utf8").includes("bad-hand"));
 });
+
+test("dropping a bad pose while re-adding the built-in still re-saves, once", () => {
+  const file = makeFile();
+  const dir = path.dirname(file);
+  const bad = customPose({ id: "bad-hand", bodyParts: ["leftHand"] });
+  fs.writeFileSync(file, JSON.stringify({ version: 1, poses: [bad], hiddenBuiltins: [] }));
+  const backups = () => fs.readdirSync(dir).filter((n) => n.startsWith("poses.json.bad-"));
+
+  const loaded = new PoseStore(file, legacy).load();
+  assert.deepEqual(
+    loaded.poses.map((p) => p.id),
+    ["absolute-cinema"]
+  );
+  const onDisk = fs.readFileSync(file, "utf8");
+  assert.ok(onDisk.includes("absolute-cinema") && !onDisk.includes("bad-hand"));
+  assert.equal(backups().length, 1);
+
+  new PoseStore(file, legacy).load();
+  assert.equal(backups().length, 1);
+});
