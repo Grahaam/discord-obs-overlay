@@ -271,7 +271,9 @@ async function runServer() {
     const distPath = APP_PATHS.distDir;
     app.use(express.static(distPath));
     app.get("/{*splat}", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      // `root`: send ignores paths with a dot-folder in them, so a full path under e.g. .claude/ or a
+      // dotted install folder 404'd every page but "/"; with root only "index.html" itself is checked
+      res.sendFile("index.html", { root: distPath });
     });
   } else {
     const { createServer: createViteServer } = await import("vite");
