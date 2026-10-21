@@ -21,8 +21,13 @@ export const APP_PATHS = {
   distDir: path.join(appDir, "dist"),
   packageJson: path.join(appDir, "package.json"),
   venvDir: path.join(appDir, ".venv"),
-  // Pose detection: MediaPipe runtime + model, both shipped with the app.
-  mediapipeWasmDir: path.join(appDir, "node_modules", "@mediapipe", "tasks-vision", "wasm"),
+  // Pose detection: MediaPipe runtime + model, both shipped with the app. The build copies the runtime
+  // into dist/ (node_modules/@mediapipe is a dev dependency, not packaged); dev serves it from
+  // node_modules so it always matches the installed package version.
+  mediapipeWasmDir:
+    process.env.NODE_ENV === "production"
+      ? path.join(appDir, "dist", "mediapipe", "wasm")
+      : path.join(appDir, "node_modules", "@mediapipe", "tasks-vision", "wasm"),
   modelsDir: path.join(appDir, "models"),
 };
 
