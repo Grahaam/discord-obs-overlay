@@ -87,12 +87,6 @@ const looseFileSchema = z.object({
   hiddenBuiltins: z.array(z.string()),
 });
 
-function isUsablePose(pose: ParsedPose): boolean {
-  if (hasHandTemplates(pose)) return true;
-  logger.warn({ poseId: pose.id }, "Dropping pose with a ticked hand but no template");
-  return false;
-}
-
 export type LegacyPoseSettings = {
   poseAlertImageUrl?: string;
   poseAlertSoundUrl?: string;
@@ -151,7 +145,15 @@ export class PoseStore {
 
     try {
       const loose = looseFileSchema.parse(JSON.parse(fs.readFileSync(this.file, "utf8")));
-      const parsed: PosesFile = { ...loose, poses: loose.poses.filter(isUsablePose) };
+      const usable = loose.poses.filter(hasHandTemplates);
+      if (usable.length !== loose.poses.length) {
+        const dropped = loose.poses.filter((pose) => !hasHandTemplates(pose)).map((pose) => pose.id);
+        // The re-save below rewrites the file: keep the original, a recording is hard to recreate
+        const backup = `${this.file}.bad-${Date.now()}`;
+        fs.copyFileSync(this.file, backup);
+        logger.warn({ poseIds: dropped, backup }, "Dropping poses with a ticked hand but no template");
+      }
+      const parsed: PosesFile = { ...loose, poses: usable };
       const complete = this.withBuiltin(parsed);
       if (complete.poses.length !== loose.poses.length) {
         this.save(complete);

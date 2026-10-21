@@ -158,13 +158,14 @@ test("skips (not crashes) a hand-edited file with a ticked hand and no template"
   const seeded = new PoseStore(file, legacy).load();
   const bad = customPose({ id: "bad-hand", bodyParts: ["leftHand"] });
   const good = customPose({ id: "good", bodyParts: ["arms"] });
-  fs.writeFileSync(file, JSON.stringify({ ...seeded, poses: [...seeded.poses, bad, good] }));
+  const original = JSON.stringify({ ...seeded, poses: [...seeded.poses, bad, good] });
+  fs.writeFileSync(file, original);
   const loaded = new PoseStore(file, legacy).load();
   const ids = loaded.poses.map((p) => p.id);
   assert.ok(ids.includes("good"));
   assert.ok(!ids.includes("bad-hand"));
-  assert.equal(
-    fs.readdirSync(path.dirname(file)).some((n) => n.includes(".bad-")),
-    false
-  );
+  const backup = fs.readdirSync(path.dirname(file)).find((n) => n.startsWith("poses.json.bad-"));
+  assert.ok(backup);
+  assert.equal(fs.readFileSync(path.join(path.dirname(file), backup), "utf8"), original);
+  assert.ok(!fs.readFileSync(file, "utf8").includes("bad-hand"));
 });
