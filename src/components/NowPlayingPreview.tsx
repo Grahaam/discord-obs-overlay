@@ -48,7 +48,9 @@ export default function NowPlayingPreview({ alert }: { alert: AlertPayload | nul
       {/* Content overlay gradient */}
       <div
         className="absolute inset-0 z-[1] pointer-events-none"
-        style={{ background: `radial-gradient(ellipse at 50% 50%, transparent 0%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.9) 100%)` }}
+        style={{
+          background: `radial-gradient(ellipse at 50% 50%, transparent 0%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0.9) 100%)`,
+        }}
       />
 
       {/* Neon color glow accent */}
@@ -111,12 +113,12 @@ export default function NowPlayingPreview({ alert }: { alert: AlertPayload | nul
                 />
               </div>
               <div className="flex flex-col items-center text-center gap-0.5 max-w-full px-2">
-                 <span className="text-white font-black text-xs uppercase tracking-tight truncate w-full shadow-black drop-shadow-sm">
-                   {alert.title || "Unknown Track"}
-                 </span>
-                 <span className="text-white/40 text-[9px] font-mono uppercase tracking-widest truncate w-full">
-                   {alert.authorName}
-                 </span>
+                <span className="text-white font-black text-xs uppercase tracking-tight truncate w-full shadow-black drop-shadow-sm">
+                  {alert.title || "Unknown Track"}
+                </span>
+                <span className="text-white/40 text-[9px] font-mono uppercase tracking-widest truncate w-full">
+                  {alert.authorName}
+                </span>
               </div>
             </div>
           )}

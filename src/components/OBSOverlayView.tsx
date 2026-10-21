@@ -488,7 +488,11 @@ export default function OBSOverlayView() {
                       <div
                         ref={vizContainerRef}
                         className="mt-10 w-full z-10"
-                        style={{ maxWidth: 700, height: 240, maskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)" }}
+                        style={{
+                          maxWidth: 700,
+                          height: 240,
+                          maskImage: "linear-gradient(to right, transparent, black 15%, black 85%, transparent)",
+                        }}
                       />
 
                       <audio
