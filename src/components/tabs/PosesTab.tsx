@@ -7,7 +7,7 @@ import { usePoseRecorder } from "../../hooks/usePoseRecorder";
 import { visiblePoses } from "../../lib/poseMedia";
 import { posesNeedHands, scoreFrame } from "../../lib/poseScoring";
 import { fingerCurls, handsLookAlike } from "../../lib/handMatcher";
-import { ticksToParts, type RecordPart, type RecordTicks } from "../../lib/handRecording";
+import { mergeHandRecording, ticksToParts, type RecordPart, type RecordTicks } from "../../lib/handRecording";
 import { SIMILAR_WARN, similarity } from "../../lib/poseMatcher";
 import PoseCard from "../poses/PoseCard";
 import RecordControls from "../poses/RecordControls";
@@ -101,13 +101,13 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
       update({ ...current, poses: [...current.poses, pose] });
       setSelectedId(pose.id);
     } else {
-      // Parts not recorded this time (e.g. an unticked hand) keep their old template
-      const patch = (p: Pose): Pose => ({
-        ...p,
-        ...(template ? { template } : {}),
-        ...(hands ? { hands: { ...p.hands, ...hands } } : {}),
+      // Parts not recorded this time keep their old template; recorded ones become ticked
+      const parts = partsRef.current;
+      const result = { template, hands };
+      update({
+        ...current,
+        poses: current.poses.map((p) => (p.id === target.poseId ? mergeHandRecording(p, result, parts) : p)),
       });
-      update({ ...current, poses: current.poses.map((p) => (p.id === target.poseId ? patch(p) : p)) });
     }
   });
 
@@ -245,7 +245,9 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
             onPreview={() => preview(pose)}
             onOpenChange={(open) => setSelectedId(open ? pose.id : null)}
             onRecord={
-              pose.kind === "custom" ? () => record({ kind: "rerecord", poseId: pose.id }, pose.bodyParts) : undefined
+              pose.kind === "custom"
+                ? (parts) => record({ kind: "rerecord", poseId: pose.id }, parts ?? pose.bodyParts)
+                : undefined
             }
             recordDisabled={!cameraReady || recorder.busy}
             liveScore={scores ? (scores.get(pose.id) ?? null) : undefined}

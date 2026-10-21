@@ -1,9 +1,18 @@
 import assert from "node:assert/strict";
+import type { Pose } from "../types";
 import test from "node:test";
 import type { HandReading } from "./handCrop.js";
 import { handSkeleton, openPalm, victory } from "./handFixtures.js";
 import { handCentre } from "./handMatcher.js";
-import { buildRecording, clearFrame, recordParts, ticksToParts, type RecordedFrame } from "./handRecording.js";
+import {
+  buildRecording,
+  clearFrame,
+  liveHandFor,
+  mergeHandRecording,
+  recordParts,
+  ticksToParts,
+  type RecordedFrame,
+} from "./handRecording.js";
 import { armsUp } from "./poseFixtures.js";
 import { MIN_GOOD_FRAMES } from "./poseMatcher.js";
 
@@ -64,4 +73,24 @@ test("too few clear frames names the first part seen too rarely", () => {
 test("ticksToParts maps Body to arms + head", () => {
   assert.deepEqual(ticksToParts({ body: true, leftHand: false, rightHand: true }), ["arms", "head", "rightHand"]);
   assert.deepEqual(ticksToParts({ body: false, leftHand: false, rightHand: false }), []);
+});
+
+test("liveHandFor uses the same side, else the opposite one when mirrored", () => {
+  const live = { right: "R" };
+  assert.equal(liveHandFor("right", live, false), "R");
+  assert.equal(liveHandFor("left", live, false), undefined);
+  assert.equal(liveHandFor("left", live, true), "R");
+  assert.equal(liveHandFor("left", { left: "L", right: "R" }, true), "L");
+});
+
+test("mergeHandRecording adds the recorded part and keeps other templates", () => {
+  const old = buildRecording(times(MIN_GOOD_FRAMES, frame({ left: reading(openPalm) })), ["leftHand"]).hands!;
+  const pose = { bodyParts: ["arms", "head"], template: [], hands: { left: old.left } } as unknown as Pose;
+  const result = buildRecording(times(MIN_GOOD_FRAMES, frame({ right: reading(victory) })), ["rightHand"]);
+  const next = mergeHandRecording(pose, result, ["rightHand"]);
+  assert.deepEqual(next.bodyParts, ["arms", "head", "rightHand"]);
+  assert.equal(next.hands?.left, old.left);
+  assert.ok(next.hands?.right);
+  assert.equal(next.template, pose.template);
+  assert.deepEqual(mergeHandRecording(next, result, ["rightHand"]).bodyParts, ["arms", "head", "rightHand"]);
 });

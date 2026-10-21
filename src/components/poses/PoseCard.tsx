@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, ChevronDown, Circle, Eye, Trash2 } from "lucide-react";
 import type { BodyPart, Finger, Pose } from "../../types";
 import { hasMedia } from "../../lib/poseMedia";
+import { liveHandFor } from "../../lib/handRecording";
 import HandFingers from "./HandFingers";
 import PoseMediaEditor from "./PoseMediaEditor";
 import { FieldLabel, NumberField, Toggle, inputBase } from "./fields";
@@ -18,8 +19,8 @@ interface Props {
   onDelete: () => void;
   onPreview: () => Promise<string | null>;
   onOpenChange: (open: boolean) => void;
-  /** Re-records the template (custom poses only) */
-  onRecord?: () => void;
+  /** Re-records the template (custom poses only); `parts` limits it, e.g. to one hand */
+  onRecord?: (parts?: BodyPart[]) => void;
   recordDisabled: boolean;
   /** Live match % from the dashboard camera; undefined while the camera is off */
   liveScore?: number | null;
@@ -151,14 +152,32 @@ export default function PoseCard({
               <div className="flex flex-col gap-1.5">
                 <FieldLabel>{labels.bodyParts}</FieldLabel>
                 <div className="flex flex-wrap gap-x-4 gap-y-2">
-                  {BODY_PARTS.map((part) => (
-                    <Toggle
-                      key={part}
-                      checked={pose.bodyParts.includes(part)}
-                      onChange={(checked) => setPart(part, checked)}
-                      label={labels[part]}
-                    />
-                  ))}
+                  {BODY_PARTS.map((part) => {
+                    const side = part === "leftHand" ? "left" : part === "rightHand" ? "right" : null;
+                    // A hand can't be ticked before it is recorded (the store rejects a ticked hand with no template)
+                    if (side && !pose.hands?.[side] && !pose.bodyParts.includes(part)) {
+                      return (
+                        <button
+                          key={part}
+                          type="button"
+                          disabled={recordDisabled || !onRecord}
+                          onClick={() => onRecord?.([part])}
+                          className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1 text-[10px] font-mono text-white/60 hover:text-white disabled:opacity-40"
+                        >
+                          <Circle className="w-2.5 h-2.5 fill-red-400 text-red-400" />
+                          {labels[side === "left" ? "recordLeftHand" : "recordRightHand"]}
+                        </button>
+                      );
+                    }
+                    return (
+                      <Toggle
+                        key={part}
+                        checked={pose.bodyParts.includes(part)}
+                        onChange={(checked) => setPart(part, checked)}
+                        label={labels[part]}
+                      />
+                    );
+                  })}
                 </div>
               </div>
               {HAND_SIDES.some(({ part }) => pose.bodyParts.includes(part)) && (
@@ -172,7 +191,7 @@ export default function PoseCard({
                         {template ? (
                           <HandFingers
                             template={template}
-                            live={liveCurls?.[side]}
+                            live={liveCurls && liveHandFor(side, liveCurls, pose.mirror)}
                             onChange={(t) => set({ hands: { ...pose.hands, [side]: t } })}
                             labels={labels}
                           />
@@ -199,7 +218,7 @@ export default function PoseCard({
                 <button
                   type="button"
                   disabled={recordDisabled}
-                  onClick={onRecord}
+                  onClick={() => onRecord()}
                   className="self-start flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono text-white/60 hover:text-white disabled:opacity-40"
                 >
                   <Circle className="w-3 h-3 fill-red-400 text-red-400" />

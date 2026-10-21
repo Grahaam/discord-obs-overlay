@@ -111,3 +111,18 @@ export function ticksToParts(ticks: RecordTicks): BodyPart[] {
     ...(ticks.rightHand ? (["rightHand"] as const) : []),
   ];
 }
+
+/** The live reading to show for a side: its own, else the opposite one when the pose is mirrored. */
+export function liveHandFor<T>(side: "left" | "right", live: { left?: T; right?: T }, mirror: boolean): T | undefined {
+  return live[side] ?? (mirror ? live[side === "left" ? "right" : "left"] : undefined);
+}
+
+/** Applies a re-recording: recorded parts replace their templates and become ticked; the others are kept. */
+export function mergeHandRecording(pose: Pose, result: RecordingResult, parts: BodyPart[]): Pose {
+  return {
+    ...pose,
+    ...(result.template ? { template: result.template } : {}),
+    ...(result.hands ? { hands: { ...pose.hands, ...result.hands } } : {}),
+    bodyParts: [...new Set([...pose.bodyParts, ...parts])],
+  };
+}
