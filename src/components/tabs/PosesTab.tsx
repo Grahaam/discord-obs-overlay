@@ -284,6 +284,7 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
       <div className="flex gap-2 rounded-lg border border-white/[0.05] bg-white/[0.015] px-3 py-2.5">
         <Lightbulb className="w-3.5 h-3.5 shrink-0 text-white/30" />
         <ul className="flex flex-col gap-1 text-[10px] font-mono text-white/35 leading-relaxed">
+          <li>{labels.tipDistinct}</li>
           <li>{labels.tip2d}</li>
           <li>{labels.tipOnePerson}</li>
           <li>{labels.tipLight}</li>

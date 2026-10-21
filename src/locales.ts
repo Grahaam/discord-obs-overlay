@@ -71,6 +71,8 @@ export const locales = {
       statusNoSource: "OBS ne trouve pas cette source : vérifiez son nom exact.",
       statusError: "Impossible de lire la caméra, nouvel essai dans 5 s…",
       noPerson: "Aucune personne détectée",
+      tipDistinct:
+        "Choisissez une pose que vous ne faites pas par hasard (se gratter la tête, s'étirer, saluer) : bougez normalement devant la caméra et vérifiez que la barre ne passe pas au vert.",
       tip2d: "La détection est en 2D : faites la pose face à la caméra, comme à l’enregistrement.",
       tipOnePerson:
         "Une seule personne est suivie : si quelqu’un passe derrière vous, il peut être détecté à votre place.",
@@ -422,6 +424,8 @@ export const locales = {
       statusNoSource: "OBS can't find this source: check its exact name.",
       statusError: "Can't read the camera, retrying in 5 s…",
       noPerson: "Nobody detected",
+      tipDistinct:
+        "Pick a pose you don't make by accident (scratching your head, stretching, waving): move around normally in front of the camera and check the bar doesn't turn green.",
       tip2d: "Detection is 2D: strike the pose facing the camera, as when you recorded it.",
       tipOnePerson: "Only one person is tracked: someone walking behind you may be picked up instead.",
       tipLight: "In low light the points wobble and the percentage jumps around.",
@@ -765,6 +769,8 @@ export const locales = {
       statusNoSource: "OBS can't find this souwce: check its exact name >_<",
       statusError: "Can't wead the camewa, wetwying in 5 s…",
       noPerson: "Nobody detected uwu",
+      tipDistinct:
+        "Pick a pose you don't make by accident (scwatching youw head, stwetching, waving): move awound nowmawwy in fwont of the camewa and check the baw doesn't tuwn gween~",
       tip2d: "Detection is 2D: stwike the pose facing the camewa, as when you wecowded it~",
       tipOnePerson: "Onwy one pewson is twacked: someone wawking behind you may be picked up instead uwu",
       tipLight: "In wow wight the points wobbwe and the pewcentage jumps awound~",
@@ -1108,6 +1114,8 @@ export const locales = {
       statusNoSource: "OBS ne twouve pas cette souwce : véwifiez son nom exact >_<",
       statusError: "Impossibwe de wiwe wa caméwa, nouvew essai dans 5 s…",
       noPerson: "Aucune pewsonne détectée uwu",
+      tipDistinct:
+        "Choisissez une pose que vous ne faites pas paw hasawd (se gwattew wa tête, s'étiwew, sawuew) : bougez nowmawement devant wa caméwa et véwifiez que wa bawwe ne passe pas au vewt~",
       tip2d: "Wa détection est en 2D : faites wa pose face à wa caméwa, comme à w’enwegistwement~",
       tipOnePerson:
         "Une seuwe pewsonne est suivie : si quewqu’un passe dewwièwe vous, iw peut êtwe détecté à votwe pwace uwu",
