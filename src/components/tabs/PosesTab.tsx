@@ -116,7 +116,14 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
 
   const sourceName = config.poseCameraSource?.trim() ?? "";
   const { feed } = recorder;
-  const onFrame = useCallback((frame: PoseFrame) => feed(frame), [feed]);
+  const onFrame = useCallback(
+    (frame: PoseFrame) => {
+      // Dev only: lets real hand/body readings be copied out as test fixtures (window.__poseFrame)
+      if (import.meta.env.DEV) (window as unknown as { __poseFrame?: PoseFrame }).__poseFrame = frame;
+      feed(frame);
+    },
+    [feed]
+  );
   const visible = useMemo(() => (file ? visiblePoses(file) : []), [file]);
   // Hands are read when a visible pose uses them (enabled or not, for the live chips) or a recording tick asks
   const posesHands = useMemo(() => posesNeedHands(visible.map((p) => ({ ...p, enabled: true }))), [visible]);
