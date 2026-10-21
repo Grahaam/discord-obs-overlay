@@ -10,6 +10,67 @@ export type AlertPosition =
   | "bottom-center"
   | "bottom-right";
 export type AlertAnimation = "slide-up" | "fade" | "zoom" | "bounce";
+export type BodyPart = "arms" | "legs" | "head" | "leftHand" | "rightHand";
+export type Finger = "thumb" | "index" | "middle" | "ring" | "pinky";
+export type FingerState = "up" | "down" | "any";
+export interface HandTemplate {
+  fingers: Record<Finger, FingerState>;
+  /** 0–1, as recorded (shown on the card) */
+  curls: Record<Finger, number>;
+  /** hand centre (mean of 0, 5, 9, 13, 17), shoulder-normalised */
+  position: { x: number; y: number };
+  /** radians: wrist→middle knuckle (0→9), thumb base→tip (2→4), aspect-corrected */
+  direction: { palm: number; thumb: number };
+}
+
+export interface NormalizedPoint {
+  x: number;
+  y: number;
+  visibility: number;
+}
+
+export interface PoseMedia {
+  type: "image" | "video";
+  imageUrl?: string;
+  soundUrl?: string;
+  videoUrl?: string;
+  volume: number;
+  durationSeconds?: number;
+  maxDurationSeconds: number;
+  fullscreen: boolean;
+}
+
+export interface PoseAlertPayload {
+  poseId: string;
+  media: PoseMedia;
+}
+
+export interface Pose {
+  id: string;
+  name: string;
+  kind: "custom" | "builtin";
+  builtinId?: "absolute-cinema";
+  enabled: boolean;
+  template?: NormalizedPoint[];
+  bodyParts: BodyPart[];
+  threshold: number;
+  mirror: boolean;
+  holdMs: number;
+  cooldownSeconds: number;
+  media: PoseMedia;
+  /** gap = right centre − left centre, in shoulder units */
+  hands?: { left?: HandTemplate; right?: HandTemplate; gap?: { x: number; y: number } };
+  /** undefined means true */
+  handPosition?: boolean;
+  /** undefined means true */
+  handDirection?: boolean;
+}
+
+export interface PosesFile {
+  version: 1;
+  poses: Pose[];
+  hiddenBuiltins: string[];
+}
 
 export interface UIConfig {
   discordToken: string;

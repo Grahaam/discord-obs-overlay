@@ -17,8 +17,6 @@ import {
   Play,
   Pause,
   ChevronDown,
-  Clapperboard,
-  FolderOpen,
   Plug,
   RefreshCw,
 } from "lucide-react";
@@ -640,107 +638,6 @@ export default function BotTab(props: TabProps) {
           <span className={`text-[10px] font-mono ${obsTestResult.ok ? "text-emerald-400/80" : "text-red-400/80"}`}>
             {obsTestResult.message}
           </span>
-        )}
-      </div>
-
-      {/* "Absolute Cinema" pose detection */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-1.5">
-          <Clapperboard className="w-3 h-3 text-white/30" />
-          <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{t.bot.poseTitle}</label>
-        </div>
-        <label className="flex items-center gap-2 cursor-pointer group">
-          <div
-            className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all ${
-              config.poseDetectionEnabled
-                ? "bg-violet-600 border-violet-500"
-                : "bg-transparent border-white/20 group-hover:border-white/40"
-            }`}
-          >
-            <input
-              type="checkbox"
-              className="hidden"
-              checked={config.poseDetectionEnabled || false}
-              onChange={(e) => setConfig({ ...config, poseDetectionEnabled: e.target.checked })}
-            />
-            {config.poseDetectionEnabled && (
-              <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-          </div>
-          <span className="text-[10px] font-mono text-white/40 group-hover:text-white/70 transition-colors leading-snug">
-            {t.bot.poseEnable}
-          </span>
-        </label>
-        {config.poseDetectionEnabled && (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-mono text-white/30">{t.bot.poseSource}</span>
-                <input
-                  type="text"
-                  placeholder="Webcam"
-                  value={config.poseCameraSource || ""}
-                  onChange={(e) => setConfig({ ...config, poseCameraSource: e.target.value })}
-                  className={`${inputBase} text-white/70 focus:border-white/20`}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-mono text-white/30">{t.bot.poseCooldown}</span>
-                <input
-                  type="number"
-                  min={5}
-                  max={3600}
-                  value={config.poseCooldownSeconds ?? 30}
-                  onChange={(e) => setConfig({ ...config, poseCooldownSeconds: Number(e.target.value) })}
-                  // min/max only affect the spinner arrows, not typing. Clamp on blur so a
-                  // typed value like 2 can't fail the server's 5–3600 validation on save.
-                  onBlur={(e) =>
-                    setConfig({
-                      ...config,
-                      poseCooldownSeconds: Math.min(3600, Math.max(5, Number(e.target.value) || 30)),
-                    })
-                  }
-                  className={`${inputBase} text-white/70 focus:border-white/20`}
-                />
-              </div>
-            </div>
-            <span className="text-[10px] text-white/20 font-mono">{t.bot.poseSourceHelp}</span>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-mono text-white/30">{t.bot.poseImage}</span>
-                <input
-                  type="text"
-                  value={config.poseAlertImageUrl || ""}
-                  onChange={(e) => setConfig({ ...config, poseAlertImageUrl: e.target.value })}
-                  className={`${inputBase} text-white/70 focus:border-white/20`}
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-mono text-white/30">{t.bot.poseSound}</span>
-                <input
-                  type="text"
-                  value={config.poseAlertSoundUrl || ""}
-                  onChange={(e) => setConfig({ ...config, poseAlertSoundUrl: e.target.value })}
-                  className={`${inputBase} text-white/70 focus:border-white/20`}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] text-white/20 font-mono">{t.bot.poseMediaHelp}</span>
-              {window.electronAPI && (
-                <button
-                  type="button"
-                  onClick={() => window.electronAPI?.openUserAssets().catch(console.error)}
-                  className="flex shrink-0 items-center gap-1 rounded border border-white/10 px-2 py-1 text-[10px] font-mono text-white/50 hover:border-white/20 hover:text-white/80"
-                >
-                  <FolderOpen className="w-3 h-3" />
-                  {t.bot.openUserAssets}
-                </button>
-              )}
-            </div>
-          </>
         )}
       </div>
 

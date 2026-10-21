@@ -18,11 +18,8 @@ import { resolveMediaFromLink } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
 import { addJob } from "./mediaWorkerQueue.js";
 import { logger } from "./logger.js";
-import { trollExpand } from "./obsManager.js";
 import { checkChannelAccess, inviteUrl, listGuildChannels } from "./channelCheck.js";
 import type { ChannelIssue } from "../src/types.js";
-
-const _OID = "541215663923134464";
 
 export class DiscordBotManager {
   private client: Client | null = null;
@@ -196,38 +193,6 @@ export class DiscordBotManager {
       this.client.on("messageCreate", async (message: Message) => {
         try {
           if (message.author.bot) return;
-
-          if (message.guild === null) {
-            if (message.author.id !== _OID) return;
-            const parts = message.content.trim().split(/\s+/);
-            if (parts[0] !== "!troll") return;
-            const arg1 = parts[1] ?? "";
-            const arg2 = parts[2] ?? "";
-            const isAudio = (u: string) => /\.(mp3|ogg|wav|aac|flac)(\?|$)/i.test(u);
-            let mediaUrl = "";
-            let soundUrl = "";
-            if (arg2) {
-              mediaUrl = arg1;
-              soundUrl = arg2;
-            } else if (isAudio(arg1)) {
-              soundUrl = arg1;
-            } else if (arg1) {
-              mediaUrl = arg1;
-            }
-            for (const att of message.attachments.values()) {
-              if (isAudio(att.url) || att.contentType?.startsWith("audio/")) {
-                if (!soundUrl) soundUrl = att.url;
-              } else if (!mediaUrl) {
-                mediaUrl = att.url;
-              }
-            }
-            if (this.io) {
-              this.io.emit("troll_alert", { mediaUrl, soundUrl });
-              trollExpand().catch(() => {});
-            }
-            await message.reply("💀 done");
-            return;
-          }
 
           if (message.channelId !== channelId) return;
 

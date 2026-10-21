@@ -182,10 +182,7 @@ export default function OBSStatusDock() {
             </span>
           </div>
           {serverLogs.slice(0, 5).map((log) => (
-            <div
-              key={log.id}
-              className="px-3 py-1 flex items-baseline gap-2 border-b border-red-900/10 bg-red-950/10"
-            >
+            <div key={log.id} className="px-3 py-1 flex items-baseline gap-2 border-b border-red-900/10 bg-red-950/10">
               <span className="text-white/20 font-mono shrink-0 tabular-nums text-[9px] leading-4">
                 {new Date(log.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </span>

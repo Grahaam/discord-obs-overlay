@@ -216,7 +216,9 @@ export default function OBSQueueDock() {
         <div className="px-3 py-2 border-b border-indigo-500/20 bg-indigo-950/20 flex items-center gap-2">
           <Play className="w-2.5 h-2.5 text-indigo-400 shrink-0 animate-pulse" />
           <div className="flex-1 min-w-0">
-            <div className="text-indigo-200 text-[9px] font-bold uppercase tracking-widest mb-0.5">{t.dock.nowPlaying}</div>
+            <div className="text-indigo-200 text-[9px] font-bold uppercase tracking-widest mb-0.5">
+              {t.dock.nowPlaying}
+            </div>
             <div className="text-white/80 text-[10px] font-semibold truncate">
               {nowPlaying.title || nowPlaying.text || nowPlaying.authorName}
             </div>

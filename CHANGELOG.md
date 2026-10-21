@@ -2,6 +2,28 @@
 
 Toutes les modifications notables sont listées ici. Format : [Keep a Changelog](https://keepachangelog.com/fr/), versions : [SemVer](https://semver.org/lang/fr/).
 
+## [Non publié]
+
+### Ajouté
+
+- **Poses personnalisées** : nouvel onglet **Poses** dans le tableau de bord. Enregistrez vos propres poses devant la caméra (compte à rebours 3-2-1, capture jusqu'à 10 images nettes), avec le squelette en direct et le pourcentage de correspondance de chaque pose.
+- **Poses de mains** : pour chaque doigt, levé / baissé / indifférent (corrigeable après l'enregistrement), plus la position et la direction de la main (👍 ≠ 👎) et l'écart entre les deux mains (🫶, 🙏). Le mode miroir reconnaît aussi l'autre main.
+- **Média par pose** : image/GIF + son, ou vidéo, avec volume, durée maximale, plein écran OBS ou non, délai entre deux déclenchements, et prévisualisation sur l'overlay. Les fichiers s'envoient depuis le tableau de bord (plus besoin de les copier dans `user-assets/`).
+- Avertissement quand deux poses se ressemblent trop, conseils pour choisir une pose qu'on ne fait pas par hasard, et message clair quand la source caméra n'a pas d'image dans OBS.
+
+### Modifié
+
+- La pose « Absolute Cinema » devient une pose intégrée avec les mêmes réglages ; elle peut être supprimée puis restaurée. Les anciens réglages (image, son, délai) sont repris automatiquement dans `poses.json`.
+- Application plus légère : environ 467 Mo installée au lieu de 570 Mo (langues Electron limitées à fr/en, paquets du tableau de bord plus embarqués deux fois, seul le moteur MediaPipe utilisé est fourni).
+
+### Supprimé
+
+- La commande Discord `!troll` : n'importe quel membre du salon pouvait afficher un média en plein écran sur le live.
+
+### Corrigé
+
+- En production, les pages autres que `/` (dont `/overlay`) renvoyaient une erreur quand l'application était installée dans un dossier dont le chemin contient un dossier commençant par un point.
+
 ## [2.0.0] — 2026-06-12
 
 > **Version majeure.** Le produit est renommé, le mode d'installation recommandé change, et les données utilisateur déménagent en mode packagé. Voir [Migration depuis 1.9.x](#migration-depuis-19x).

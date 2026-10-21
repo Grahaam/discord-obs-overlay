@@ -582,7 +582,8 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
         : `best[height<=${quality}][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best`,
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    ...(!downloadUrl.includes("x.com") && !downloadUrl.includes("twitter.com") && { referer: "https://www.google.com/" }),
+    ...(!downloadUrl.includes("x.com") &&
+      !downloadUrl.includes("twitter.com") && { referer: "https://www.google.com/" }),
     geoBypass: true,
     forceIpv4: true,
     output: tempFilepath,
