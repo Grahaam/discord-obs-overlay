@@ -3,7 +3,7 @@ import { useQueueStore } from "../store/queueStore";
 import { usePoseLandmarks, type PoseFrame } from "../hooks/usePoseLandmarks";
 import { usePoses } from "../hooks/usePoses";
 import { createHoldTracker } from "../lib/poseMatcher";
-import { detectablePoses, scoreFrame } from "../lib/poseScoring";
+import { detectablePoses, posesNeedHands, scoreFrame } from "../lib/poseScoring";
 
 interface PoseSettings {
   poseDetectionEnabled?: boolean;
@@ -31,10 +31,12 @@ export default function PoseDetector({ isLeader }: { isLeader: boolean }) {
   useEffect(() => {
     posesRef.current = poses;
   }, [poses]);
+  // Memoised so the capture loop only restarts when the needed hands change
+  const hands = useMemo(() => posesNeedHands(poses), [poses]);
   const trackerRef = useRef(createHoldTracker());
 
   const onFrame = useCallback((frame: PoseFrame) => {
-    const scores = scoreFrame(posesRef.current, frame.landmarks, frame.aspect);
+    const scores = scoreFrame(posesRef.current, frame.landmarks, frame.aspect, frame.hands);
     const poseId = trackerRef.current.update(scores, frame.time);
     if (poseId) useQueueStore.getState().socketRef.current?.emit("pose_detected", { poseId });
   }, []);
@@ -45,6 +47,7 @@ export default function PoseDetector({ isLeader }: { isLeader: boolean }) {
     active: isLeader && settings?.poseDetectionEnabled === true && poses.length > 0,
     sourceName,
     onFrame,
+    hands,
   });
 
   return null;

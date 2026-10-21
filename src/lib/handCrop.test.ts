@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assignToWrists, cropToFrame, frameToCrop, handCrop, mergeCrops, type HandReading } from "./handCrop.js";
+import {
+  assignToWrists,
+  cropToFrame,
+  frameToCrop,
+  handCrop,
+  mergeCrops,
+  planHandCrops,
+  type HandReading,
+} from "./handCrop.js";
 import { handSkeleton, openPalm } from "./handFixtures.js";
 import { armsUp, skeleton } from "./poseFixtures.js";
 
@@ -104,4 +112,18 @@ test("assignToWrists tolerates empty hands and missing wrists", () => {
   const hand = handSkeleton({ thumb: 0, index: 0, middle: 0, ring: 0, pinky: 0 });
   assert.deepEqual(assignToWrists([[]], armsUp), {});
   assert.deepEqual(assignToWrists([hand], []), {});
+});
+
+test("planHandCrops merges overlapping crops and keeps distant ones apart", () => {
+  const a = { cx: 300, cy: 200, size: 120, angle: 0 };
+  const near = { cx: 320, cy: 210, size: 120, angle: 0 };
+  const far = { cx: 600, cy: 400, size: 120, angle: 0 };
+  const merged = planHandCrops(a, near);
+  assert.deepEqual(Object.keys(merged), ["merged"]);
+  assert.deepEqual(merged.merged, mergeCrops(a, near));
+  assert.equal(mergeCrops(a, far), null);
+  assert.deepEqual(planHandCrops(a, far), { left: a, right: far });
+  assert.deepEqual(planHandCrops(null, far), { right: far });
+  assert.deepEqual(planHandCrops(a, undefined), { left: a });
+  assert.deepEqual(planHandCrops(null, null), {});
 });

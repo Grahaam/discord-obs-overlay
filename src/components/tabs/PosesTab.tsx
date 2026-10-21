@@ -64,6 +64,7 @@ const STATUS_LABEL: Record<PoseLandmarksStatus, string> = {
   "no-obs": "statusNoObs",
   "no-source": "statusNoSource",
   error: "statusError",
+  "hands-unavailable": "", // the dashboard only requests hands from Task 5, which adds its warning
 };
 
 export default function PosesTab({ config, setConfig, saveSettings, t }: Props) {

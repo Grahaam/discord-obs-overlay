@@ -174,3 +174,18 @@ export function assignToWrists(
   }
   return { ...(best.left && { left: best.left }), ...(best.right && { right: best.right }) };
 }
+
+/**
+ * Which hand-model runs a frame needs: one run on the merged box when both crops overlap enough,
+ * otherwise one run per crop that exists.
+ */
+export function planHandCrops(
+  left: CropBox | null | undefined,
+  right: CropBox | null | undefined
+): { merged?: CropBox; left?: CropBox; right?: CropBox } {
+  if (left && right) {
+    const merged = mergeCrops(left, right);
+    if (merged) return { merged };
+  }
+  return { ...(left && { left }), ...(right && { right }) };
+}
