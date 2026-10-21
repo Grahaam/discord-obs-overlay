@@ -92,9 +92,12 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
   // usePoseRecorder always calls the latest version of this callback, so `file` is current
   const recorder = usePoseRecorder(({ template, hands, error: missing }) => {
     const current = file;
-    if (missing) return setRecordError(labels[RECORD_ERROR[missing]]);
-    if (!current) return;
     const target = targetRef.current;
+    if (missing) {
+      const brandNew = missing === "body" && target.kind === "new";
+      return setRecordError(labels[brandNew ? "recordFailedNew" : RECORD_ERROR[missing]]);
+    }
+    if (!current) return;
     if (target.kind === "new") {
       const count = current.poses.filter((p) => p.kind === "custom").length;
       const pose = newPose(template, hands, partsRef.current, `${labels.myPose} ${count + 1}`);

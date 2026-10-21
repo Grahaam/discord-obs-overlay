@@ -57,6 +57,7 @@ export const locales = {
       recording: "Tenez la pose…",
       recordFailed:
         "Je ne vous ai pas bien vu : vérifiez l’éclairage ou reculez un peu. L’ancienne pose est conservée.",
+      recordFailedNew: "Je ne vous ai pas bien vu : vérifiez l’éclairage ou reculez un peu.",
       myPose: "Ma pose",
       match: "Correspondance",
       tooSimilar: "Ressemble beaucoup à « {name} » : elles risquent de se déclencher l’une l’autre.",
@@ -403,6 +404,7 @@ export const locales = {
       recordHelp: "3 s countdown, then hold the pose until 10 clear frames (2 to 6 s).",
       recording: "Hold the pose…",
       recordFailed: "Couldn't see you clearly: check the lighting or step back a little. The old pose is kept.",
+      recordFailedNew: "Couldn't see you clearly: check the lighting or step back a little.",
       myPose: "My pose",
       match: "Match",
       tooSimilar: 'Looks a lot like "{name}": they may trigger each other.',
@@ -741,6 +743,7 @@ export const locales = {
       recordHelp: "3 s countdown, then howd the pose untiw 10 cweaw fwames (2 to 6 s) uwu",
       recording: "Howd the pose…",
       recordFailed: "Couwdn't see you cweawwy: check the wighting ow step back a wittwe >_< The owd pose is kept.",
+      recordFailedNew: "Couwdn't see you cweawwy: check the wighting ow step back a wittwe >_<",
       myPose: "My pose",
       match: "Match",
       tooSimilar: 'Wooks a wot wike "{name}": they may twiggew each othew >_<',
@@ -1079,6 +1082,7 @@ export const locales = {
       recording: "Tenez wa pose…",
       recordFailed:
         "Je ne vous ai pas bien vu : véwifiez w’écwaiwage ou weculez un peu >_< W’ancienne pose est consewvée.",
+      recordFailedNew: "Je ne vous ai pas bien vu : véwifiez w’écwaiwage ou weculez un peu >_<",
       myPose: "Ma pose",
       match: "Correspondance",
       tooSimilar: "Wessembwe beaucoup à « {name} » : ewwes wisquent de se décwenchew w’une w’autwe >_<",
