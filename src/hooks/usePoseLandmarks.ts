@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker, PoseLandmarker } from "@mediapipe/tasks-vision";
 import OBSWebSocket from "obs-websocket-js";
 import type { NormalizedPoint } from "../types";
-import { CROP_PX } from "../lib/handCrop";
-import { runHandPass, type HandLandmarkers, type LiveCrops, type LiveHands } from "../lib/handPass";
+import { runHandPass, type LiveHands } from "../lib/handPass";
 
 const FRAME_INTERVAL_MS = 100; // ~10 fps is plenty for a held pose
 const FRAME_WIDTH = 320;
@@ -36,11 +35,6 @@ export interface PoseFrame {
   time: number;
   /** Hands found this frame (only when hands were requested) */
   hands?: LiveHands;
-  /** Hand crops in screenshot pixels, for the visualiser */
-  crops?: LiveCrops;
-  /** Size of the screenshot the crops refer to */
-  frameWidth?: number;
-  frameHeight?: number;
 }
 
 interface ObsConnection {
@@ -66,30 +60,22 @@ async function withFallback<T>(delegate: Delegate, create: (d: Delegate) => Prom
   }
 }
 
-/** Two instances (numHands 1 per crop, numHands 2 for the merged crop) so options never switch per frame. */
-async function createHandLandmarkers(vision: Vision, delegate: Delegate): Promise<HandLandmarkers> {
-  const create = (numHands: number) =>
-    withFallback(delegate, (d) =>
-      HandLandmarker.createFromOptions(vision, {
-        baseOptions: { modelAssetPath: "/models/hand_landmarker.task", delegate: d },
-        runningMode: "IMAGE",
-        numHands,
-      })
-    );
-  const single = await create(1);
-  try {
-    return { single, double: await create(2) };
-  } catch (err) {
-    single.close();
-    throw err;
-  }
+/** Two hands, whole frame: each found hand is matched to a body wrist afterwards. */
+function createHandLandmarker(vision: Vision, delegate: Delegate): Promise<HandLandmarker> {
+  return withFallback(delegate, (d) =>
+    HandLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: "/models/hand_landmarker.task", delegate: d },
+      runningMode: "IMAGE",
+      numHands: 2,
+    })
+  );
 }
 
 /**
  * Grabs frames of an OBS source through obs-websocket (no webcam access needed) and runs
  * MediaPipe pose detection on them. Shared by the overlay detector and the dashboard
  * Poses tab, so both see exactly the same camera, crop and landmarks.
- * With `hands`, the hand model also runs on crops around the requested wrists.
+ * With `hands`, the hand model also runs on the whole (bigger) screenshot.
  */
 export function usePoseLandmarks({
   active,
@@ -128,12 +114,10 @@ export function usePoseLandmarks({
     let lastConnCheck = 0;
 
     const wantHands = wantLeft || wantRight;
-    let handLandmarkers: HandLandmarkers | null = null;
+    let handLandmarker: HandLandmarker | null = null;
     let handsFailed = false; // one failed load per hook instance, never retried
-    let previousHands: LiveHands = {};
     let handPassWarned = false;
     let bodyCtx: OffscreenCanvasRenderingContext2D | null = null;
-    let cropCtx: OffscreenCanvasRenderingContext2D | null = null;
 
     obs.on("ConnectionClosed", () => {
       obsConnected = false;
@@ -146,13 +130,12 @@ export function usePoseLandmarks({
     // Lazy: only the first frame that needs hands pays for the model; a failure is final for this instance
     const loadHands = async (v: Vision) => {
       try {
-        const made = await createHandLandmarkers(v, delegate);
+        const made = await createHandLandmarker(v, delegate);
         if (stopped) {
-          made.single.close();
-          made.double.close();
+          made.close();
           return;
         }
-        handLandmarkers = made;
+        handLandmarker = made;
       } catch (err) {
         console.warn("[usePoseLandmarks] hand model unavailable, body only", err);
         handsFailed = true;
@@ -246,33 +229,24 @@ export function usePoseLandmarks({
       const next: PoseFrame = { landmarks, aspect, frameUrl, time };
       if (!wantHands) return next;
 
-      if (landmarks && !handLandmarkers && !handsFailed) await loadHands(vision!);
-      if (!landmarks || !handLandmarkers || stopped) {
-        previousHands = {};
-        return next;
-      }
-      cropCtx ??= new OffscreenCanvas(CROP_PX, CROP_PX).getContext("2d");
-      if (!cropCtx) throw new Error("no 2d context");
-      let pass;
+      if (landmarks && !handLandmarker && !handsFailed) await loadHands(vision!);
+      if (!landmarks || !handLandmarker || stopped) return next;
+      let hands: LiveHands;
       try {
-        pass = runHandPass({
-          landmarkers: handLandmarkers,
-          ctx: cropCtx,
+        ({ hands } = runHandPass({
+          landmarker: handLandmarker,
           source: bitmap,
           body: landmarks,
           sides: { left: wantLeft, right: wantRight },
-          previous: previousHands,
           now: time,
-        });
+        }));
       } catch (err) {
         // A hand model error must not cost the body frame: skip the hands this frame
         if (!handPassWarned) console.warn("[usePoseLandmarks] hand pass failed", err);
         handPassWarned = true;
-        previousHands = {};
         return next;
       }
-      previousHands = pass.hands; // a side not found this frame is dropped, not followed
-      return { ...next, ...pass, frameWidth: bitmap.width, frameHeight: bitmap.height };
+      return { ...next, hands };
     };
 
     schedule(0);
@@ -281,8 +255,7 @@ export function usePoseLandmarks({
       stopped = true;
       clearTimeout(timer);
       landmarker?.close();
-      handLandmarkers?.single.close();
-      handLandmarkers?.double.close();
+      handLandmarker?.close();
       obs.disconnect().catch(() => {});
       setFrame(null);
       setStatus("idle");

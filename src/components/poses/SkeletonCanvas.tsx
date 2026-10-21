@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { HandLandmarker, PoseLandmarker } from "@mediapipe/tasks-vision";
 import type { NormalizedPoint, Pose } from "../../types";
-import type { CropBox } from "../../lib/handCrop";
 import type { PoseFrame } from "../../hooks/usePoseLandmarks";
 import { MIN_VISIBILITY } from "../../lib/poseMatcher";
 
@@ -71,20 +70,6 @@ function ghostToPixels(
   }));
 }
 
-/** The rotated square the hand model looked at, scaled from screenshot pixels to the canvas. */
-function drawCrop(ctx: CanvasRenderingContext2D, box: CropBox, scaleX: number, scaleY: number) {
-  ctx.save();
-  // The crop turns the frame by `angle`, so the box sits at -angle in frame space
-  ctx.scale(scaleX, scaleY);
-  ctx.translate(box.cx, box.cy);
-  ctx.rotate(-box.angle);
-  ctx.strokeStyle = `${HAND_COLOR}80`;
-  ctx.lineWidth = 1.5 / scaleX;
-  ctx.setLineDash([6 / scaleX, 4 / scaleX]);
-  ctx.strokeRect(-box.size / 2, -box.size / 2, box.size, box.size);
-  ctx.restore();
-}
-
 function drawHand(ctx: CanvasRenderingContext2D, points: { x: number; y: number }[], h: number) {
   const px = points.map((p) => ({ x: p.x * WIDTH, y: p.y * h }));
   ctx.strokeStyle = HAND_COLOR;
@@ -135,11 +120,6 @@ export default function SkeletonCanvas({ frame, ghost, ghostHands, overlay }: Pr
           ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
           ctx.fill();
         }
-      }
-      if (frame?.crops && frame.frameWidth && frame.frameHeight) {
-        const sx = WIDTH / frame.frameWidth;
-        const sy = height / frame.frameHeight;
-        for (const box of [frame.crops.left, frame.crops.right]) if (box) drawCrop(ctx, box, sx, sy);
       }
       for (const hand of [frame?.hands?.left, frame?.hands?.right]) if (hand) drawHand(ctx, hand.points, height);
       if (frame?.landmarks) {
