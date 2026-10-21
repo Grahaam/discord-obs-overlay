@@ -117,12 +117,18 @@ export function liveHandFor<T>(side: "left" | "right", live: { left?: T; right?:
   return live[side] ?? (mirror ? live[side === "left" ? "right" : "left"] : undefined);
 }
 
+// The old gap only stays valid if both hands were re-recorded together; otherwise it is dropped
+function mergeHands(old: Pose["hands"], fresh: NonNullable<Pose["hands"]>): NonNullable<Pose["hands"]> {
+  const { gap: _oldGap, ...kept } = old ?? {};
+  return { ...kept, ...fresh };
+}
+
 /** Applies a re-recording: recorded parts replace their templates and become ticked; the others are kept. */
 export function mergeHandRecording(pose: Pose, result: RecordingResult, parts: BodyPart[]): Pose {
   return {
     ...pose,
     ...(result.template ? { template: result.template } : {}),
-    ...(result.hands ? { hands: { ...pose.hands, ...result.hands } } : {}),
+    ...(result.hands ? { hands: mergeHands(pose.hands, result.hands) } : {}),
     bodyParts: [...new Set([...pose.bodyParts, ...parts])],
   };
 }

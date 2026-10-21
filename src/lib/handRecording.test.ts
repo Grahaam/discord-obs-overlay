@@ -94,3 +94,22 @@ test("mergeHandRecording adds the recorded part and keeps other templates", () =
   assert.equal(next.template, pose.template);
   assert.deepEqual(mergeHandRecording(next, result, ["rightHand"]).bodyParts, ["arms", "head", "rightHand"]);
 });
+
+test("re-recording one hand of a two-hand pose drops the stale gap", () => {
+  const twoHands = frame({ left: reading(leftPoints), right: reading(rightPoints) });
+  const first = buildRecording(times(MIN_GOOD_FRAMES, twoHands), ["leftHand", "rightHand"]);
+  assert.ok(first.hands?.gap);
+  const pose = { bodyParts: ["leftHand", "rightHand"], template: [], hands: first.hands } as unknown as Pose;
+
+  const leftOnly = buildRecording(times(MIN_GOOD_FRAMES, frame({ left: reading(openPalm) })), ["leftHand"]);
+  const afterLeft = mergeHandRecording(pose, leftOnly, ["leftHand"]);
+  assert.equal(afterLeft.hands?.gap, undefined);
+  assert.ok(afterLeft.hands?.right);
+
+  const again = buildRecording(times(MIN_GOOD_FRAMES, twoHands), ["leftHand", "rightHand"]);
+  const afterBoth = mergeHandRecording({ ...pose, hands: { ...first.hands, gap: { x: 9, y: 9 } } } as Pose, again, [
+    "leftHand",
+    "rightHand",
+  ]);
+  assert.deepEqual(afterBoth.hands?.gap, again.hands?.gap);
+});
