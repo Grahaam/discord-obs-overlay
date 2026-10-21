@@ -1,15 +1,24 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Circle, Lightbulb, RotateCcw } from "lucide-react";
-import type { NormalizedPoint, Pose, UIConfig } from "../../types";
+import { AlertTriangle, Lightbulb, RotateCcw } from "lucide-react";
+import type { BodyPart, NormalizedPoint, Pose, UIConfig } from "../../types";
 import { usePoses } from "../../hooks/usePoses";
 import { usePoseLandmarks, type PoseFrame, type PoseLandmarksStatus } from "../../hooks/usePoseLandmarks";
 import { usePoseRecorder } from "../../hooks/usePoseRecorder";
 import { visiblePoses } from "../../lib/poseMedia";
-import { scoreFrame } from "../../lib/poseScoring";
+import { posesNeedHands, scoreFrame } from "../../lib/poseScoring";
+import { fingerCurls, handsLookAlike } from "../../lib/handMatcher";
+import { ticksToParts, type RecordPart, type RecordTicks } from "../../lib/handRecording";
 import { SIMILAR_WARN, similarity } from "../../lib/poseMatcher";
 import PoseCard from "../poses/PoseCard";
+import RecordControls from "../poses/RecordControls";
 import SkeletonCanvas from "../poses/SkeletonCanvas";
 import { FieldLabel, Toggle, inputBase } from "../poses/fields";
+
+const RECORD_ERROR: Record<RecordPart, string> = {
+  body: "recordFailed",
+  leftHand: "missingLeftHand",
+  rightHand: "missingRightHand",
+};
 
 interface Props {
   config: UIConfig;
@@ -20,14 +29,15 @@ interface Props {
 
 type RecordTarget = { kind: "new" } | { kind: "rerecord"; poseId: string };
 
-function newPose(template: NormalizedPoint[], name: string): Pose {
+function newPose(template: NormalizedPoint[] | null, hands: Pose["hands"], bodyParts: BodyPart[], name: string): Pose {
   return {
     id: crypto.randomUUID(),
     name,
     kind: "custom",
     enabled: true,
-    template,
-    bodyParts: ["arms", "head"],
+    ...(template ? { template } : {}),
+    ...(hands ? { hands } : {}),
+    bodyParts,
     threshold: 80,
     mirror: true,
     holdMs: 600,
@@ -47,10 +57,13 @@ function newPose(template: NormalizedPoint[], name: string): Pose {
 /** For each custom pose, the name of another one it looks too much like (they could trigger each other). */
 function findLookAlikes(poses: Pose[]): Map<string, string> {
   const result = new Map<string, string>();
-  const recorded = poses.filter((p) => p.kind === "custom" && p.template);
+  const recorded = poses.filter((p) => p.kind === "custom" && (p.template || p.hands));
   for (const a of recorded) {
     const twin = recorded.find(
-      (b) => b.id !== a.id && similarity(a.template!, b.template!, a.bodyParts) > SIMILAR_WARN
+      (b) =>
+        b.id !== a.id &&
+        ((!!a.template && !!b.template && similarity(a.template, b.template, a.bodyParts) > SIMILAR_WARN) ||
+          handsLookAlike(a, b))
     );
     if (twin) result.set(a.id, twin.name);
   }
@@ -64,7 +77,7 @@ const STATUS_LABEL: Record<PoseLandmarksStatus, string> = {
   "no-obs": "statusNoObs",
   "no-source": "statusNoSource",
   error: "statusError",
-  "hands-unavailable": "", // the dashboard only requests hands from Task 5, which adds its warning
+  "hands-unavailable": "", // shown as a warning under the camera, the body still works
 };
 
 export default function PosesTab({ config, setConfig, saveSettings, t }: Props) {
@@ -72,36 +85,54 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
   const labels: Record<string, string> = t.poses;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recordError, setRecordError] = useState<string | null>(null);
+  const [ticks, setTicks] = useState<RecordTicks>({ body: true, leftHand: false, rightHand: false });
   const targetRef = useRef<RecordTarget>({ kind: "new" });
+  const partsRef = useRef<BodyPart[]>([]);
 
   // usePoseRecorder always calls the latest version of this callback, so `file` is current
-  const recorder = usePoseRecorder((template) => {
+  const recorder = usePoseRecorder(({ template, hands, error: missing }) => {
     const current = file;
-    if (!template) return setRecordError(labels.recordFailed);
+    if (missing) return setRecordError(labels[RECORD_ERROR[missing]]);
     if (!current) return;
     const target = targetRef.current;
     if (target.kind === "new") {
       const count = current.poses.filter((p) => p.kind === "custom").length;
-      const pose = newPose(template, `${labels.myPose} ${count + 1}`);
+      const pose = newPose(template, hands, partsRef.current, `${labels.myPose} ${count + 1}`);
       update({ ...current, poses: [...current.poses, pose] });
       setSelectedId(pose.id);
     } else {
-      update({ ...current, poses: current.poses.map((p) => (p.id === target.poseId ? { ...p, template } : p)) });
+      // Parts not recorded this time (e.g. an unticked hand) keep their old template
+      const patch = (p: Pose): Pose => ({
+        ...p,
+        ...(template ? { template } : {}),
+        ...(hands ? { hands: { ...p.hands, ...hands } } : {}),
+      });
+      update({ ...current, poses: current.poses.map((p) => (p.id === target.poseId ? patch(p) : p)) });
     }
   });
 
   const sourceName = config.poseCameraSource?.trim() ?? "";
   const { feed } = recorder;
   const onFrame = useCallback((frame: PoseFrame) => feed(frame), [feed]);
-  // Runs only while this tab is mounted, i.e. visible
-  const { frame, status } = usePoseLandmarks({ active: !!sourceName, sourceName, onFrame });
-
   const visible = useMemo(() => (file ? visiblePoses(file) : []), [file]);
+  // Hands are read when a visible pose uses them (enabled or not, for the live chips) or a recording tick asks
+  const posesHands = useMemo(() => posesNeedHands(visible.map((p) => ({ ...p, enabled: true }))), [visible]);
+  const hands = { left: posesHands.left || ticks.leftHand, right: posesHands.right || ticks.rightHand };
+  // Runs only while this tab is mounted, i.e. visible
+  const { frame, status } = usePoseLandmarks({ active: !!sourceName, sourceName, onFrame, hands, delegate: "GPU" });
+
   const lookAlikes = useMemo(() => findLookAlikes(visible), [visible]);
   const scores = useMemo(() => {
     if (!frame) return null;
-    return new Map(scoreFrame(visible, frame.landmarks, frame.aspect).map((s) => [s.poseId, s.score]));
+    return new Map(scoreFrame(visible, frame.landmarks, frame.aspect, frame.hands).map((s) => [s.poseId, s.score]));
   }, [visible, frame]);
+  const liveCurls = useMemo(
+    () => ({
+      left: frame?.hands?.left && fingerCurls(frame.hands.left.points),
+      right: frame?.hands?.right && fingerCurls(frame.hands.right.points),
+    }),
+    [frame]
+  );
 
   if (!file) {
     return <div className="text-xs font-mono text-white/40">{error ?? labels.loading}</div>;
@@ -133,11 +164,12 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
   const record = (target: RecordTarget, bodyParts: Pose["bodyParts"]) => {
     setRecordError(null);
     targetRef.current = target;
+    partsRef.current = bodyParts;
     recorder.start(bodyParts);
   };
 
-  const cameraReady = status === "ok";
-  const ghost = visible.find((p) => p.id === selectedId)?.template;
+  const cameraReady = status === "ok" || status === "hands-unavailable";
+  const selected = visible.find((p) => p.id === selectedId);
   const statusText = !sourceName ? labels.statusIdle : STATUS_LABEL[status] ? labels[STATUS_LABEL[status]] : "";
   const recorderOverlay =
     recorder.phase.kind === "countdown" ? (
@@ -175,20 +207,26 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
       </div>
 
       <div className="flex flex-col gap-2">
-        <SkeletonCanvas frame={frame} ghost={ghost} overlay={recorderOverlay} />
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={!cameraReady || recorder.busy}
-            onClick={() => record({ kind: "new" }, ["arms", "head"])}
-            className="flex items-center gap-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:hover:bg-violet-600 px-3 py-2 text-xs font-semibold text-white"
-          >
-            <Circle className="w-3 h-3 fill-red-400 text-red-400" />
-            {labels.newPose}
-          </button>
-          <span className="text-[10px] font-mono text-white/30">{labels.recordHelp}</span>
-        </div>
-        {recordError && <span className="text-[10px] font-mono text-red-300">{recordError}</span>}
+        <SkeletonCanvas
+          frame={frame}
+          ghost={selected?.template}
+          ghostHands={selected?.hands}
+          overlay={recorderOverlay}
+        />
+        {status === "hands-unavailable" && (
+          <span className="flex items-center gap-1.5 text-[10px] font-mono text-amber-300/80">
+            <AlertTriangle className="w-3 h-3 shrink-0" />
+            {labels.statusHandsUnavailable}
+          </span>
+        )}
+        <RecordControls
+          ticks={ticks}
+          onTicksChange={setTicks}
+          disabled={!cameraReady || recorder.busy}
+          onRecord={() => record({ kind: "new" }, ticksToParts(ticks))}
+          error={recordError}
+          labels={labels}
+        />
       </div>
 
       {error && (
@@ -212,6 +250,7 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
             recordDisabled={!cameraReady || recorder.busy}
             liveScore={scores ? (scores.get(pose.id) ?? null) : undefined}
             similarTo={lookAlikes.get(pose.id)}
+            liveCurls={liveCurls}
             labels={labels}
           />
         ))}
@@ -234,6 +273,9 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
           <li>{labels.tip2d}</li>
           <li>{labels.tipOnePerson}</li>
           <li>{labels.tipLight}</li>
+          <li>{labels.tipHandFacing}</li>
+          <li>{labels.tipHandsInFrame}</li>
+          <li>{labels.tipHandsOverlap}</li>
         </ul>
       </div>
     </div>

@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { AlertTriangle, ChevronDown, Circle, Eye, Trash2 } from "lucide-react";
-import type { BodyPart, Pose } from "../../types";
+import type { BodyPart, Finger, Pose } from "../../types";
 import { hasMedia } from "../../lib/poseMedia";
+import HandFingers from "./HandFingers";
 import PoseMediaEditor from "./PoseMediaEditor";
 import { FieldLabel, NumberField, Toggle, inputBase } from "./fields";
 
-const BODY_PARTS: BodyPart[] = ["arms", "legs", "head"];
+const BODY_PARTS: BodyPart[] = ["arms", "legs", "head", "leftHand", "rightHand"];
+const HAND_SIDES = [
+  { part: "leftHand", side: "left" },
+  { part: "rightHand", side: "right" },
+] as const;
 
 interface Props {
   pose: Pose;
@@ -20,6 +25,8 @@ interface Props {
   liveScore?: number | null;
   /** Name of another pose this one looks too much like */
   similarTo?: string;
+  /** Live finger curls per hand from the dashboard camera */
+  liveCurls?: { left?: Record<Finger, number>; right?: Record<Finger, number> };
   labels: Record<string, string>;
 }
 
@@ -53,6 +60,7 @@ export default function PoseCard({
   recordDisabled,
   liveScore,
   similarTo,
+  liveCurls,
   labels,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -142,7 +150,7 @@ export default function PoseCard({
             <>
               <div className="flex flex-col gap-1.5">
                 <FieldLabel>{labels.bodyParts}</FieldLabel>
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
                   {BODY_PARTS.map((part) => (
                     <Toggle
                       key={part}
@@ -153,6 +161,39 @@ export default function PoseCard({
                   ))}
                 </div>
               </div>
+              {HAND_SIDES.some(({ part }) => pose.bodyParts.includes(part)) && (
+                <div className="flex flex-col gap-2">
+                  <FieldLabel>{labels.hands}</FieldLabel>
+                  {HAND_SIDES.filter(({ part }) => pose.bodyParts.includes(part)).map(({ part, side }) => {
+                    const template = pose.hands?.[side];
+                    return (
+                      <div key={side} className="flex flex-col gap-1">
+                        <span className="text-[10px] font-mono text-white/40">{labels[part]}</span>
+                        {template ? (
+                          <HandFingers
+                            template={template}
+                            live={liveCurls?.[side]}
+                            onChange={(t) => set({ hands: { ...pose.hands, [side]: t } })}
+                            labels={labels}
+                          />
+                        ) : (
+                          <span className="text-[10px] font-mono text-amber-300/80">{labels.handNotRecorded}</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <Toggle
+                    checked={pose.handPosition !== false}
+                    onChange={(handPosition) => set({ handPosition })}
+                    label={labels.matchHandPosition}
+                  />
+                  <Toggle
+                    checked={pose.handDirection !== false}
+                    onChange={(handDirection) => set({ handDirection })}
+                    label={labels.matchHandDirection}
+                  />
+                </div>
+              )}
               <Toggle checked={pose.mirror} onChange={(mirror) => set({ mirror })} label={labels.mirror} />
               {onRecord && (
                 <button
