@@ -1,6 +1,6 @@
 import type { HandLandmarker } from "@mediapipe/tasks-vision";
 import type { NormalizedPoint } from "../types";
-import { assignToWrists, type HandReading } from "./handCrop";
+import { assignToWrists, type HandReading } from "./hands";
 
 export type LiveHands = { left?: HandReading; right?: HandReading };
 

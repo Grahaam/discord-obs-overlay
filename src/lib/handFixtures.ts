@@ -1,5 +1,5 @@
 import type { Finger } from "../types";
-import type { HandPoint } from "./handCrop";
+import type { HandPoint } from "./hands";
 
 const FINGERS: Finger[] = ["thumb", "index", "middle", "ring", "pinky"];
 // Per-finger base direction (radians from straight up, + = toward the thumb side) and [palm, ...phalanx] lengths

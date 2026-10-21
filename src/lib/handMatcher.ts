@@ -1,5 +1,5 @@
 import type { Finger, FingerState, HandTemplate, NormalizedPoint, Pose } from "../types";
-import type { HandPoint } from "./handCrop";
+import type { HandPoint } from "./hands";
 import { normalise } from "./poseMatcher";
 
 export const FINGERS: Finger[] = ["thumb", "index", "middle", "ring", "pinky"];

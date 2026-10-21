@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import type { HandTemplate, NormalizedPoint } from "../types";
-import type { HandPoint } from "./handCrop.js";
+import type { HandPoint } from "./hands.js";
 import { scoreHand } from "./handMatcher.js";
 
 // Real webcam data recorded with the user (dashboard recorder + logged live frames).

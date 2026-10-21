@@ -4,7 +4,7 @@ import type { Pose, PosesFile } from "../types";
 import { armsUp, tPose } from "./poseFixtures.js";
 import { normalise } from "./poseMatcher.js";
 import { detectablePoses, posesNeedHands, scoreFrame } from "./poseScoring.js";
-import type { HandReading } from "./handCrop.js";
+import type { HandReading } from "./hands.js";
 import { handSkeleton, openPalm, thumbsUp, victory } from "./handFixtures.js";
 import { makeHandTemplate, scoreHand } from "./handMatcher.js";
 

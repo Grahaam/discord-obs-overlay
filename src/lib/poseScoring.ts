@@ -1,7 +1,7 @@
 import type { BodyPart, NormalizedPoint, Pose, PosesFile } from "../types";
 import { isAbsoluteCinemaPose } from "./absoluteCinemaPose";
 import { gapScore, HAND_MIN, handCentre, mirrorHands, scoreHand } from "./handMatcher";
-import type { HandReading } from "./handCrop";
+import type { HandReading } from "./hands";
 import { normalise, scorePose, scorePoseBoth } from "./poseMatcher";
 import { hasMedia, visiblePoses } from "./poseMedia";
 

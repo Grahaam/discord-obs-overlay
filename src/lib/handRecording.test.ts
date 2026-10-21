@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { Pose } from "../types";
 import test from "node:test";
-import type { HandReading } from "./handCrop.js";
+import type { HandReading } from "./hands.js";
 import { handSkeleton, openPalm, victory } from "./handFixtures.js";
 import { handCentre } from "./handMatcher.js";
 import {
