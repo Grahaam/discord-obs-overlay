@@ -17,6 +17,12 @@ Toutes les modifications notables sont listées ici. Format : [Keep a Changelog]
 - **Validation avant diffusion** : les alertes des personnes qui ne sont pas encore de confiance sont gardées dans une boîte « À valider » de l'onglet En direct (aperçu du média, texte, auteur) avec **Approuver**, **Refuser** et **Toujours approuver cette personne**. Trois modes dans Modération : personne, nouveaux et sans rôle approuvé (par défaut), tout le monde. Les membres d'un rôle approuvé (choisi dans la liste des rôles de votre serveur) passent directement, et une personne devient de confiance après N alertes approuvées (1 par défaut). Les alertes en attente survivent à un redémarrage, expirent après 30 minutes (réglable), sont comptées en badge dans la barre latérale et le dock OBS, et un refus est consigné dans le journal. Option : réaction ⏳ sur le message Discord, puis ✅ ou ❌ (le lien d'invitation du bot demande maintenant « Ajouter des réactions »).
 - L'alerte de test accepte un faux auteur (`asPoster` : identifiant et rôles) pour essayer la validation sans passer par Discord.
 
+### Sécurité
+
+- **Clé d'accès locale** : une page web visitée pendant le live ne peut plus piloter LiveChat à votre insu (lire le mot de passe OBS, remplacer le jeton du bot…). Toutes les routes `/api` et les connexions Socket.IO exigent maintenant une clé propre à votre installation, les requêtes qui modifient quelque chose doivent venir de LiveChat lui-même (contrôle `Sec-Fetch-Site` / `Origin`), et les WebSockets d'une autre origine sont refusées.
+- **Les URL OBS contiennent désormais `?k=…`** (overlay, dock) : recopiez-les depuis le tableau de bord ou depuis « Copy OBS Overlay URL » dans le menu de l'icône de la zone de notification. La clé est conservée entre deux lancements, donc l'URL ne change plus. Hors Electron, l'adresse complète s'affiche dans la console au démarrage.
+- Les corps JSON sont limités à 1 Mo (50 Mo seulement pour l'envoi de médias de pose) et les formulaires `x-www-form-urlencoded` ne sont plus acceptés.
+
 ### Modifié
 
 - Par défaut, la première alerte d'une personne sans rôle approuvé attend maintenant votre validation ; choisissez « Personne » dans Modération pour retrouver l'ancien comportement.
