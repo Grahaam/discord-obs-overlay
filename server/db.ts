@@ -209,7 +209,8 @@ export function loadPosterTrust(): Map<string, { approvedCount: number; always: 
           user_id: string;
           approved_count: number;
           always: number;
-        }[]
+        }[],
+      "loadPosterTrust"
     ) ?? [];
   return new Map(rows.map((r) => [r.user_id, { approvedCount: r.approved_count, always: r.always === 1 }]));
 }
