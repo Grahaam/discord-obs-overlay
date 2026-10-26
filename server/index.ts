@@ -22,6 +22,7 @@ import { emitPoseAlert, finishPoseAlert, poseAlertController } from "./poseAlert
 import { APP_PATHS, DATA_PATHS } from "./paths.js";
 import { overlayClients, markAlertStarted } from "./setupStatus.js";
 import { poseStore } from "./poseStore.js";
+import { createApiGuard, loadOrCreateToken } from "./apiGuard.js";
 
 dotenv.config({ path: DATA_PATHS.envFile });
 
@@ -53,14 +54,23 @@ async function runServer() {
   // Anti DNS-rebinding: a malicious web page can point its own domain at 127.0.0.1 and then call this
   // API from the browser (read the OBS password, overwrite the bot token...). Only the two names we
   // are served on are accepted; the browser always sends the Host of the domain it believes it uses.
-  const allowedHosts = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
+  const apiToken = loadOrCreateToken(DATA_PATHS.apiTokenFile, env.LIVECHAT_API_TOKEN);
+  const guard = createApiGuard({ token: apiToken, port: PORT });
   app.use((req, res, next) => {
-    if (req.headers.host && allowedHosts.has(req.headers.host.toLowerCase())) return next();
+    if (guard.isAllowedHost(req.headers.host)) return next();
     res.status(403).send("Forbidden host");
   });
 
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // A page the streamer visits can still reach http://localhost:PORT, so on top of the Host check every
+  // /api call needs the per-install token and mutating calls must be same-origin (see apiGuard.ts).
+  app.use(guard.cookieBootstrap);
+  app.use("/api", guard.csrfGuard, guard.authGuard);
+  app.get("/api/access", (_req, res) => {
+    res.json({ token: apiToken });
+  });
+
+  // JSON bodies are small; the only large upload (/api/user-assets) reads its own raw body.
+  app.use(express.json({ limit: "1mb" }));
 
   // Write/action endpoints — tight limit (prevent accidental loops on mutations).
   // Only mutating methods count: every client is 127.0.0.1 (one shared counter), so GET polls would exhaust it.
@@ -120,7 +130,10 @@ async function runServer() {
       origin: [`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`],
       methods: ["GET", "POST"],
     },
+    // CORS only stops a browser from reading the answer; a WebSocket upgrade ignores it entirely.
+    allowRequest: guard.allowSocketRequest,
   });
+  io.use(guard.socketAuth);
 
   botManager.setIo(io);
   approvalManager.start(io);
@@ -299,6 +312,13 @@ async function runServer() {
 
   httpServer.listen(PORT, env.HOST, () => {
     logger.info({ host: env.HOST, port: PORT }, "LiveChat server active");
+    // Standalone mode only: Electron opens its own window with the key already in the URL.
+    if (!env.LIVECHAT_API_TOKEN) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `Dashboard: http://localhost:${PORT}/?k=${apiToken}\nOBS overlay: http://localhost:${PORT}/overlay?k=${apiToken}`
+      );
+    }
     // Warm up yt-dlp (self-extract) in the background, then release the media
     // queue and tell clients the engine is ready.
     warmUpYtDlp().finally(() => {
