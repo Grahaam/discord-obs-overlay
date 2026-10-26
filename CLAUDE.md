@@ -65,6 +65,8 @@ Express + Socket.IO server (Vite React SPA) that runs **standalone** (`npm start
 | `mediaParser.ts`       | `resolveMediaFromLink()`: yt-dlp → Cobalt API fallback → iframe fallback; caches to `media_cache/` (2 GB, 24 h TTL)                              |
 | `ffmpegNormalizer.ts`  | Post-download ffmpeg normalization to mp4                                                                                                        |
 | `alertManager.ts`      | In-memory queue (cap 100), writes through to SQLite                                                                                              |
+| `approvalPolicy.ts`    | Pure rule: does this poster's alert wait for approval (mode, trusted roles, N approved alerts, "always approve")                                 |
+| `approvalManager.ts`   | `submit()` delivers or holds alerts (`pending_approvals` + `poster_trust` tables), approve/reject/expiry, Socket.IO `approval_*` events         |
 | `db.ts`                | better-sqlite3 WAL, two tables: `alerts` + `logs` (trimmed to 1000 rows)                                                                         |
 | `settingsManager.ts`   | Loads `settings.json` + `.env`; saves token to `.env`, cookies to `cookies.txt`, rest to `settings.json`                                         |
 | `logManager.ts`        | Bounded in-memory log ring, persisted via `db.ts`                                                                                                |
@@ -91,7 +93,7 @@ React 19 + Tailwind CSS v4 + Socket.IO client.
 1. Discord message → `discordBotManager` cooldown check → `addJob()` in `mediaWorkerQueue`
 2. Job: resolve attachment or URL via `mediaParser.resolveMediaFromLink()`
 3. Banned-words filter, NSFW/link checks
-4. `alertManager.addAlert()` → SQLite persist → `io.emit("new_alert")`
+4. `approvalManager.submit()`: trusted poster → `alertManager.addAlert()` → SQLite persist → `io.emit("new_alert")`; otherwise held in the Live inbox until approved
 5. `OBSOverlayView` receives via Socket.IO, plays queue sequentially, emits `alert_played` when done
 6. Server removes alert from `alertManager` + DB on `alert_played`
 
