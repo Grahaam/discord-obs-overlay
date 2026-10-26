@@ -82,6 +82,7 @@ export const locales = {
       updatesUpToDate: "Vous utilisez la dernière version.",
     },
     look: {
+      replay: "Rejouer",
       title: "Look & son",
       settings: "Réglages",
       simulator: "Simulateur",
@@ -549,6 +550,7 @@ export const locales = {
       updatesUpToDate: "You are on the latest version.",
     },
     look: {
+      replay: "Replay",
       title: "Look & sound",
       settings: "Settings",
       simulator: "Simulator",
@@ -1007,6 +1009,7 @@ export const locales = {
       updatesUpToDate: "You'we on the watest vewsion.",
     },
     look: {
+      replay: "Wepway",
       title: "Wook & sound",
       settings: "Settings",
       simulator: "Simuwatow",
@@ -1464,6 +1467,7 @@ export const locales = {
       updatesUpToDate: "Vous utiwisez wa dewnière vewsion.",
     },
     look: {
+      replay: "Wejouew",
       title: "Wook & son",
       settings: "Wégwages",
       simulator: "Simuwateuw",

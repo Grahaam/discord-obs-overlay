@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from "react";
-import { CheckCircle2, Send } from "lucide-react";
+import { CheckCircle2, RotateCcw, Send } from "lucide-react";
+import AlertStagePreview from "../components/AlertStagePreview";
+import { FONT_MAP } from "../lib/alertLayout";
 import { useDashboard } from "../dashboard/DashboardContext";
-import { Button, Field, SettingRow, Slider, Tab, TabList, TabPanel, Tabs, cx, inputClass } from "../ui";
+import { Button, Field, SettingRow, Slider, cx, inputClass } from "../ui";
 import type { AlertAnimation, AlertFont, AlertPosition, MediaType } from "../types";
 
 // The preview colors below (presets, previewBg, shadows, inner card) mirror the OBS overlay look on purpose:
@@ -14,14 +16,6 @@ const STYLE_PRESETS = [
 ] as const;
 
 const SWATCHES = ["#6366f1", "#ec4899", "#10b981", "#eab308", "#ef4444", "#a855f7"];
-
-const FONT_MAP: Record<string, string> = {
-  sans: "system-ui, -apple-system, sans-serif",
-  mono: '"JetBrains Mono", ui-monospace, Consolas, monospace',
-  serif: "Georgia, 'Times New Roman', serif",
-  display: 'Impact, "Arial Black", sans-serif',
-  rounded: '"Trebuchet MS", "Segoe UI", sans-serif',
-};
 
 const FONT_OPTIONS: { id: AlertFont; key: "fontSans" | "fontMono" | "fontSerif" | "fontDisplay" | "fontRounded" }[] = [
   { id: "sans", key: "fontSans" },
@@ -61,20 +55,6 @@ const PRESETS: { label: string; url: string; type: MediaType }[] = [
   { label: "Instagram", url: "https://www.instagram.com/p/DYnCi2IhHHE", type: "image" },
 ];
 
-function getPreviewBg(style: string, opacity: number): string {
-  const alpha = opacity.toFixed(2);
-  switch (style) {
-    case "glitch":
-      return `rgba(10,5,5,${alpha})`;
-    case "cyberpunk":
-      return `rgba(10,10,5,${alpha})`;
-    case "glass":
-      return `rgba(255,255,255,${(opacity * 0.04).toFixed(3)})`;
-    default:
-      return `rgba(0,0,0,${alpha})`;
-  }
-}
-
 const optionClass = (active: boolean) =>
   cx(
     "rounded-control border px-3 py-1.5 text-sm cursor-pointer focus-ring",
@@ -104,6 +84,7 @@ export default function LookSection() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [urlError, setUrlError] = useState(false);
+  const [replayKey, setReplayKey] = useState(0);
 
   const neonColor = config.neonColor || "#6366f1";
   const alertStyle = config.alertStyle || "neon";
@@ -112,15 +93,6 @@ export default function LookSection() {
   const alertBgOpacity = config.alertBgOpacity ?? 0.9;
   const alertAnimation = config.alertAnimation ?? "slide-up";
   const alertPosition = config.alertPosition ?? "bottom-left";
-
-  const previewBoxShadow =
-    alertStyle === "glitch"
-      ? `0 0 18px ${neonColor}66, 2px 2px 0 rgba(236,72,153,0.3)`
-      : alertStyle === "glass"
-        ? "0 4px 24px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.08)"
-        : `0 0 18px ${neonColor}66`;
-  const previewBorder = alertStyle === "glass" ? "rgba(255,255,255,0.18)" : neonColor;
-  const font = FONT_MAP[alertFont];
 
   const styleLabels = {
     neon: { label: t.display.neonStyle, desc: t.display.neonDesc },
@@ -145,6 +117,7 @@ export default function LookSection() {
     setSending(true);
     setUrlError(false);
     try {
+      setReplayKey((k) => k + 1);
       await handleTriggerTest();
       setSent(true);
       setTimeout(() => setSent(false), 2500);
@@ -157,283 +130,45 @@ export default function LookSection() {
     <div className="flex flex-col gap-5">
       <h1 className="text-2xl font-bold text-fg">{t.look.title}</h1>
 
-      <Tabs defaultValue="settings" className="flex flex-col gap-5">
-        <TabList label={t.look.title}>
-          <Tab value="settings">{t.look.settings}</Tab>
-          <Tab value="simulator">{t.look.simulator}</Tab>
-        </TabList>
-
-        <TabPanel value="settings" className="flex flex-col gap-6 focus-ring">
-          <section aria-labelledby="look-preview" className="flex flex-col gap-2">
-            <h2 id="look-preview" className="text-base font-semibold text-fg">
-              {t.display.livePreview}
-            </h2>
-            {/* Stage imitates the stream background, so it stays dark in both dashboard themes. */}
-            <div
-              className="flex items-center justify-center overflow-hidden rounded-card border border-line bg-black/70 px-4 py-6"
-              style={{ minHeight: 120 }}
-            >
-              <div
-                style={{ transform: `scale(${alertScale})`, transformOrigin: "center", transition: "transform 0.2s" }}
-              >
-                <div
-                  className="relative overflow-hidden rounded-xl"
-                  style={{
-                    width: 280,
-                    background: getPreviewBg(alertStyle, alertBgOpacity),
-                    border: `1.5px solid ${previewBorder}`,
-                    boxShadow: previewBoxShadow,
-                    fontFamily: font,
-                    backdropFilter: alertStyle === "glass" ? "blur(12px)" : undefined,
-                    WebkitBackdropFilter: alertStyle === "glass" ? "blur(12px)" : undefined,
-                  }}
-                >
-                  {alertStyle === "cyberpunk" && (
-                    <div className="absolute top-0 left-0 h-full w-0.5" style={{ background: neonColor }} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-6">
+          <section aria-labelledby="look-preview" className="flex flex-col gap-3 lg:sticky lg:top-28 lg:z-10">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="look-preview" className="text-base font-semibold text-fg">
+                {t.display.livePreview}
+              </h2>
+              <div className="flex gap-2">
+                <Button className="py-1.5 text-xs" onClick={() => setReplayKey((k) => k + 1)}>
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                  {t.look.replay}
+                </Button>
+                <Button variant="primary" className="py-1.5 text-xs" onClick={handleSend} disabled={sending}>
+                  {sent ? (
+                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" aria-hidden />
                   )}
-                  <div className="flex items-center gap-3 px-4 pt-3.5 pb-2.5">
-                    <div
-                      aria-hidden
-                      className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-base select-none"
-                      style={{
-                        border: `2px solid ${neonColor}`,
-                        boxShadow: `0 0 8px ${neonColor}55`,
-                        background: "rgba(0,0,0,0.5)",
-                      }}
-                    >
-                      👤
-                    </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span
-                        className="text-[9px] uppercase tracking-widest leading-none mb-0.5"
-                        style={{ color: `${neonColor}cc`, fontFamily: font }}
-                      >
-                        ⚡ New Alert
-                      </span>
-                      <span
-                        className="text-sm font-bold leading-tight truncate"
-                        style={{ color: "#fff", fontFamily: font }}
-                      >
-                        Viewer_42
-                      </span>
-                      <span
-                        className="text-[11px] leading-snug mt-0.5 truncate"
-                        style={{ color: "rgba(255,255,255,0.55)", fontFamily: font }}
-                      >
-                        Look at this clip!
-                      </span>
-                    </div>
-                  </div>
-                  <div className="h-0.5 w-full" style={{ background: "rgba(255,255,255,0.06)" }}>
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: "55%",
-                        background: `linear-gradient(90deg, ${neonColor}, ${neonColor}88)`,
-                        boxShadow: `0 0 6px ${neonColor}88`,
-                      }}
-                    />
-                  </div>
-                </div>
+                  {sent ? t.logs.simSent : t.logs.sendSim}
+                </Button>
               </div>
             </div>
+            {/* Same frame, classes and layout helpers as the OBS overlay; always dark like the stream. */}
+            <AlertStagePreview
+              replayKey={replayKey}
+              look={{ alertStyle, neonColor, alertFont, alertScale, alertBgOpacity, alertAnimation, alertPosition }}
+              alert={{
+                authorName: simName,
+                text: simText,
+                mediaUrl: simMediaUrl,
+                type: simType,
+                newAlertLabel: t.overlay.newAlert,
+              }}
+            />
+            <span role="status" className="sr-only">
+              {sent ? t.logs.simSent : ""}
+            </span>
           </section>
 
-          <section aria-labelledby="look-style" className="flex flex-col gap-4">
-            <h2 id="look-style" className="text-base font-semibold text-fg">
-              {t.display.title}
-            </h2>
-
-            <Group label={t.display.visualTheme}>
-              <div
-                role="radiogroup"
-                aria-label={t.display.visualTheme}
-                className="grid grid-cols-1 sm:grid-cols-2 gap-2.5"
-              >
-                {STYLE_PRESETS.map((style) => {
-                  const { label, desc } = styleLabels[style.id];
-                  const active = alertStyle === style.id;
-                  return (
-                    <button
-                      key={style.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => setConfig((c) => ({ ...c, alertStyle: style.id }))}
-                      className={cx(
-                        "relative flex flex-col gap-1 rounded-card border p-3.5 text-left cursor-pointer focus-ring",
-                        active ? "border-accent bg-accent-soft" : "border-line bg-surface hover:bg-surface-hover"
-                      )}
-                    >
-                      <span
-                        aria-hidden
-                        className="h-1 w-full rounded-full"
-                        style={{ background: `linear-gradient(90deg, ${style.border}, transparent)` }}
-                      />
-                      <span className="text-sm font-semibold text-fg mt-1">{label}</span>
-                      <span className="text-xs text-fg-subtle leading-snug">{desc}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </Group>
-
-            <Group label={t.display.fontLabel}>
-              <div role="radiogroup" aria-label={t.display.fontLabel} className="flex flex-wrap gap-2">
-                {FONT_OPTIONS.map(({ id, key }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="radio"
-                    aria-checked={alertFont === id}
-                    onClick={() => setConfig((c) => ({ ...c, alertFont: id }))}
-                    className={optionClass(alertFont === id)}
-                    style={{ fontFamily: FONT_MAP[id] }}
-                  >
-                    {t.display[key]}
-                  </button>
-                ))}
-              </div>
-            </Group>
-
-            <Group label={t.display.animationLabel}>
-              <div role="radiogroup" aria-label={t.display.animationLabel} className="flex flex-wrap gap-2">
-                {ANIMATION_OPTIONS.map(({ id, key }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    role="radio"
-                    aria-checked={alertAnimation === id}
-                    onClick={() => setConfig((c) => ({ ...c, alertAnimation: id }))}
-                    className={optionClass(alertAnimation === id)}
-                  >
-                    {t.display[key]}
-                  </button>
-                ))}
-              </div>
-            </Group>
-
-            <Group label={t.display.positionLabel}>
-              <div className="flex items-center gap-3">
-                <div
-                  role="radiogroup"
-                  aria-label={t.display.positionLabel}
-                  className="grid gap-1"
-                  style={{ gridTemplateColumns: "repeat(3, 32px)" }}
-                >
-                  {POSITIONS.map((pos) => {
-                    const active = alertPosition === pos;
-                    return (
-                      <button
-                        key={pos}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        aria-label={pos.replace(/-/g, " ")}
-                        title={pos.replace(/-/g, " ")}
-                        onClick={() => setConfig((c) => ({ ...c, alertPosition: pos }))}
-                        className={cx(
-                          "flex h-8 w-8 items-center justify-center rounded-control border cursor-pointer focus-ring",
-                          active ? "border-accent bg-accent-soft" : "border-line bg-surface hover:bg-surface-hover"
-                        )}
-                      >
-                        <span
-                          aria-hidden
-                          className={cx("block h-2 w-2 rounded-full", active ? "bg-accent" : "bg-fg-subtle")}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-                <span className="text-xs text-fg-subtle">{alertPosition.replace(/-/g, " ")}</span>
-              </div>
-            </Group>
-
-            <div className="divide-y divide-line">
-              <SettingRow title={t.display.scaleLabel}>
-                {({ labelId }) => (
-                  <div className="flex items-center gap-3 sm:w-72">
-                    <Slider
-                      min={0.5}
-                      max={2}
-                      step={0.05}
-                      value={alertScale}
-                      onValueChange={(v) => setConfig((c) => ({ ...c, alertScale: v }))}
-                      aria-labelledby={labelId}
-                      valueText={`${alertScale.toFixed(2)}×`}
-                    />
-                    <span className="w-12 text-right text-xs tabular-nums text-fg-muted">{alertScale.toFixed(2)}×</span>
-                  </div>
-                )}
-              </SettingRow>
-              <SettingRow title={t.display.opacityLabel}>
-                {({ labelId }) => (
-                  <div className="flex items-center gap-3 sm:w-72">
-                    <Slider
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={alertBgOpacity}
-                      onValueChange={(v) => setConfig((c) => ({ ...c, alertBgOpacity: v }))}
-                      aria-labelledby={labelId}
-                      valueText={`${Math.round(alertBgOpacity * 100)}%`}
-                    />
-                    <span className="w-12 text-right text-xs tabular-nums text-fg-muted">
-                      {Math.round(alertBgOpacity * 100)}%
-                    </span>
-                  </div>
-                )}
-              </SettingRow>
-            </div>
-
-            <Group label={t.display.customColor}>
-              <div className="flex items-center gap-3">
-                <span
-                  aria-hidden
-                  className="h-10 w-10 shrink-0 rounded-control border border-line"
-                  style={{ backgroundColor: config.neonColor, boxShadow: `0 0 12px ${config.neonColor}55` }}
-                />
-                <Field label={<span className="sr-only">{t.display.customColor}</span>} className="flex-1">
-                  {(p) => (
-                    <input
-                      {...p}
-                      type="text"
-                      placeholder="#6366f1"
-                      value={config.neonColor}
-                      onChange={(e) => setConfig((c) => ({ ...c, neonColor: e.target.value }))}
-                      className={cx(inputClass, "font-mono")}
-                    />
-                  )}
-                </Field>
-              </div>
-              <span className="text-xs text-fg-subtle">{t.display.colorSwatches}</span>
-              <div role="radiogroup" aria-label={t.display.colorSwatches} className="flex gap-2.5">
-                {SWATCHES.map((color) => {
-                  const active = config.neonColor === color;
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      aria-label={color}
-                      title={color}
-                      onClick={() => setConfig((c) => ({ ...c, neonColor: color }))}
-                      className="h-7 w-7 rounded-full cursor-pointer focus-ring hover:scale-110"
-                      style={{
-                        backgroundColor: color,
-                        outline: active ? `2px solid ${color}` : "none",
-                        outlineOffset: 2,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            </Group>
-          </section>
-        </TabPanel>
-
-        <TabPanel value="simulator" className="flex flex-col gap-4 focus-ring">
           <section aria-labelledby="look-sim" className="flex flex-col gap-4">
             <div>
               <h2 id="look-sim" className="text-base font-semibold text-fg">
@@ -515,7 +250,7 @@ export default function LookSection() {
               ))}
             </div>
 
-            <Button variant="primary" onClick={handleSend} disabled={sending} className="w-full py-3">
+            <Button variant="primary" onClick={handleSend} disabled={sending} className="w-full py-3 lg:hidden">
               {sent ? (
                 <>
                   <CheckCircle2 className="h-4 w-4" aria-hidden />
@@ -528,12 +263,202 @@ export default function LookSection() {
                 </>
               )}
             </Button>
-            <span role="status" className="sr-only">
-              {sent ? t.logs.simSent : ""}
-            </span>
           </section>
-        </TabPanel>
-      </Tabs>
+        </div>
+
+        <section aria-labelledby="look-style" className="flex flex-col gap-4">
+          <h2 id="look-style" className="text-base font-semibold text-fg">
+            {t.display.title}
+          </h2>
+
+          <Group label={t.display.visualTheme}>
+            <div
+              role="radiogroup"
+              aria-label={t.display.visualTheme}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-2.5"
+            >
+              {STYLE_PRESETS.map((style) => {
+                const { label, desc } = styleLabels[style.id];
+                const active = alertStyle === style.id;
+                return (
+                  <button
+                    key={style.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setConfig((c) => ({ ...c, alertStyle: style.id }))}
+                    className={cx(
+                      "relative flex flex-col gap-1 rounded-card border p-3.5 text-left cursor-pointer focus-ring",
+                      active ? "border-accent bg-accent-soft" : "border-line bg-surface hover:bg-surface-hover"
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className="h-1 w-full rounded-full"
+                      style={{ background: `linear-gradient(90deg, ${style.border}, transparent)` }}
+                    />
+                    <span className="text-sm font-semibold text-fg mt-1">{label}</span>
+                    <span className="text-xs text-fg-subtle leading-snug">{desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Group>
+
+          <Group label={t.display.fontLabel}>
+            <div role="radiogroup" aria-label={t.display.fontLabel} className="flex flex-wrap gap-2">
+              {FONT_OPTIONS.map(({ id, key }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={alertFont === id}
+                  onClick={() => setConfig((c) => ({ ...c, alertFont: id }))}
+                  className={optionClass(alertFont === id)}
+                  style={{ fontFamily: FONT_MAP[id] }}
+                >
+                  {t.display[key]}
+                </button>
+              ))}
+            </div>
+          </Group>
+
+          <Group label={t.display.animationLabel}>
+            <div role="radiogroup" aria-label={t.display.animationLabel} className="flex flex-wrap gap-2">
+              {ANIMATION_OPTIONS.map(({ id, key }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={alertAnimation === id}
+                  onClick={() => setConfig((c) => ({ ...c, alertAnimation: id }))}
+                  className={optionClass(alertAnimation === id)}
+                >
+                  {t.display[key]}
+                </button>
+              ))}
+            </div>
+          </Group>
+
+          <Group label={t.display.positionLabel}>
+            <div className="flex items-center gap-3">
+              <div
+                role="radiogroup"
+                aria-label={t.display.positionLabel}
+                className="grid gap-1"
+                style={{ gridTemplateColumns: "repeat(3, 32px)" }}
+              >
+                {POSITIONS.map((pos) => {
+                  const active = alertPosition === pos;
+                  return (
+                    <button
+                      key={pos}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      aria-label={pos.replace(/-/g, " ")}
+                      title={pos.replace(/-/g, " ")}
+                      onClick={() => setConfig((c) => ({ ...c, alertPosition: pos }))}
+                      className={cx(
+                        "flex h-8 w-8 items-center justify-center rounded-control border cursor-pointer focus-ring",
+                        active ? "border-accent bg-accent-soft" : "border-line bg-surface hover:bg-surface-hover"
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className={cx("block h-2 w-2 rounded-full", active ? "bg-accent" : "bg-fg-subtle")}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="text-xs text-fg-subtle">{alertPosition.replace(/-/g, " ")}</span>
+            </div>
+          </Group>
+
+          <div className="divide-y divide-line">
+            <SettingRow title={t.display.scaleLabel}>
+              {({ labelId }) => (
+                <div className="flex items-center gap-3 sm:w-72">
+                  <Slider
+                    min={0.5}
+                    max={2}
+                    step={0.05}
+                    value={alertScale}
+                    onValueChange={(v) => setConfig((c) => ({ ...c, alertScale: v }))}
+                    aria-labelledby={labelId}
+                    valueText={`${alertScale.toFixed(2)}×`}
+                  />
+                  <span className="w-12 text-right text-xs tabular-nums text-fg-muted">{alertScale.toFixed(2)}×</span>
+                </div>
+              )}
+            </SettingRow>
+            <SettingRow title={t.display.opacityLabel}>
+              {({ labelId }) => (
+                <div className="flex items-center gap-3 sm:w-72">
+                  <Slider
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={alertBgOpacity}
+                    onValueChange={(v) => setConfig((c) => ({ ...c, alertBgOpacity: v }))}
+                    aria-labelledby={labelId}
+                    valueText={`${Math.round(alertBgOpacity * 100)}%`}
+                  />
+                  <span className="w-12 text-right text-xs tabular-nums text-fg-muted">
+                    {Math.round(alertBgOpacity * 100)}%
+                  </span>
+                </div>
+              )}
+            </SettingRow>
+          </div>
+
+          <Group label={t.display.customColor}>
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden
+                className="h-10 w-10 shrink-0 rounded-control border border-line"
+                style={{ backgroundColor: config.neonColor, boxShadow: `0 0 12px ${config.neonColor}55` }}
+              />
+              <Field label={<span className="sr-only">{t.display.customColor}</span>} className="flex-1">
+                {(p) => (
+                  <input
+                    {...p}
+                    type="text"
+                    placeholder="#6366f1"
+                    value={config.neonColor}
+                    onChange={(e) => setConfig((c) => ({ ...c, neonColor: e.target.value }))}
+                    className={cx(inputClass, "font-mono")}
+                  />
+                )}
+              </Field>
+            </div>
+            <span className="text-xs text-fg-subtle">{t.display.colorSwatches}</span>
+            <div role="radiogroup" aria-label={t.display.colorSwatches} className="flex gap-2.5">
+              {SWATCHES.map((color) => {
+                const active = config.neonColor === color;
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    aria-label={color}
+                    title={color}
+                    onClick={() => setConfig((c) => ({ ...c, neonColor: color }))}
+                    className="h-7 w-7 rounded-full cursor-pointer focus-ring hover:scale-110"
+                    style={{
+                      backgroundColor: color,
+                      outline: active ? `2px solid ${color}` : "none",
+                      outlineOffset: 2,
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </Group>
+        </section>
+      </div>
     </div>
   );
 }
