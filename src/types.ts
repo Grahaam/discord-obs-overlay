@@ -72,6 +72,32 @@ export interface PosesFile {
   hiddenBuiltins: string[];
 }
 
+/** off: every alert goes on air. new: hold unknown posters. everyone: hold all but trusted roles / "always approve". */
+export type ApprovalMode = "off" | "new" | "everyone";
+export type ApprovalReason = "new_poster" | "not_trusted_yet" | "everyone";
+
+/** An alert held in the moderator inbox until it is approved, rejected or expires. */
+export interface PendingApproval {
+  id: string;
+  alert: AlertPayload;
+  posterId: string;
+  reason: ApprovalReason;
+  /** The word filter censored the text: keeps the log status when approved. */
+  censored: boolean;
+  createdAt: number;
+  expiresAt: number;
+  /** Source Discord message, to react ⏳ / ✅ / ❌ on it. */
+  channelId?: string;
+  messageId?: string;
+}
+
+export interface DiscordRole {
+  id: string;
+  name: string;
+  /** Hex colour like #5865f2, undefined when the role has none. */
+  color?: string;
+}
+
 export interface UIConfig {
   discordToken: string;
   obsWebsocketPort?: number;
@@ -92,6 +118,11 @@ export interface UIConfig {
   language?: "fr" | "en" | "uwu-fr" | "uwu-en";
   alertSoundUrl?: string;
   allowedRoleIds?: string[];
+  approvalMode?: ApprovalMode;
+  approvalTrustedRoleIds?: string[];
+  approvalNewPosterCount?: number;
+  approvalExpiryMinutes?: number;
+  approvalReactions?: boolean;
   alertFont?: AlertFont;
   alertPosition?: AlertPosition;
   alertScale?: number;

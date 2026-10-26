@@ -2,6 +2,7 @@ import fs from "fs";
 import { logger } from "./logger.js";
 import { DATA_PATHS } from "./paths.js";
 import dotenv from "dotenv";
+import type { ApprovalMode } from "../src/types.js";
 import { readEnvVar, upsertEnvVar } from "./envFile.js";
 
 const SETTINGS_FILE = DATA_PATHS.settingsFile;
@@ -31,6 +32,12 @@ export interface Settings {
   language: "fr" | "en" | "uwu-fr" | "uwu-en";
   alertSoundUrl?: string;
   allowedRoleIds?: string[];
+  // Approval inbox
+  approvalMode: ApprovalMode;
+  approvalTrustedRoleIds: string[];
+  approvalNewPosterCount: number;
+  approvalExpiryMinutes: number;
+  approvalReactions: boolean;
 
   // Cobalt (optional self-hosted media extractor)
   cobaltApiUrl?: string;
@@ -82,6 +89,11 @@ export const defaultSettings: Settings = {
   language: "fr",
   alertSoundUrl: "",
   allowedRoleIds: [],
+  approvalMode: "new",
+  approvalTrustedRoleIds: [],
+  approvalNewPosterCount: 1,
+  approvalExpiryMinutes: 30,
+  approvalReactions: true,
   alertFont: "sans",
   alertPosition: "bottom-left",
   alertScale: 1,

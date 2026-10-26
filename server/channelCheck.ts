@@ -9,8 +9,8 @@ const REQUIRED = [
   ["SendMessages", PermissionFlagsBits.SendMessages],
 ] as const;
 
-// View Channel (1024) + Send Messages (2048) + Read Message History (65536).
-const INVITE_PERMISSIONS = 68608;
+// View Channel (1024) + Send Messages (2048) + Add Reactions (64) + Read Message History (65536).
+const INVITE_PERMISSIONS = 68672;
 
 export function inviteUrl(clientId: string, guildId?: string): string {
   const guild = guildId ? `&guild_id=${guildId}&disable_guild_select=true` : "";
