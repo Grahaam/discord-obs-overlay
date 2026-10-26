@@ -24,12 +24,11 @@ npm lint
 npm run format
 
 # Electron (desktop app)
-npm run electron:dev          # build → rebuild better-sqlite3 for Electron ABI → electron .
+npm run electron:dev          # build → electron . (better-sqlite3 ships N-API prebuilds: no Electron rebuild)
 npm run electron:build        # build + electron-builder (current OS)
 npm run electron:build:win    # NSIS installer
 npm run electron:build:mac    # DMG (x64 + arm64)
 npm run electron:build:linux  # AppImage
-npm run electron:rebuild      # rebuild better-sqlite3 against installed Electron only
 ```
 
 E2E tests via Playwright: `npm test` (headless), `npm run test:ui`. Manual alert testing still via `/api/trigger-test` or the dashboard "Test Alert" button.

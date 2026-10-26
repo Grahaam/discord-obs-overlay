@@ -18,9 +18,7 @@ const MIN_CAPTURE_MS = 2000;
 const MAX_CAPTURE_MS = 6000;
 
 export type RecorderPhase =
-  | { kind: "idle" }
-  | { kind: "countdown"; seconds: number }
-  | { kind: "capturing"; good: number; needed: number };
+  { kind: "idle" } | { kind: "countdown"; seconds: number } | { kind: "capturing"; good: number; needed: number };
 
 /**
  * 3-2-1 countdown, then frames are captured until MIN_GOOD_FRAMES clear ones (at least 2 s,

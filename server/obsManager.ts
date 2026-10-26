@@ -17,8 +17,7 @@ function obsPassword() {
 }
 
 export type ObsTestResult =
-  | { ok: true; obsVersion: string }
-  | { ok: false; errorCode: "unreachable" | "auth_failed" | "other"; error: string };
+  { ok: true; obsVersion: string } | { ok: false; errorCode: "unreachable" | "auth_failed" | "other"; error: string };
 
 /** Maps a failed obs-websocket connect() error to a code the UI can localize. */
 export function classifyObsError(err: unknown): "unreachable" | "auth_failed" | "other" {
