@@ -40,6 +40,8 @@ export const DATA_PATHS = {
   mediaCacheDir: path.join(dataDir, "media_cache"),
   binDir: path.join(dataDir, "bin"),
   posesFile: path.join(dataDir, "poses.json"),
+  // Per-install API token (standalone mode; Electron passes its own through LIVECHAT_API_TOKEN).
+  apiTokenFile: path.join(dataDir, "api-token.txt"),
   // Streamer-provided image/sound for the pose alert (served at /user-assets).
   userAssetsDir: path.join(dataDir, "user-assets"),
 };

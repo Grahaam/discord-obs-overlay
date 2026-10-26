@@ -11,6 +11,7 @@ const {
   shell,
 } = require("electron");
 const path = require("path");
+const { randomBytes } = require("crypto");
 const fs = require("fs");
 const http = require("http");
 const net = require("net");
@@ -22,6 +23,7 @@ let wizardWindow = null;
 let tray = null;
 let serverProcess = null;
 let serverPort = null;
+let apiToken = null;
 app.isQuitting = false;
 let serverCrashHandled = false;
 let updater = null;
@@ -97,9 +99,33 @@ async function pickPort(dataDir) {
   return port;
 }
 
+/**
+ * Secret every /api call and socket must present (see server/apiGuard.ts). Persisted next to
+ * last-port.json so the OBS URLs (which carry it as ?k=) keep working across launches.
+ */
+function loadApiToken(dataDir) {
+  const tokenFile = path.join(dataDir, "api-token.json");
+  try {
+    const stored = JSON.parse(fs.readFileSync(tokenFile, "utf8")).token;
+    if (typeof stored === "string" && stored.length >= 32) return stored;
+  } catch {
+    // first launch or unreadable file: generate a new one
+  }
+  const token = randomBytes(32).toString("hex");
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(tokenFile, JSON.stringify({ token }), { mode: 0o600 });
+  } catch (err) {
+    console.warn("[main] Could not remember the API token: the OBS overlay URL will change next launch", err);
+  }
+  return token;
+}
+
+const authHeaders = () => ({ "X-LiveChat-Token": apiToken });
+
 /** GET/POST the local server and return its JSON; throws a readable error on a non-OK answer. */
 async function serverJson(url, options) {
-  const res = await fetch(url, options);
+  const res = await fetch(url, { ...options, headers: { ...options?.headers, ...authHeaders() } });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || `Server request failed (HTTP ${res.status}): ${url.split("/api/")[1]}`);
   return body;
@@ -140,6 +166,7 @@ function forkServer(port, dataDir) {
       APP_PATH: app.getAppPath(),
       // Writable data root (settings, token, DB, cache). See server/paths.ts.
       DATA_DIR: dataDir,
+      LIVECHAT_API_TOKEN: apiToken,
     },
     cwd: dataDir,
     stdio: ["ignore", "pipe", "pipe"],
@@ -183,7 +210,8 @@ function createMainWindow(port) {
       nodeIntegration: false,
     },
   });
-  mainWindow.loadURL(`http://127.0.0.1:${port}`);
+  // ?k= makes the server plant its auth cookie for this window (every later fetch / socket carries it)
+  mainWindow.loadURL(`http://127.0.0.1:${port}/?k=${apiToken}`);
   // Links with target="_blank" (Discord invite, Developer Portal) would open in a
   // bare Electron window where the user is not logged in. Send them to the
   // default browser instead, and only for http(s) URLs.
@@ -271,7 +299,7 @@ function refreshTrayMenu(port) {
       },
       {
         label: "Copy OBS Overlay URL",
-        click: () => clipboard.writeText(`http://127.0.0.1:${port}/overlay`).catch(() => {}),
+        click: () => clipboard.writeText(`http://127.0.0.1:${port}/overlay?k=${apiToken}`).catch(() => {}),
       },
       { type: "separator" },
       {
@@ -305,6 +333,7 @@ function startAutoUpdate(port) {
 async function ensureServer(dataDir) {
   if (serverPort && serverProcess) return serverPort;
   const port = await pickPort(dataDir);
+  apiToken = loadApiToken(dataDir);
   forkServer(port, dataDir);
   try {
     await waitForServer(port);
@@ -356,7 +385,7 @@ async function saveSettings(port, patch) {
   const current = await serverJson(`${base}/api/settings`);
   const res = await fetch(`${base}/api/settings`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ ...current, ...patch }),
   });
   if (!res.ok) {
@@ -371,7 +400,7 @@ function languagePatch(language) {
 }
 
 async function fetchChannels(port) {
-  const res = await fetch(`http://127.0.0.1:${port}/api/discord/channels`);
+  const res = await fetch(`http://127.0.0.1:${port}/api/discord/channels`, { headers: authHeaders() });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.error || `Listing channels failed (HTTP ${res.status})`);
   return body;

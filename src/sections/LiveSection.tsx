@@ -8,6 +8,7 @@ import { useQueueStore } from "../store/queueStore";
 import NowPlayingPreview from "../components/NowPlayingPreview";
 import { SortableQueueItem } from "../components/SortableQueueItem";
 import { SetupChecklistBody } from "../components/SetupChecklist";
+import { useAccessUrl } from "../lib/useAccessUrl";
 import { Button, EmptyState, cx } from "../ui";
 import ApprovalInbox from "./live/ApprovalInbox";
 
@@ -45,8 +46,8 @@ function Card({
 function UrlRow({ label, path }: { label: string; path: string }) {
   const { t } = useDashboard();
   const [copied, setCopied] = useState(false);
-  // Real URL of this instance: the port is dynamic under Electron
-  const url = `${window.location.origin}${path}`;
+  // Real URL of this instance (dynamic port under Electron), with the access key OBS needs
+  const url = useAccessUrl(path);
   const inputId = `obs-url-${path.slice(1)}`;
 
   const copy = () => {

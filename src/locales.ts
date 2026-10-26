@@ -482,6 +482,8 @@ export const locales = {
         "Dans OBS : Scène → Sources → + → Source Navigateur, collez l'URL ci-dessus, taille 1920 × 1080 px. Cette URL est aussi dans la carte « Sources OBS » à droite.",
       overlayUrlChanges:
         "Si cette URL change un jour (le port peut varier), le dashboard affiche toujours l'URL actuelle.",
+      overlayUrlPrivate:
+        "Cette URL contient votre clé d'accès : ne la partagez pas (ni en direct, ni en capture d'écran).",
       obsTitle: "obs-websocket joignable",
       obsOk: "Connecté à OBS {version}",
       obsUnreachable: "OBS est injoignable (OBS est-il lancé, avec le serveur WebSocket activé ?)",
@@ -976,6 +978,7 @@ export const locales = {
       overlayHow:
         'In OBS: Scene → Sources → + → Browser Source, paste the URL above, size 1920 × 1080 px. This URL is also in the "OBS Sources" card on the right.',
       overlayUrlChanges: "If this URL ever changes (the port can vary), the dashboard always shows the current one.",
+      overlayUrlPrivate: "This URL contains your access key: do not share it (not on stream, not in screenshots).",
       obsTitle: "obs-websocket reachable",
       obsOk: "Connected to OBS {version}",
       obsUnreachable: "OBS is unreachable (is OBS running, with the WebSocket server enabled?)",
@@ -1469,6 +1472,7 @@ export const locales = {
       overlayHow:
         'In OBS: Scene → Souwces → + → Bwowsew Souwce, paste the UWL above, size 1920 × 1080 px. This UWL is awso in the "OBS Souwces" cawd on the wight OwO',
       overlayUrlChanges: "If dis UWL evew changes (da powt can vawy), da dashboawd awways shows da cuwwent onye~",
+      overlayUrlPrivate: "Dis UWL has youw access key: don't shawe it (not on stweam, not in scweenshots) OwO",
       obsTitle: "obs-websocket weachabwe",
       obsOk: "Connyected to OBS {version} UwU",
       obsUnreachable: "OBS is unweachabwe (is OBS wunnying, with the WebSocket sewvew enyabwed?) owo",
@@ -1972,6 +1976,8 @@ export const locales = {
         "Dans OBS : Scène → Souwces → + → Souwce Navigateuw, collez l'UWL ci-dessus, taiwwe 1920 × 1080 px. Cette UWL est aussi dans la cawte « Souwces OBS » à dwoite OwO",
       overlayUrlChanges:
         "Si cette UWL change un jouw (we powt peut vawiew), we dashboawd affiche toujouws w'UWL actuewwe~",
+      overlayUrlPrivate:
+        "Cette UWL contient votwe cwé d'accès : ne wa pawtagez pas (ni en diwect, ni en captuwe d'écwan) OwO",
       obsTitle: "obs-websocket joignabwe",
       obsOk: "Connecté à OBS {version} UwU",
       obsUnreachable: "OBS est injoignabwe (OBS est-il wancé, avec le sewveuw WebSocket activé ?) owo",
