@@ -269,7 +269,10 @@ function refreshTrayMenu(port) {
           mainWindow?.focus();
         },
       },
-      { label: "Copy OBS Overlay URL", click: () => clipboard.writeText(`http://127.0.0.1:${port}/overlay`) },
+      {
+        label: "Copy OBS Overlay URL",
+        click: () => clipboard.writeText(`http://127.0.0.1:${port}/overlay`).catch(() => {}),
+      },
       { type: "separator" },
       {
         label: "Quit",
