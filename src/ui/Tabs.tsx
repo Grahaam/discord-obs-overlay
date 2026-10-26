@@ -34,6 +34,10 @@ export interface NavItem {
   href: string;
   label: string;
   icon: ReactNode;
+  /** Count shown next to the label when above zero. */
+  badge?: number;
+  /** Spoken form of the badge, e.g. "2 awaiting approval". */
+  badgeLabel?: string;
 }
 
 /** Sidebar navigation made of real links (so URLs, middle-click and back/forward work). */
@@ -74,6 +78,18 @@ export function SidebarNav({
                   {item.icon}
                 </span>
                 {item.label}
+                {!!item.badge && (
+                  <span
+                    data-testid={`nav-badge-${item.id}`}
+                    className={cx(
+                      "ml-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold leading-none",
+                      active ? "bg-on-accent text-accent" : "bg-warn text-canvas"
+                    )}
+                  >
+                    {item.badge}
+                    <span className="sr-only"> {item.badgeLabel}</span>
+                  </span>
+                )}
               </a>
             </li>
           );

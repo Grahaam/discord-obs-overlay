@@ -32,9 +32,9 @@ test("listTextChannels: keeps text/announcement channels, sorted by position, wi
   assert.deepStrictEqual(result[2].missing, ["ViewChannel", "ReadMessageHistory", "SendMessages"]);
 });
 
-test("inviteUrl: bot + slash commands scopes, 68608 permissions, optional guild lock", () => {
+test("inviteUrl: bot + slash commands scopes, 68672 permissions, optional guild lock", () => {
   const url = inviteUrl("42");
-  assert.ok(url.includes("client_id=42&scope=bot%20applications.commands&permissions=68608"));
+  assert.ok(url.includes("client_id=42&scope=bot%20applications.commands&permissions=68672"));
   assert.ok(!url.includes("guild_id"));
   assert.ok(inviteUrl("42", "7").endsWith("&guild_id=7&disable_guild_select=true"));
 });

@@ -9,7 +9,8 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import type { BotStatus, LogEntry, ServerLogEntry, UIConfig } from "../types";
+import type { BotStatus, LogEntry, PendingApproval, ServerLogEntry, UIConfig } from "../types";
+import { useApprovals } from "../hooks/useApprovals";
 import { locales, type Language } from "../locales";
 import { useQueueStore } from "../store/queueStore";
 import { ToastProvider, useToast } from "../ui";
@@ -52,6 +53,10 @@ export interface DashboardState {
   clearLogs: () => Promise<void>;
   clearServerLogs: () => Promise<void>;
   goTo: (section: SectionId) => void;
+  /** Alerts held for the streamer's approval, oldest first. */
+  approvals: PendingApproval[];
+  approve: (id: string, always?: boolean) => Promise<boolean>;
+  reject: (id: string) => Promise<boolean>;
   /** Re-reads settings, bot status and logs from the server. */
   refresh: () => Promise<void>;
 }
@@ -83,6 +88,7 @@ export function DashboardProvider({ goTo, children }: { goTo: (section: SectionI
   const { socket, wsStatus } = useQueueStore();
   const settings = useSettings();
   const { config, reload } = settings;
+  const { approvals, approve, reject } = useApprovals();
 
   const [botStatus, setBotStatus] = useState<BotStatus>({ status: "disconnected", botUser: "", errorMsg: "" });
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -222,9 +228,12 @@ export function DashboardProvider({ goTo, children }: { goTo: (section: SectionI
       clearLogs: async () => void (await post("/api/logs/clear")),
       clearServerLogs: async () => void (await post("/api/server-logs/clear")),
       goTo,
+      approvals,
+      approve,
+      reject,
       refresh,
     }),
-    [t, config, settings, botStatus, reconnectBot, setup, logs, serverLogs, goTo, refresh]
+    [t, config, settings, botStatus, reconnectBot, setup, logs, serverLogs, goTo, approvals, approve, reject, refresh]
   );
 
   return (

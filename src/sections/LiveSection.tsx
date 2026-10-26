@@ -9,6 +9,7 @@ import NowPlayingPreview from "../components/NowPlayingPreview";
 import { SortableQueueItem } from "../components/SortableQueueItem";
 import { SetupChecklistBody } from "../components/SetupChecklist";
 import { Button, EmptyState, cx } from "../ui";
+import ApprovalInbox from "./live/ApprovalInbox";
 
 function Card({
   icon,
@@ -102,7 +103,7 @@ function Steps({ steps }: { steps: string[] }) {
 }
 
 export default function LiveSection() {
-  const { t, goTo, setup } = useDashboard();
+  const { t, goTo, setup, config, approvals } = useDashboard();
   const { queue: pendingQueue, nowPlaying, reorder } = useQueueStore();
 
   const sensors = useSensors(
@@ -127,6 +128,9 @@ export default function LiveSection() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold tracking-tight text-fg">{t.live.title}</h1>
+
+      {/* Pending approvals first: a viewer is waiting on them */}
+      {(approvals.length > 0 || (config.approvalMode ?? "new") !== "off") && <ApprovalInbox />}
 
       {setupIncomplete && (
         <Card icon={<ListMusic className="h-4 w-4" />} title={t.setup.title} labelledBy="live-setup-title">

@@ -12,6 +12,7 @@ import { setupRoutes } from "./routes.js";
 import { updateYtDlp, cleanupOrphanedTempFiles, startMediaParser, warmUpYtDlp, isYtDlpReady } from "./mediaParser.js";
 import { startMediaQueue } from "./mediaWorkerQueue.js";
 import { alertManager } from "./alertManager.js";
+import { approvalManager } from "./approvalManager.js";
 import { initDb, closeDb, loadPersistedAlerts, loadPersistedLogs, incrementMediaPlayCount } from "./db.js";
 import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
@@ -122,6 +123,7 @@ async function runServer() {
   });
 
   botManager.setIo(io);
+  approvalManager.start(io);
 
   logManager.onLogAdded = (log) => {
     io.emit("new_log", log);
@@ -160,6 +162,7 @@ async function runServer() {
     socket.on("get_initial_state", () => {
       socket.emit("initial_state", alertManager.getAlerts());
       socket.emit("now_playing", currentlyPlaying);
+      socket.emit("initial_approvals", approvalManager.list());
       socket.emit("initial_logs", logManager.getLogs());
       socket.emit("initial_server_logs", serverLogManager.getLogs());
       socket.emit("bot_status_update", {
@@ -313,6 +316,7 @@ async function runServer() {
     shuttingDown = true;
     logger.info({ reason }, "Shutting down");
     clearInterval(heartbeatInterval);
+    approvalManager.stop();
     await restoreOverlay().catch(() => {});
     await botManager.shutdown().catch(() => {});
     io.close();

@@ -14,8 +14,12 @@ Toutes les modifications notables sont listées ici. Format : [Keep a Changelog]
 - **Média par pose** : image/GIF + son, ou vidéo, avec volume, durée maximale, plein écran OBS ou non, délai entre deux déclenchements, et prévisualisation sur l'overlay. Les fichiers s'envoient depuis le tableau de bord (plus besoin de les copier dans `user-assets/`).
 - Avertissement quand deux poses se ressemblent trop, conseils pour choisir une pose qu'on ne fait pas par hasard, et message clair quand la source caméra n'a pas d'image dans OBS.
 
+- **Validation avant diffusion** : les alertes des personnes qui ne sont pas encore de confiance sont gardées dans une boîte « À valider » de l'onglet En direct (aperçu du média, texte, auteur) avec **Approuver**, **Refuser** et **Toujours approuver cette personne**. Trois modes dans Modération : personne, nouveaux et sans rôle approuvé (par défaut), tout le monde. Les membres d'un rôle approuvé (choisi dans la liste des rôles de votre serveur) passent directement, et une personne devient de confiance après N alertes approuvées (1 par défaut). Les alertes en attente survivent à un redémarrage, expirent après 30 minutes (réglable), sont comptées en badge dans la barre latérale et le dock OBS, et un refus est consigné dans le journal. Option : réaction ⏳ sur le message Discord, puis ✅ ou ❌ (le lien d'invitation du bot demande maintenant « Ajouter des réactions »).
+- L'alerte de test accepte un faux auteur (`asPoster` : identifiant et rôles) pour essayer la validation sans passer par Discord.
+
 ### Modifié
 
+- Par défaut, la première alerte d'une personne sans rôle approuvé attend maintenant votre validation ; choisissez « Personne » dans Modération pour retrouver l'ancien comportement.
 - Composants d'interface accessibles (Radix) avec états de focus visibles et libellés ; couleurs, rayons et espacements centralisés dans des variables de thème. L'overlay OBS est inchangé.
 - La pose « Absolute Cinema » devient une pose intégrée avec les mêmes réglages ; elle peut être supprimée puis restaurée. Les anciens réglages (image, son, délai) sont repris automatiquement dans `poses.json`.
 - Application plus légère : environ 467 Mo installée au lieu de 570 Mo (langues Electron limitées à fr/en, paquets du tableau de bord plus embarqués deux fois, seul le moteur MediaPipe utilisé est fourni).

@@ -16,6 +16,7 @@ import { logManager } from "./logManager.js";
 import { serverLogManager } from "./serverLogManager.js";
 import { botManager } from "./discordBotManager.js";
 import { resolveMediaFromLink, _ytDlpCustomPath } from "./mediaParser.js";
+import { approvalManager } from "./approvalManager.js";
 import { alertManager } from "./alertManager.js";
 import { testObsConnection } from "./obsManager.js";
 import { computeSetupStatus, cached, overlayClients, wasAlertStarted } from "./setupStatus.js";
@@ -228,6 +229,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         language: z.enum(["fr", "en", "uwu-fr", "uwu-en"]),
         alertSoundUrl: z.string().optional(),
         allowedRoleIds: z.array(z.string()).optional(),
+        approvalMode: z.enum(["off", "new", "everyone"]).optional(),
+        approvalTrustedRoleIds: z.array(z.string()).optional(),
+        approvalNewPosterCount: z.number().int().min(1).max(20).optional(),
+        approvalExpiryMinutes: z.number().int().min(1).max(1440).optional(),
+        approvalReactions: z.boolean().optional(),
         alertFont: z.enum(["sans", "mono", "serif", "display", "rounded"]).optional(),
         alertPosition: z
           .enum([
@@ -282,6 +288,11 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         language: incoming.language || "fr",
         alertSoundUrl: incoming.alertSoundUrl || "",
         allowedRoleIds: incoming.allowedRoleIds || [],
+        approvalMode: incoming.approvalMode ?? settingsManager.settings.approvalMode,
+        approvalTrustedRoleIds: incoming.approvalTrustedRoleIds ?? settingsManager.settings.approvalTrustedRoleIds,
+        approvalNewPosterCount: incoming.approvalNewPosterCount ?? settingsManager.settings.approvalNewPosterCount,
+        approvalExpiryMinutes: incoming.approvalExpiryMinutes ?? settingsManager.settings.approvalExpiryMinutes,
+        approvalReactions: incoming.approvalReactions ?? settingsManager.settings.approvalReactions,
         alertFont: incoming.alertFont || "sans",
         alertPosition: incoming.alertPosition || "bottom-left",
         alertScale: incoming.alertScale ?? 1,
@@ -338,6 +349,36 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       logger.error({ err }, "Failed listing Discord channels");
       res.status(500).json({ error: err.message || "Failed listing Discord channels" });
     }
+  });
+
+  // Roles of the alert channel's server, to pick who skips approval.
+  app.get("/api/discord/roles", async (req, res) => {
+    try {
+      const roles = await botManager.getGuildRoles();
+      if (!roles) {
+        res.status(409).json({ error: "Discord bot is not connected" });
+        return;
+      }
+      res.json({ roles });
+    } catch (err: any) {
+      logger.error({ err }, "Failed listing Discord roles");
+      res.status(500).json({ error: err.message || "Failed listing Discord roles" });
+    }
+  });
+
+  // Approval inbox
+  app.get("/api/approvals", (req, res) => {
+    res.json(approvalManager.list());
+  });
+
+  app.post("/api/approvals/:id/approve", (req, res) => {
+    const ok = approvalManager.approve(req.params.id, { always: req.body?.always === true });
+    res.status(ok ? 200 : 404).json({ success: ok });
+  });
+
+  app.post("/api/approvals/:id/reject", (req, res) => {
+    const ok = approvalManager.reject(req.params.id);
+    res.status(ok ? 200 : 404).json({ success: ok });
   });
 
   // Get Logs
@@ -541,6 +582,31 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       timestamp: Date.now(),
       isTest: true,
     };
+
+    // Simulating a poster sends the test through the approval gate like a real Discord message
+    const asPoster = req.body?.asPoster;
+    if (asPoster && typeof asPoster.id === "string") {
+      const roleIds = Array.isArray(asPoster.roleIds)
+        ? asPoster.roleIds.filter((r: unknown) => typeof r === "string")
+        : [];
+      const outcome = approvalManager.submit(
+        testPayload,
+        { id: asPoster.id, roleIds },
+        {
+          approvedLog: {
+            author: testPayload.authorName,
+            authorAvatar: testPayload.authorAvatar,
+            text: testPayload.text,
+            type: testPayload.type,
+            mediaUrl: testPayload.mediaUrl,
+            status: "approved",
+            reason: "Alerte de test",
+          },
+        }
+      );
+      res.json({ success: true, payload: testPayload, outcome });
+      return;
+    }
 
     alertManager.addAlert(testPayload);
     io.emit("new_alert", testPayload);

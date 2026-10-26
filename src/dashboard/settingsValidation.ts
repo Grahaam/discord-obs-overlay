@@ -17,6 +17,8 @@ export function isSavable(config: UIConfig): boolean {
     inRange(config.alertScale, 0.5, 2) &&
     inRange(config.alertBgOpacity, 0, 1) &&
     inRange(config.poseCooldownSeconds, 5, 3600) &&
+    inRange(config.approvalNewPosterCount, 1, 20) &&
+    inRange(config.approvalExpiryMinutes, 1, 1440) &&
     /^#/.test(config.neonColor)
   );
 }
