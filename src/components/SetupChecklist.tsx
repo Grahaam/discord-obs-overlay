@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, Loader2, Copy, CheckCircle2, Circle } from "lucide-react";
 import { locales } from "../locales";
+import { useAccessUrl } from "../lib/useAccessUrl";
 import { Button, Dialog } from "../ui";
 
 type Translations = (typeof locales)["fr"];
@@ -87,8 +88,8 @@ export function SetupChecklistBody({
   const [testAlertId, setTestAlertId] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
-  // Real URL of this instance: the port is dynamic under Electron
-  const overlayUrl = `${window.location.origin}/overlay`;
+  // Real URL of this instance (dynamic port under Electron), with the access key OBS needs
+  const overlayUrl = useAccessUrl("/overlay");
 
   // Poll while mounted. Re-runs when the test alert id changes so the new id is checked immediately.
   useEffect(() => {
@@ -211,6 +212,7 @@ export function SetupChecklistBody({
           </div>
           {!status?.overlay && <p className="mt-2 text-fg-muted">{t.setup.overlayHow}</p>}
           <p className="mt-2 text-fg-subtle">{t.setup.overlayUrlChanges}</p>
+          <p className="mt-1 text-fg-subtle">{t.setup.overlayUrlPrivate}</p>
         </Row>
 
         <Row done={!!status?.obs} loading={loading} title={t.setup.obsTitle}>
