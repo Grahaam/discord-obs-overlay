@@ -129,6 +129,9 @@ export default function LiveSection() {
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold tracking-tight text-fg">{t.live.title}</h1>
 
+      {/* Pending approvals first: a viewer is waiting on them */}
+      {(approvals.length > 0 || (config.approvalMode ?? "new") !== "off") && <ApprovalInbox />}
+
       {setupIncomplete && (
         <Card icon={<ListMusic className="h-4 w-4" />} title={t.setup.title} labelledBy="live-setup-title">
           <div className="p-4">
@@ -137,8 +140,6 @@ export default function LiveSection() {
           </div>
         </Card>
       )}
-
-      {(approvals.length > 0 || (config.approvalMode ?? "new") !== "off") && <ApprovalInbox />}
 
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-7">

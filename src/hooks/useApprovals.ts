@@ -22,14 +22,19 @@ export function useApprovals() {
 
   useEffect(() => {
     useQueueStore.getState().ensureSocketConnected();
-    fetch("/api/approvals")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((list: PendingApproval[]) => setApprovals(list))
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!socket) return;
+    // The socket may have connected (and been answered) before these listeners existed, so read the list over
+    // HTTP now and after every reconnect: nothing held in between is missed.
+    const refetch = () =>
+      fetch("/api/approvals")
+        .then((r) => (r.ok ? r.json() : []))
+        .then((list: PendingApproval[]) => setApprovals(list))
+        .catch(() => {});
+    void refetch();
+    socket.on("connect", refetch);
     const onInitial = (list: PendingApproval[]) => setApprovals(list);
     const onAdded = (item: PendingApproval) =>
       setApprovals((prev) => (prev.some((a) => a.id === item.id) ? prev : [...prev, item]));
@@ -38,6 +43,7 @@ export function useApprovals() {
     socket.on("approval_added", onAdded);
     socket.on("approval_resolved", onResolved);
     return () => {
+      socket.off("connect", refetch);
       socket.off("initial_approvals", onInitial);
       socket.off("approval_added", onAdded);
       socket.off("approval_resolved", onResolved);
