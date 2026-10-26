@@ -514,7 +514,7 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
 
   // Step 1: Resolve metadata and canonical URL first (fast, skip download)
   // This handles search-to-video resolution and ensures we have the real URL for hashing.
-  let metadata: any = null;
+  let metadata: any;
   try {
     const rawMetadata = await withTimeout(
       ytDlp(url, {
