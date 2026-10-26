@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { Play, Upload } from "lucide-react";
 import type { PoseMedia } from "../../types";
-import { FieldLabel, NumberField, Toggle, inputBase } from "./fields";
+import { Button, Field, inputClass } from "../../ui";
+import { NumberField, Toggle } from "./fields";
 
 type UrlField = "imageUrl" | "soundUrl" | "videoUrl";
 
@@ -70,52 +71,50 @@ function UrlWithUpload({
   };
 
   return (
-    <div className="flex flex-col gap-1">
-      <FieldLabel>{label}</FieldLabel>
-      <div className="flex gap-2 items-center">
-        {value && field === "imageUrl" && (
-          <img src={value} alt="" className="w-9 h-9 rounded object-cover border border-white/10 shrink-0" />
-        )}
-        {value && field === "videoUrl" && (
-          <video src={value} muted className="w-9 h-9 rounded object-cover border border-white/10 shrink-0" />
-        )}
-        <input
-          aria-label={label}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={labels.urlPlaceholder}
-          className={inputBase}
-        />
-        {value && field === "soundUrl" && (
-          <button
-            type="button"
-            title={labels.playSound}
-            onClick={() => new Audio(value).play().catch(() => {})}
-            className="p-2 rounded-lg border border-white/10 text-white/50 hover:text-white shrink-0"
-          >
-            <Play className="w-3 h-3" />
-          </button>
-        )}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 text-[10px] font-mono text-white/60 hover:text-white disabled:opacity-40 shrink-0"
-        >
-          <Upload className="w-3 h-3" />
-          {busy ? labels.uploading : labels.chooseFile}
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPT[field]}
-          className="hidden"
-          data-testid={`upload-${field}`}
-          onChange={(e) => void pick(e.target.files?.[0])}
-        />
-      </div>
-      {error && <span className="text-[10px] font-mono text-red-300">{error}</span>}
-    </div>
+    <Field label={label} error={error}>
+      {(aria) => (
+        <div className="flex gap-2 items-center">
+          {value && field === "imageUrl" && (
+            <img src={value} alt="" className="w-9 h-9 rounded-control object-cover border border-line shrink-0" />
+          )}
+          {value && field === "videoUrl" && (
+            <video src={value} muted className="w-9 h-9 rounded-control object-cover border border-line shrink-0" />
+          )}
+          <input
+            {...aria}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={labels.urlPlaceholder}
+            className={inputClass}
+          />
+          {value && field === "soundUrl" && (
+            <Button
+              variant="ghost"
+              title={labels.playSound}
+              aria-label={labels.playSound}
+              onClick={() => new Audio(value).play().catch(() => {})}
+              className="shrink-0"
+            >
+              <Play aria-hidden className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          <Button disabled={busy} onClick={() => inputRef.current?.click()} className="shrink-0">
+            <Upload aria-hidden className="w-3.5 h-3.5" />
+            {busy ? labels.uploading : labels.chooseFile}
+          </Button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept={ACCEPT[field]}
+            className="hidden"
+            tabIndex={-1}
+            aria-hidden
+            data-testid={`upload-${field}`}
+            onChange={(e) => void pick(e.target.files?.[0])}
+          />
+        </div>
+      )}
+    </Field>
   );
 }
 
@@ -124,18 +123,20 @@ export default function PoseMediaEditor({ media, onChange, labels }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1">
-        <FieldLabel>{labels.type}</FieldLabel>
-        {/* Switching type keeps the other type's URLs, so flipping back loses nothing */}
-        <select
-          value={media.type}
-          onChange={(e) => set({ type: e.target.value as PoseMedia["type"] })}
-          className={inputBase}
-        >
-          <option value="image">{labels.typeImage}</option>
-          <option value="video">{labels.typeVideo}</option>
-        </select>
-      </label>
+      <Field label={labels.type}>
+        {(aria) => (
+          /* Switching type keeps the other type's URLs, so flipping back loses nothing */
+          <select
+            {...aria}
+            value={media.type}
+            onChange={(e) => set({ type: e.target.value as PoseMedia["type"] })}
+            className={inputClass}
+          >
+            <option value="image">{labels.typeImage}</option>
+            <option value="video">{labels.typeVideo}</option>
+          </select>
+        )}
+      </Field>
 
       {media.type === "image" ? (
         <>
@@ -164,7 +165,7 @@ export default function PoseMediaEditor({ media, onChange, labels }: Props) {
         />
       )}
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <NumberField
           label={labels.volume}
           value={media.volume}

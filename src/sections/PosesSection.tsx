@@ -1,31 +1,25 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Lightbulb, RotateCcw } from "lucide-react";
-import type { BodyPart, NormalizedPoint, Pose, UIConfig } from "../../types";
-import { usePoses } from "../../hooks/usePoses";
-import { usePoseLandmarks, type PoseFrame, type PoseLandmarksStatus } from "../../hooks/usePoseLandmarks";
-import { usePoseRecorder } from "../../hooks/usePoseRecorder";
-import { visiblePoses } from "../../lib/poseMedia";
-import { posesNeedHands, scoreFrame } from "../../lib/poseScoring";
-import { fingerCurls, handsLookAlike } from "../../lib/handMatcher";
-import { mergeHandRecording, ticksToParts, type RecordPart, type RecordTicks } from "../../lib/handRecording";
-import { SIMILAR_WARN, similarity } from "../../lib/poseMatcher";
-import PoseCard from "../poses/PoseCard";
-import RecordControls from "../poses/RecordControls";
-import SkeletonCanvas from "../poses/SkeletonCanvas";
-import { FieldLabel, Toggle, inputBase } from "../poses/fields";
+import type { BodyPart, NormalizedPoint, Pose, UIConfig } from "../types";
+import { usePoses } from "../hooks/usePoses";
+import { usePoseLandmarks, type PoseFrame, type PoseLandmarksStatus } from "../hooks/usePoseLandmarks";
+import { usePoseRecorder } from "../hooks/usePoseRecorder";
+import { visiblePoses } from "../lib/poseMedia";
+import { posesNeedHands, scoreFrame } from "../lib/poseScoring";
+import { fingerCurls, handsLookAlike } from "../lib/handMatcher";
+import { mergeHandRecording, ticksToParts, type RecordPart, type RecordTicks } from "../lib/handRecording";
+import { SIMILAR_WARN, similarity } from "../lib/poseMatcher";
+import { useDashboard } from "../dashboard/DashboardContext";
+import { Button, EmptyState, Field, SettingRow, Switch, inputClass } from "../ui";
+import PoseCard from "../components/poses/PoseCard";
+import RecordControls from "../components/poses/RecordControls";
+import SkeletonCanvas from "../components/poses/SkeletonCanvas";
 
 const RECORD_ERROR: Record<RecordPart, string> = {
   body: "recordFailed",
   leftHand: "missingLeftHand",
   rightHand: "missingRightHand",
 };
-
-interface Props {
-  config: UIConfig;
-  setConfig: React.Dispatch<React.SetStateAction<UIConfig>>;
-  saveSettings: (next: UIConfig) => Promise<void>;
-  t: any;
-}
 
 type RecordTarget = { kind: "new" } | { kind: "rerecord"; poseId: string };
 
@@ -81,9 +75,10 @@ const STATUS_LABEL: Record<PoseLandmarksStatus, string> = {
   "hands-unavailable": "", // shown as a warning under the camera, the body still works
 };
 
-export default function PosesTab({ config, setConfig, saveSettings, t }: Props) {
+export default function PosesSection() {
+  const { t, config, setConfig, saveNow } = useDashboard();
   const { file, update, flush, error } = usePoses();
-  const labels: Record<string, string> = t.poses;
+  const labels = t.poses as Record<string, string>;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [recordError, setRecordError] = useState<string | null>(null);
   const [ticks, setTicks] = useState<RecordTicks>({ body: true, leftHand: false, rightHand: false });
@@ -147,14 +142,16 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
   );
 
   if (!file) {
-    return <div className="text-xs font-mono text-white/40">{error ?? labels.loading}</div>;
+    return (
+      <div role="status" className="text-sm text-fg-muted">
+        {error ?? labels.loading}
+      </div>
+    );
   }
 
   // Global settings (master switch, camera) stay in settings.json, saved right away
   const updateSettings = (patch: Partial<UIConfig>) => {
-    const next = { ...config, ...patch };
-    setConfig(next);
-    void saveSettings(next);
+    void saveNow({ ...config, ...patch });
   };
 
   const replacePose = (pose: Pose) => update({ ...file, poses: file.poses.map((p) => (p.id === pose.id ? pose : p)) });
@@ -187,38 +184,45 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
     recorder.phase.kind === "countdown" ? (
       <span className="text-7xl font-bold text-white drop-shadow-lg">{recorder.phase.seconds}</span>
     ) : recorder.phase.kind === "capturing" ? (
-      <span className="rounded-lg bg-red-600/80 px-3 py-1.5 text-xs font-mono text-white">
+      <span className="rounded-control bg-danger px-3 py-1.5 text-sm font-semibold text-white">
         {labels.recording} {recorder.phase.good}/{recorder.phase.needed}
       </span>
     ) : statusText ? (
-      <span className="max-w-xs px-4 text-center text-xs font-mono text-white/50">{statusText}</span>
+      <span className="max-w-xs px-4 text-center text-sm text-white/80">{statusText}</span>
     ) : cameraReady && !frame?.landmarks ? (
-      <span className="rounded bg-black/60 px-2 py-1 text-[10px] font-mono text-white/60">{labels.noPerson}</span>
+      <span className="rounded bg-black/70 px-2 py-1 text-xs text-white/80">{labels.noPerson}</span>
     ) : null;
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3">
-        <label className="text-[10px] font-mono text-white/35 uppercase tracking-widest">{labels.title}</label>
-        <Toggle
-          checked={config.poseDetectionEnabled || false}
-          onChange={(poseDetectionEnabled) => updateSettings({ poseDetectionEnabled })}
-          label={labels.enabled}
-        />
-        <label className="flex flex-col gap-1">
-          <FieldLabel>{labels.source}</FieldLabel>
-          <input
-            value={config.poseCameraSource || ""}
-            placeholder={labels.sourcePlaceholder}
-            onChange={(e) => setConfig({ ...config, poseCameraSource: e.target.value })}
-            onBlur={(e) => updateSettings({ poseCameraSource: e.target.value.trim() })}
-            className={inputBase}
-          />
-          <span className="text-[10px] font-mono text-white/25 leading-relaxed">{labels.help}</span>
-        </label>
-      </div>
+    <div className="flex flex-col gap-6">
+      <section aria-labelledby="poses-title" className="flex flex-col gap-3">
+        <h2 id="poses-title" className="text-base font-semibold text-fg">
+          {labels.title}
+        </h2>
+        <SettingRow title={labels.enabled}>
+          {({ labelId }) => (
+            <Switch
+              checked={config.poseDetectionEnabled || false}
+              onCheckedChange={(poseDetectionEnabled) => updateSettings({ poseDetectionEnabled })}
+              aria-labelledby={labelId}
+            />
+          )}
+        </SettingRow>
+        <Field label={labels.source} hint={labels.help}>
+          {(aria) => (
+            <input
+              {...aria}
+              value={config.poseCameraSource || ""}
+              placeholder={labels.sourcePlaceholder}
+              onChange={(e) => setConfig((c) => ({ ...c, poseCameraSource: e.target.value }))}
+              onBlur={(e) => updateSettings({ poseCameraSource: e.target.value.trim() })}
+              className={inputClass}
+            />
+          )}
+        </Field>
+      </section>
 
-      <div className="flex flex-col gap-2">
+      <section className="flex flex-col gap-2">
         <SkeletonCanvas
           frame={frame}
           ghost={selected?.template}
@@ -226,8 +230,8 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
           overlay={recorderOverlay}
         />
         {status === "hands-unavailable" && (
-          <span className="flex items-center gap-1.5 text-[10px] font-mono text-amber-300/80">
-            <AlertTriangle className="w-3 h-3 shrink-0" />
+          <span className="flex items-center gap-1.5 text-xs text-warn-text">
+            <AlertTriangle aria-hidden className="w-3.5 h-3.5 shrink-0" />
             {labels.statusHandsUnavailable}
           </span>
         )}
@@ -239,15 +243,22 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
           error={recordError}
           labels={labels}
         />
-      </div>
+      </section>
 
       {error && (
-        <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-[10px] font-mono text-red-300">
+        <div
+          role="alert"
+          className="rounded-control border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger-text"
+        >
           {labels.saveError} {error}
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <section aria-labelledby="poses-list" className="flex flex-col gap-2">
+        <h2 id="poses-list" className="text-base font-semibold text-fg">
+          {labels.listTitle}
+        </h2>
+        {visible.length === 0 && <EmptyState title={labels.empty} />}
         {visible.map((pose) => (
           <PoseCard
             key={pose.id}
@@ -268,22 +279,18 @@ export default function PosesTab({ config, setConfig, saveSettings, t }: Props) 
             labels={labels}
           />
         ))}
-      </div>
+      </section>
 
       {file.hiddenBuiltins.length > 0 && (
-        <button
-          type="button"
-          onClick={() => update({ ...file, hiddenBuiltins: [] })}
-          className="self-start flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono text-white/50 hover:text-white"
-        >
-          <RotateCcw className="w-3 h-3" />
+        <Button onClick={() => update({ ...file, hiddenBuiltins: [] })} className="self-start">
+          <RotateCcw aria-hidden className="w-4 h-4" />
           {labels.restore}
-        </button>
+        </Button>
       )}
 
-      <div className="flex gap-2 rounded-lg border border-white/[0.05] bg-white/[0.015] px-3 py-2.5">
-        <Lightbulb className="w-3.5 h-3.5 shrink-0 text-white/30" />
-        <ul className="flex flex-col gap-1 text-[10px] font-mono text-white/35 leading-relaxed">
+      <div className="flex gap-2 rounded-control border border-line bg-surface px-3 py-3">
+        <Lightbulb aria-hidden className="w-4 h-4 shrink-0 text-fg-subtle" />
+        <ul className="flex flex-col gap-1 text-xs text-fg-muted leading-relaxed">
           <li>{labels.tipDistinct}</li>
           <li>{labels.tip2d}</li>
           <li>{labels.tipOnePerson}</li>

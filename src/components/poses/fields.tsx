@@ -1,13 +1,11 @@
 import { useState, type ReactNode } from "react";
-
-export const inputBase =
-  "bg-[#08080f] w-full border border-white/[0.07] rounded-lg px-3 py-2 text-xs font-mono text-white/70 placeholder:text-white/15 focus:outline-none focus:border-white/20 transition-all";
+import { Field, inputClass } from "../../ui";
 
 export function FieldLabel({ children }: { children: ReactNode }) {
-  return <span className="text-[10px] font-mono text-white/30">{children}</span>;
+  return <span className="text-xs font-semibold text-fg-muted">{children}</span>;
 }
 
-/** Same look as the dashboard's other checkboxes (BotTab). */
+/** Compact labelled checkbox for per-pose options (the page-level switch uses the kit's Switch). */
 export function Toggle({
   checked,
   onChange,
@@ -20,30 +18,15 @@ export function Toggle({
   ariaLabel?: string;
 }) {
   return (
-    <label className="flex items-center gap-2 cursor-pointer group">
-      <div
-        className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all ${
-          checked ? "bg-violet-600 border-violet-500" : "bg-transparent border-white/20 group-hover:border-white/40"
-        }`}
-      >
-        <input
-          type="checkbox"
-          className="hidden"
-          checked={checked}
-          aria-label={ariaLabel}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        {checked && (
-          <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-        )}
-      </div>
-      {label && (
-        <span className="text-[10px] font-mono text-white/40 group-hover:text-white/70 transition-colors leading-snug">
-          {label}
-        </span>
-      )}
+    <label className="flex items-center gap-2 cursor-pointer min-h-6">
+      <input
+        type="checkbox"
+        className="h-4 w-4 shrink-0 cursor-pointer accent-accent focus-ring"
+        checked={checked}
+        aria-label={ariaLabel}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      {label && <span className="text-sm text-fg-muted">{label}</span>}
     </label>
   );
 }
@@ -77,19 +60,21 @@ export function NumberField({
     if (next !== value) onCommit(next);
   };
   return (
-    <label className="flex flex-col gap-1">
-      <FieldLabel>{label}</FieldLabel>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        step={step}
-        value={draft ?? String(value)}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => e.key === "Enter" && commit()}
-        className={inputBase}
-      />
-    </label>
+    <Field label={label}>
+      {(aria) => (
+        <input
+          {...aria}
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={draft ?? String(value)}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => e.key === "Enter" && commit()}
+          className={inputClass}
+        />
+      )}
+    </Field>
   );
 }

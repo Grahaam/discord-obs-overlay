@@ -3,9 +3,10 @@ import { AlertTriangle, ChevronDown, Circle, Eye, Trash2 } from "lucide-react";
 import type { BodyPart, Finger, Pose } from "../../types";
 import { hasMedia } from "../../lib/poseMedia";
 import { liveHandFor } from "../../lib/handRecording";
+import { Button, Field, StatusPill, Switch, cx, inputClass } from "../../ui";
 import HandFingers from "./HandFingers";
 import PoseMediaEditor from "./PoseMediaEditor";
-import { FieldLabel, NumberField, Toggle, inputBase } from "./fields";
+import { NumberField, Toggle } from "./fields";
 
 const BODY_PARTS: BodyPart[] = ["arms", "legs", "head", "leftHand", "rightHand"];
 const HAND_SIDES = [
@@ -35,16 +36,17 @@ function MatchBar({ score, threshold, label }: { score: number | null; threshold
   const value = Math.round(score ?? 0);
   const matched = score !== null && score >= threshold;
   return (
-    <div className="flex items-center gap-2 w-28 shrink-0" title={`${label}: ${score === null ? "–" : `${value} %`}`}>
-      <div className="relative h-1.5 flex-1 rounded bg-white/[0.06] overflow-hidden">
+    <div className="flex items-center gap-2 w-32 shrink-0" title={`${label}: ${score === null ? "–" : `${value} %`}`}>
+      <div className="relative h-1.5 flex-1 rounded bg-surface-hover overflow-hidden">
         <div
-          className={`absolute inset-y-0 left-0 transition-all ${matched ? "bg-emerald-400" : "bg-white/25"}`}
+          className={cx("absolute inset-y-0 left-0 transition-all", matched ? "bg-ok" : "bg-fg-subtle")}
           style={{ width: `${value}%` }}
         />
         {/* Threshold marker */}
-        <div className="absolute inset-y-0 w-px bg-violet-300/70" style={{ left: `${threshold}%` }} />
+        <div className="absolute inset-y-0 w-px bg-accent" style={{ left: `${threshold}%` }} />
       </div>
-      <span className={`text-[10px] font-mono w-8 text-right ${matched ? "text-emerald-300" : "text-white/35"}`}>
+      <span className={cx("text-xs w-9 text-right tabular-nums", matched ? "text-ok-text" : "text-fg-subtle")}>
+        <span className="sr-only">{label}: </span>
         {score === null ? "–" : `${value}%`}
       </span>
     </div>
@@ -86,87 +88,89 @@ export default function PoseCard({
   };
 
   return (
-    <article className="rounded-xl border border-white/[0.07] bg-white/[0.02]">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <Toggle checked={pose.enabled} onChange={(enabled) => set({ enabled })} ariaLabel={labels.poseEnabled} />
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(!open);
-            onOpenChange(!open);
-          }}
-          aria-expanded={open}
-          className="flex-1 flex items-center gap-2 text-left text-sm font-semibold text-white/80"
-        >
-          {pose.name}
-          <ChevronDown className={`w-3.5 h-3.5 text-white/30 transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
+    <article className="rounded-card border border-line bg-surface">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+        <Switch
+          checked={pose.enabled}
+          onCheckedChange={(enabled) => set({ enabled })}
+          aria-label={`${labels.poseEnabled}: ${pose.name}`}
+        />
+        <h3 className="flex-1 min-w-0 text-sm font-semibold text-fg">
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(!open);
+              onOpenChange(!open);
+            }}
+            aria-expanded={open}
+            className="flex w-full items-center gap-2 text-left cursor-pointer rounded-control focus-ring"
+          >
+            <span className="truncate">{pose.name}</span>
+            <ChevronDown
+              aria-hidden
+              className={cx("w-4 h-4 shrink-0 text-fg-subtle transition-transform", open && "rotate-180")}
+            />
+          </button>
+        </h3>
         {liveScore !== undefined && (
           <MatchBar score={liveScore} threshold={pose.kind === "builtin" ? 100 : pose.threshold} label={labels.match} />
         )}
-        {pose.kind === "builtin" && (
-          <span className="rounded bg-violet-500/15 px-2 py-0.5 text-[10px] font-mono text-violet-300">
-            {labels.builtin}
-          </span>
-        )}
-        {!hasMedia(pose) && (
-          <span className="rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-mono text-amber-300">
-            {labels.needsMedia}
-          </span>
-        )}
-        <button
-          type="button"
+        {pose.kind === "builtin" && <StatusPill tone="accent">{labels.builtin}</StatusPill>}
+        {!hasMedia(pose) && <StatusPill tone="warn">{labels.needsMedia}</StatusPill>}
+        <Button
+          variant="ghost"
           onClick={onDelete}
           title={labels.hide}
           aria-label={labels.hide}
-          className="p-1.5 text-white/30 hover:text-red-300"
+          className="p-2 hover:text-danger-text"
         >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+          <Trash2 aria-hidden className="w-4 h-4" />
+        </Button>
       </div>
 
       {similarTo && (
-        <div className="flex items-center gap-2 px-4 pb-3 -mt-1 text-[10px] font-mono text-amber-300/80">
-          <AlertTriangle className="w-3 h-3 shrink-0" />
+        <div className="flex items-center gap-2 px-4 pb-3 -mt-1 text-xs text-warn-text">
+          <AlertTriangle aria-hidden className="w-3.5 h-3.5 shrink-0" />
           {labels.tooSimilar.replace("{name}", similarTo)}
         </div>
       )}
 
       {open && (
-        <div className="flex flex-col gap-4 border-t border-white/[0.05] px-4 py-4">
-          <label className="flex flex-col gap-1">
-            <FieldLabel>{labels.name}</FieldLabel>
-            <input
-              value={name ?? pose.name}
-              maxLength={60}
-              onChange={(e) => setName(e.target.value)}
-              onBlur={commitName}
-              onKeyDown={(e) => e.key === "Enter" && commitName()}
-              className={inputBase}
-            />
-          </label>
+        <div className="flex flex-col gap-4 border-t border-line px-4 py-4">
+          <Field label={labels.name}>
+            {(aria) => (
+              <input
+                {...aria}
+                value={name ?? pose.name}
+                maxLength={60}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={commitName}
+                onKeyDown={(e) => e.key === "Enter" && commitName()}
+                className={inputClass}
+              />
+            )}
+          </Field>
 
           {/* The built-in pose is matched by fixed rules: no template, parts, threshold or mirror */}
           {pose.kind === "custom" && (
             <>
-              <div className="flex flex-col gap-1.5">
-                <FieldLabel>{labels.bodyParts}</FieldLabel>
+              <fieldset className="flex flex-col gap-1.5">
+                <legend className="mb-1.5 text-xs font-semibold text-fg-muted">{labels.bodyParts}</legend>
                 <div className="flex flex-wrap gap-x-4 gap-y-2">
                   {BODY_PARTS.map((part) => {
                     const side = part === "leftHand" ? "left" : part === "rightHand" ? "right" : null;
                     // A hand can't be ticked before it is recorded (the store rejects a ticked hand with no template)
                     if (side && !pose.hands?.[side] && !pose.bodyParts.includes(part)) {
                       return (
-                        <button
+                        <Button
                           key={part}
-                          type="button"
                           disabled={recordDisabled || !onRecord}
                           onClick={() => onRecord?.([part])}
-                          className="flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1 text-[10px] font-mono text-white/60 hover:text-white disabled:opacity-40"
+                          className="px-2.5 py-1 text-xs"
                         >
-                          <Circle className="w-2.5 h-2.5 fill-red-400 text-red-400" />
+                          <Circle aria-hidden className="w-3 h-3 fill-danger text-danger" />
                           {labels[side === "left" ? "recordLeftHand" : "recordRightHand"]}
-                        </button>
+                        </Button>
                       );
                     }
                     return (
@@ -179,15 +183,15 @@ export default function PoseCard({
                     );
                   })}
                 </div>
-              </div>
+              </fieldset>
               {HAND_SIDES.some(({ part }) => pose.bodyParts.includes(part)) && (
                 <div className="flex flex-col gap-2">
-                  <FieldLabel>{labels.hands}</FieldLabel>
+                  <h4 className="text-xs font-semibold text-fg-muted">{labels.hands}</h4>
                   {HAND_SIDES.filter(({ part }) => pose.bodyParts.includes(part)).map(({ part, side }) => {
                     const template = pose.hands?.[side];
                     return (
                       <div key={side} className="flex flex-col gap-1">
-                        <span className="text-[10px] font-mono text-white/40">{labels[part]}</span>
+                        <span className="text-xs text-fg-subtle">{labels[part]}</span>
                         {template ? (
                           <HandFingers
                             template={template}
@@ -196,7 +200,7 @@ export default function PoseCard({
                             labels={labels}
                           />
                         ) : (
-                          <span className="text-[10px] font-mono text-amber-300/80">{labels.handNotRecorded}</span>
+                          <span className="text-xs text-warn-text">{labels.handNotRecorded}</span>
                         )}
                       </div>
                     );
@@ -215,20 +219,15 @@ export default function PoseCard({
               )}
               <Toggle checked={pose.mirror} onChange={(mirror) => set({ mirror })} label={labels.mirror} />
               {onRecord && (
-                <button
-                  type="button"
-                  disabled={recordDisabled}
-                  onClick={() => onRecord()}
-                  className="self-start flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-2 text-[10px] font-mono text-white/60 hover:text-white disabled:opacity-40"
-                >
-                  <Circle className="w-3 h-3 fill-red-400 text-red-400" />
+                <Button disabled={recordDisabled} onClick={() => onRecord()} className="self-start">
+                  <Circle aria-hidden className="w-3 h-3 fill-danger text-danger" />
                   {labels.rerecord}
-                </button>
+                </Button>
               )}
             </>
           )}
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {pose.kind === "custom" && (
               <NumberField
                 label={labels.threshold}
@@ -258,15 +257,15 @@ export default function PoseCard({
           <PoseMediaEditor media={pose.media} onChange={(media) => set({ media })} labels={labels} />
 
           <div className="flex flex-col gap-1">
-            <button
-              type="button"
-              onClick={() => void preview()}
-              className="flex items-center justify-center gap-2 rounded-lg bg-violet-600 hover:bg-violet-500 px-3 py-2 text-xs font-semibold text-white"
-            >
-              <Eye className="w-3.5 h-3.5" />
+            <Button variant="primary" onClick={() => void preview()}>
+              <Eye aria-hidden className="w-4 h-4" />
               {labels.preview}
-            </button>
-            {previewError && <span className="text-[10px] font-mono text-red-300">{previewError}</span>}
+            </Button>
+            {previewError && (
+              <span role="alert" className="text-xs text-danger-text">
+                {previewError}
+              </span>
+            )}
           </div>
         </div>
       )}

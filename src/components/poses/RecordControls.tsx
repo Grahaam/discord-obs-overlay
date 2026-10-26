@@ -1,5 +1,6 @@
 import { Circle } from "lucide-react";
 import type { RecordTicks } from "../../lib/handRecording";
+import { Button } from "../../ui";
 import { Toggle } from "./fields";
 
 interface Props {
@@ -16,7 +17,7 @@ export default function RecordControls({ ticks, onTicksChange, disabled, onRecor
   const none = !ticks.body && !ticks.leftHand && !ticks.rightHand;
   return (
     <>
-      <div className="flex flex-wrap gap-x-4 gap-y-2">
+      <div role="group" aria-label={labels.bodyParts} className="flex flex-wrap gap-x-4 gap-y-2">
         {(["body", "leftHand", "rightHand"] as const).map((key) => (
           <Toggle
             key={key}
@@ -27,18 +28,17 @@ export default function RecordControls({ ticks, onTicksChange, disabled, onRecor
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={disabled || none}
-          onClick={onRecord}
-          className="flex items-center gap-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:hover:bg-violet-600 px-3 py-2 text-xs font-semibold text-white"
-        >
-          <Circle className="w-3 h-3 fill-red-400 text-red-400" />
+        <Button variant="primary" disabled={disabled || none} onClick={onRecord}>
+          <Circle aria-hidden className="w-3 h-3 fill-current" />
           {labels.newPose}
-        </button>
-        <span className="text-[10px] font-mono text-white/30">{none ? labels.recordPick : labels.recordHelp}</span>
+        </Button>
+        <span className="text-xs text-fg-subtle">{none ? labels.recordPick : labels.recordHelp}</span>
       </div>
-      {error && <span className="text-[10px] font-mono text-red-300">{error}</span>}
+      {error && (
+        <span role="alert" className="text-xs text-danger-text">
+          {error}
+        </span>
+      )}
     </>
   );
 }
