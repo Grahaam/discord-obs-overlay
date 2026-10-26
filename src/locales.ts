@@ -82,6 +82,8 @@ export const locales = {
       updatesUpToDate: "Vous utilisez la dernière version.",
     },
     look: {
+      groupSound: "Durée & son",
+      testHint: "Envoie une vraie alerte sur le live (OBS la verra). « Rejouer » ne bouge que l’aperçu.",
       replay: "Rejouer",
       title: "Look & son",
       settings: "Réglages",
@@ -550,6 +552,8 @@ export const locales = {
       updatesUpToDate: "You are on the latest version.",
     },
     look: {
+      groupSound: "Duration & sound",
+      testHint: "Sends a real alert to the stream (OBS will show it). “Replay” only moves the preview.",
       replay: "Replay",
       title: "Look & sound",
       settings: "Settings",
@@ -1009,6 +1013,8 @@ export const locales = {
       updatesUpToDate: "You'we on the watest vewsion.",
     },
     look: {
+      groupSound: "Duwation & sound",
+      testHint: "Sends a weaw awewt to the stweam (OBS wiww show it). “Wepway” onwy moves the pweview.",
       replay: "Wepway",
       title: "Wook & sound",
       settings: "Settings",
@@ -1467,6 +1473,8 @@ export const locales = {
       updatesUpToDate: "Vous utiwisez wa dewnière vewsion.",
     },
     look: {
+      groupSound: "Duwée & son",
+      testHint: "Envoie une vwaie awewte suw we wive (OBS wa vewwa). « Wejouew » ne bouge que w’apewçu.",
       replay: "Wejouew",
       title: "Wook & son",
       settings: "Wégwages",

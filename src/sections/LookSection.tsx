@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from "react";
-import { CheckCircle2, RotateCcw, Send } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { CheckCircle2, Play, RotateCcw, Send, Square } from "lucide-react";
 import AlertStagePreview from "../components/AlertStagePreview";
 import { FONT_MAP } from "../lib/alertLayout";
 import { useDashboard } from "../dashboard/DashboardContext";
-import { Button, Field, SettingRow, Slider, cx, inputClass } from "../ui";
+import { Button, Field, SettingRow, Slider, Switch, cx, inputClass } from "../ui";
 import type { AlertAnimation, AlertFont, AlertPosition, MediaType } from "../types";
 
 // The preview colors below (presets, previewBg, shadows, inner card) mirror the OBS overlay look on purpose:
@@ -85,6 +85,35 @@ export default function LookSection() {
   const [sent, setSent] = useState(false);
   const [urlError, setUrlError] = useState(false);
   const [replayKey, setReplayKey] = useState(0);
+  const [soundPlaying, setSoundPlaying] = useState(false);
+  const soundRef = useRef<HTMLAudioElement | null>(null);
+
+  // Stop a running sound preview when leaving the page
+  useEffect(
+    () => () => {
+      soundRef.current?.pause();
+    },
+    []
+  );
+
+  const handleSoundPreview = () => {
+    if (!config.alertSoundUrl) return;
+    if (soundPlaying && soundRef.current) {
+      soundRef.current.pause();
+      soundRef.current.currentTime = 0;
+      setSoundPlaying(false);
+      return;
+    }
+    const audio = new Audio(config.alertSoundUrl);
+    soundRef.current = audio;
+    audio
+      .play()
+      .then(() => {
+        setSoundPlaying(true);
+        audio.onended = () => setSoundPlaying(false);
+      })
+      .catch(() => setSoundPlaying(false));
+  };
 
   const neonColor = config.neonColor || "#6366f1";
   const alertStyle = config.alertStyle || "neon";
@@ -131,8 +160,8 @@ export default function LookSection() {
       <h1 className="text-2xl font-bold text-fg">{t.look.title}</h1>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-        <div className="flex flex-col gap-6">
-          <section aria-labelledby="look-preview" className="flex flex-col gap-3 lg:sticky lg:top-28 lg:z-10">
+        <div className="contents lg:flex lg:flex-col lg:gap-6">
+          <section aria-labelledby="look-preview" className="sticky top-28 z-10 flex flex-col gap-2 bg-canvas py-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 id="look-preview" className="text-base font-semibold text-fg">
                 {t.display.livePreview}
@@ -153,17 +182,20 @@ export default function LookSection() {
               </div>
             </div>
             {/* Same frame, classes and layout helpers as the OBS overlay; always dark like the stream. */}
-            <AlertStagePreview
-              replayKey={replayKey}
-              look={{ alertStyle, neonColor, alertFont, alertScale, alertBgOpacity, alertAnimation, alertPosition }}
-              alert={{
-                authorName: simName,
-                text: simText,
-                mediaUrl: simMediaUrl,
-                type: simType,
-                newAlertLabel: t.overlay.newAlert,
-              }}
-            />
+            <div className="mx-auto w-full max-w-md lg:max-w-none">
+              <AlertStagePreview
+                replayKey={replayKey}
+                look={{ alertStyle, neonColor, alertFont, alertScale, alertBgOpacity, alertAnimation, alertPosition }}
+                alert={{
+                  authorName: simName,
+                  text: simText,
+                  mediaUrl: simMediaUrl,
+                  type: simType,
+                  newAlertLabel: t.overlay.newAlert,
+                }}
+              />
+            </div>
+            <p className="hidden text-xs text-fg-subtle sm:block">{t.look.testHint}</p>
             <span role="status" className="sr-only">
               {sent ? t.logs.simSent : ""}
             </span>
@@ -457,6 +489,71 @@ export default function LookSection() {
               })}
             </div>
           </Group>
+        </section>
+
+        <section aria-labelledby="look-sound" className="flex flex-col gap-4">
+          <h2 id="look-sound" className="text-base font-semibold text-fg">
+            {t.look.groupSound}
+          </h2>
+
+          <Field label={t.bot.alertSound} hint={t.bot.alertSoundHelp}>
+            {(aria) => (
+              <div className="flex gap-2">
+                <input
+                  {...aria}
+                  type="url"
+                  placeholder="https://example.com/alert.mp3"
+                  value={config.alertSoundUrl || ""}
+                  onChange={(e) => setConfig((c) => ({ ...c, alertSoundUrl: e.target.value }))}
+                  className={inputClass}
+                />
+                {config.alertSoundUrl && (
+                  <Button
+                    variant={soundPlaying ? "primary" : "secondary"}
+                    onClick={handleSoundPreview}
+                    aria-label={soundPlaying ? t.connections.stopPreview : t.connections.previewSound}
+                    title={soundPlaying ? t.connections.stopPreview : t.connections.previewSound}
+                  >
+                    {soundPlaying ? (
+                      <Square className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <Play className="h-4 w-4" aria-hidden />
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
+          </Field>
+
+          <SettingRow title={t.bot.syncDuration} description={t.bot.syncDurationHelp}>
+            {({ labelId, descriptionId }) => (
+              <Switch
+                checked={config.syncDurationWithMedia || false}
+                onCheckedChange={(checked) => setConfig((c) => ({ ...c, syncDurationWithMedia: checked }))}
+                aria-labelledby={labelId}
+                aria-describedby={descriptionId}
+              />
+            )}
+          </SettingRow>
+
+          <Field label={t.bot.duration} hint={t.bot.durationHelp}>
+            {(aria) => (
+              <div className="relative">
+                <input
+                  {...aria}
+                  type="number"
+                  placeholder="8000"
+                  value={config.alertDuration}
+                  onChange={(e) => setConfig((c) => ({ ...c, alertDuration: Number(e.target.value) }))}
+                  disabled={config.syncDurationWithMedia}
+                  className={cx(inputClass, "pr-14")}
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 select-none text-xs text-fg-subtle">
+                  {!config.syncDurationWithMedia ? `${(config.alertDuration / 1000).toFixed(1)}s` : "ms"}
+                </span>
+              </div>
+            )}
+          </Field>
         </section>
       </div>
     </div>

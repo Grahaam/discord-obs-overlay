@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2, Play, RefreshCw, Square } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ChevronDown, Loader2, RefreshCw } from "lucide-react";
 import type { DiscordGuildInfo } from "../types";
-import { Button, Field, SettingRow, StatusPill, Switch, cx, inputClass } from "../ui";
+import { Button, Field, StatusPill, cx, inputClass } from "../ui";
 import { useDashboard } from "../dashboard/DashboardContext";
 import BotStatusBanner from "./connections/BotStatusBanner";
 import { permLabelFor } from "./connections/permLabel";
@@ -32,10 +32,8 @@ export default function ConnectionsSection() {
   const [obsTesting, setObsTesting] = useState(false);
   const [obsTestResult, setObsTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [capturingShortcut, setCapturingShortcut] = useState(false);
-  const [soundPreviewPlaying, setSoundPreviewPlaying] = useState(false);
   const [cobaltOpen, setCobaltOpen] = useState(false);
   const [channelDraft, setChannelDraft] = useState<string | null>(null);
-  const soundPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   // Servers/channels the bot can see, for the channel dropdown. Only available once the bot is connected.
   const [guilds, setGuilds] = useState<DiscordGuildInfo[]>([]);
@@ -52,14 +50,6 @@ export default function ConnectionsSection() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (botStatus.status === "connected") void loadChannels();
   }, [botStatus.status, loadChannels]);
-
-  // Stop a running preview when leaving the page.
-  useEffect(
-    () => () => {
-      soundPreviewRef.current?.pause();
-    },
-    []
-  );
 
   const commitChannel = () => {
     if (channelDraft === null) return;
@@ -106,25 +96,6 @@ export default function ConnectionsSection() {
     const key = e.key === " " ? "Space" : e.key;
     setConfig((c) => ({ ...c, stopAlertShortcut: key }));
     setCapturingShortcut(false);
-  };
-
-  const handleSoundPreview = () => {
-    if (!config.alertSoundUrl) return;
-    if (soundPreviewPlaying && soundPreviewRef.current) {
-      soundPreviewRef.current.pause();
-      soundPreviewRef.current.currentTime = 0;
-      setSoundPreviewPlaying(false);
-      return;
-    }
-    const audio = new Audio(config.alertSoundUrl);
-    soundPreviewRef.current = audio;
-    audio
-      .play()
-      .then(() => {
-        setSoundPreviewPlaying(true);
-        audio.onended = () => setSoundPreviewPlaying(false);
-      })
-      .catch(() => setSoundPreviewPlaying(false));
   };
 
   const quality = config.mediaQuality ?? "1080";
@@ -225,7 +196,7 @@ export default function ConnectionsSection() {
       </Group>
 
       <Group title={t.connections.groupMedia}>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t.bot.maxSize} hint={t.bot.maxSizeHelp}>
             {(aria) => (
               <div className="relative">
@@ -258,35 +229,7 @@ export default function ConnectionsSection() {
               </div>
             )}
           </Field>
-
-          <Field label={t.bot.duration} hint={t.bot.durationHelp}>
-            {(aria) => (
-              <div className="relative">
-                <input
-                  {...aria}
-                  type="number"
-                  placeholder="8000"
-                  value={config.alertDuration}
-                  onChange={(e) => setConfig((c) => ({ ...c, alertDuration: Number(e.target.value) }))}
-                  disabled={config.syncDurationWithMedia}
-                  className={cx(inputClass, "pr-14")}
-                />
-                <Unit>{!config.syncDurationWithMedia ? `${(config.alertDuration / 1000).toFixed(1)}s` : "ms"}</Unit>
-              </div>
-            )}
-          </Field>
         </div>
-
-        <SettingRow title={t.bot.syncDuration} description={t.bot.syncDurationHelp}>
-          {({ labelId, descriptionId }) => (
-            <Switch
-              checked={config.syncDurationWithMedia || false}
-              onCheckedChange={(checked) => setConfig((c) => ({ ...c, syncDurationWithMedia: checked }))}
-              aria-labelledby={labelId}
-              aria-describedby={descriptionId}
-            />
-          )}
-        </SettingRow>
 
         <div role="group" aria-labelledby="bot-quality-label" className="flex flex-col gap-1.5">
           <span id="bot-quality-label" className="text-xs font-semibold text-fg-muted">
@@ -334,35 +277,6 @@ export default function ConnectionsSection() {
                   aria-label={t.connections.shortcutCancel}
                 >
                   ✕
-                </Button>
-              )}
-            </div>
-          )}
-        </Field>
-
-        <Field label={t.bot.alertSound} hint={t.bot.alertSoundHelp}>
-          {(aria) => (
-            <div className="flex gap-2">
-              <input
-                {...aria}
-                type="url"
-                placeholder="https://example.com/alert.mp3"
-                value={config.alertSoundUrl || ""}
-                onChange={(e) => setConfig((c) => ({ ...c, alertSoundUrl: e.target.value }))}
-                className={inputClass}
-              />
-              {config.alertSoundUrl && (
-                <Button
-                  variant={soundPreviewPlaying ? "primary" : "secondary"}
-                  onClick={handleSoundPreview}
-                  aria-label={soundPreviewPlaying ? t.connections.stopPreview : t.connections.previewSound}
-                  title={soundPreviewPlaying ? t.connections.stopPreview : t.connections.previewSound}
-                >
-                  {soundPreviewPlaying ? (
-                    <Square className="h-4 w-4" aria-hidden />
-                  ) : (
-                    <Play className="h-4 w-4" aria-hidden />
-                  )}
                 </Button>
               )}
             </div>
