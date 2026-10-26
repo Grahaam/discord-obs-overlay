@@ -8,6 +8,7 @@
   --font-display: "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 
+
   --animate-neon-pulse: neon-pulse 2s infinite alternate;
   --animate-glitch: glitch 0.8s linear infinite;
   --animate-float: float 4s ease-in-out infinite;
@@ -58,6 +59,116 @@
       clip-path: inset(30% 0 61% 0);
       transform: skew(0deg);
     }
+  }
+}
+
+@theme inline {
+  /* ── Dashboard design tokens ──
+     Semantic colors resolve to CSS variables defined below (dark by default,
+     light under [data-theme="light"]); the overlay routes never read them. */
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-field: var(--field);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-on-accent: var(--on-accent);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-text: var(--ok-text);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-text: var(--warn-text);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-text: var(--danger-text);
+  --color-info-soft: var(--info-soft);
+  --color-info-text: var(--info-text);
+
+  --radius-control: 0.625rem;
+  --radius-card: 1.25rem;
+  --radius-panel: 1.5rem;
+  --spacing-gutter: 1.25rem;
+  --spacing-sidebar: 15rem;
+  --shadow-glow: 0 0 20px var(--accent-glow);
+}
+
+/* Dashboard theme variables. Dark is the default; light overrides it. */
+:root {
+  --canvas: #050508;
+  --panel: #0b0b12;
+  --surface: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(255, 255, 255, 0.07);
+  --field: rgba(0, 0, 0, 0.35);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.2);
+  --fg: #e8e8ee;
+  --fg-muted: rgba(232, 232, 238, 0.68);
+  --fg-subtle: rgba(232, 232, 238, 0.48);
+  --accent: #6366f1;
+  --accent-strong: #4f46e5;
+  --accent-soft: rgba(99, 102, 241, 0.18);
+  --accent-text: #a5b4fc;
+  --accent-glow: rgba(99, 102, 241, 0.3);
+  --on-accent: #ffffff;
+  --ok: #34d399;
+  --ok-soft: rgba(16, 185, 129, 0.14);
+  --ok-text: #6ee7b7;
+  --warn: #fbbf24;
+  --warn-soft: rgba(245, 158, 11, 0.14);
+  --warn-text: #fcd34d;
+  --danger: #f87171;
+  --danger-soft: rgba(239, 68, 68, 0.14);
+  --danger-text: #fca5a5;
+  --info-soft: rgba(14, 165, 233, 0.14);
+  --info-text: #7dd3fc;
+}
+:root[data-theme="light"] {
+  --canvas: #f4f5f9;
+  --panel: #ffffff;
+  --surface: #ffffff;
+  --surface-hover: #eef0f6;
+  --field: #f1f2f7;
+  --line: rgba(15, 23, 42, 0.12);
+  --line-strong: rgba(15, 23, 42, 0.32);
+  --fg: #14161f;
+  --fg-muted: #4a4f63;
+  --fg-subtle: #6a6f84;
+  --accent: #4f46e5;
+  --accent-strong: #4338ca;
+  --accent-soft: rgba(79, 70, 229, 0.1);
+  --accent-text: #4338ca;
+  --accent-glow: rgba(79, 70, 229, 0.2);
+  --ok: #059669;
+  --ok-soft: rgba(5, 150, 105, 0.12);
+  --ok-text: #047857;
+  --warn: #b45309;
+  --warn-soft: rgba(217, 119, 6, 0.14);
+  --warn-text: #92400e;
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.1);
+  --danger-text: #b91c1c;
+  --info-soft: rgba(2, 132, 199, 0.12);
+  --info-text: #0369a1;
+}
+:root[data-theme="light"],
+:root[data-theme="light"] body,
+:root[data-theme="light"] #root {
+  color-scheme: light;
+}
+
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 }
 

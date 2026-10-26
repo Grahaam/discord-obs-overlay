@@ -8,31 +8,46 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.describe("Dashboard", () => {
-  test("renders at /", async ({ page }) => {
+  test("renders at / with the sidebar and status strip", async ({ page }) => {
     await page.goto("/");
-    // Tab bar must be present — tests lucide-react icon imports didn't break
-    await expect(page.getByRole("button", { name: "Bot Discord" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Sections" })).toBeVisible();
+    await expect(page.getByRole("list", { name: "État du système" })).toBeVisible();
   });
 
-  test("has all 6 tabs", async ({ page }) => {
+  test("has all 6 sections", async ({ page }) => {
     await page.goto("/");
-    for (const label of [
-      "Bot Discord",
-      "Look OBS",
-      "Filtres & Modération",
-      "Simulateur",
-      "Santé du Système",
-      "Poses",
-    ]) {
-      await expect(page.getByRole("button", { name: label })).toBeVisible();
+    const nav = page.getByRole("navigation", { name: "Sections" });
+    for (const label of ["En direct", "Modération", "Look & son", "Poses", "Connexions", "Système"]) {
+      await expect(nav.getByRole("link", { name: label })).toBeVisible();
     }
   });
 
-  test("switching to Look OBS tab shows style options", async ({ page }) => {
+  test("sections have their own URL and survive a reload", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Look OBS" }).click();
-    // Styling panel shows visual theme options (neon/glitch/cyberpunk/glass)
+    await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Look & son" }).click();
+    await expect(page).toHaveURL(/\/look$/);
     await expect(page.getByText(/neon|néon/i).first()).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page).toHaveURL(/\/look$/);
+  });
+
+  test("dock and status routes still render", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (err) => errors.push(err.message));
+    for (const path of ["/dock", "/status"]) {
+      await page.goto(path);
+      await page.waitForTimeout(300);
+    }
+    expect(errors).toHaveLength(0);
+  });
+
+  test("theme toggle switches the light theme on and off", async ({ page }) => {
+    await page.goto("/");
+    await page.getByLabel("Thème").selectOption("light");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await page.getByLabel("Thème").selectOption("dark");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 });
 
@@ -106,7 +121,7 @@ test.describe("Poses", () => {
       "base64"
     );
     await page.goto("/");
-    await page.getByRole("button", { name: "Poses", exact: true }).click();
+    await page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "Poses" }).click();
     await page.getByRole("button", { name: /Absolute Cinema/ }).click();
 
     await page.getByTestId("upload-imageUrl").setInputFiles({ name: "test.png", mimeType: "image/png", buffer: png });

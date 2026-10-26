@@ -137,8 +137,8 @@ export default function SkeletonCanvas({ frame, ghost, ghostHands, overlay }: Pr
   }, [frame, ghost, ghostHands, aspect, height]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl border border-white/[0.07] bg-black">
-      <canvas ref={canvasRef} width={WIDTH} height={height} className="block w-full h-auto" />
+    <div className="relative w-full overflow-hidden rounded-card border border-line bg-black">
+      <canvas ref={canvasRef} aria-hidden width={WIDTH} height={height} className="block w-full h-auto" />
       {overlay && <div className="absolute inset-0 flex items-center justify-center">{overlay}</div>}
     </div>
   );
