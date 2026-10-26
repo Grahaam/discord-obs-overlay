@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
-import { X, Check, Loader2, Copy, CheckCircle2, Circle } from "lucide-react";
+import { Check, Loader2, Copy, CheckCircle2, Circle } from "lucide-react";
 import { locales } from "../locales";
+import { Button, Dialog } from "../ui";
 
-interface SetupChecklistProps {
-  onClose: () => void;
-  setActiveTab: (tab: "credentials") => void;
-  t: (typeof locales)["fr"];
-}
+type Translations = (typeof locales)["fr"];
 
 // Mirrors SetupStatus in server/setupStatus.ts (only the fields the UI reads)
 interface SetupStatus {
@@ -44,29 +41,48 @@ function Row({
     <li className="flex gap-3 text-left">
       <span className="mt-0.5 shrink-0">
         {done ? (
-          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          <CheckCircle2 className="w-5 h-5 text-ok" aria-hidden />
         ) : loading ? (
-          <Loader2 className="w-5 h-5 text-white/30 animate-spin" />
+          <Loader2 className="w-5 h-5 text-fg-subtle animate-spin" aria-hidden />
         ) : (
-          <Circle className="w-5 h-5 text-white/30" />
+          <Circle className="w-5 h-5 text-fg-subtle" aria-hidden />
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-bold text-white">
+        <div className="text-sm font-bold text-fg">
           {title}
           {badge && (
-            <span className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-wide text-slate-400 border border-white/15 rounded px-1.5 py-0.5">
+            <span className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-wide text-fg-muted border border-line-strong rounded px-1.5 py-0.5">
               {badge}
             </span>
           )}
         </div>
-        <div className="text-xs text-slate-300 leading-relaxed">{children}</div>
+        <div className="text-xs text-fg-muted leading-relaxed">{children}</div>
       </div>
     </li>
   );
 }
 
-export default function SetupChecklist({ onClose, setActiveTab, t }: SetupChecklistProps) {
+const linkBtn = "mt-2 text-xs font-semibold text-accent-text underline cursor-pointer rounded focus-ring";
+
+/**
+ * The checklist rows, shared by the modal and the inline card on the Live page.
+ * `onGoToConnections` navigates to the Connections section; the first existing id of
+ * the row's targets is then scrolled into view.
+ */
+export function SetupChecklistBody({
+  t,
+  onGoToConnections,
+  onNavigated,
+  onAllDone,
+}: {
+  t: Translations;
+  onGoToConnections: () => void;
+  /** Called right before navigating (the modal closes itself here) */
+  onNavigated?: () => void;
+  /** Reports whether every required step is ticked */
+  onAllDone?: (allDone: boolean) => void;
+}) {
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [testAlertId, setTestAlertId] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
@@ -74,7 +90,7 @@ export default function SetupChecklist({ onClose, setActiveTab, t }: SetupCheckl
   // Real URL of this instance: the port is dynamic under Electron
   const overlayUrl = `${window.location.origin}/overlay`;
 
-  // Poll while open. Re-runs when the test alert id changes so the new id is checked immediately.
+  // Poll while mounted. Re-runs when the test alert id changes so the new id is checked immediately.
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -118,11 +134,11 @@ export default function SetupChecklist({ onClose, setActiveTab, t }: SetupCheckl
     setTimeout(() => setCopied(false), 2500);
   };
 
-  // Both the bot and the OBS connection settings live in the "Discord Bot" tab.
-  // After the tab has rendered, scroll to the first of `targetIds` that exists.
-  const goToBotTab = (...targetIds: string[]) => {
-    setActiveTab("credentials");
-    onClose();
+  // Both the bot and the OBS connection settings live in the Connections section.
+  // After it has rendered, scroll to the first of `targetIds` that exists.
+  const goToConnections = (...targetIds: string[]) => {
+    onNavigated?.();
+    onGoToConnections();
     setTimeout(() => {
       for (const id of targetIds) {
         const el = document.getElementById(id);
@@ -154,111 +170,115 @@ export default function SetupChecklist({ onClose, setActiveTab, t }: SetupCheckl
   const allDone = !!status && status.bot && status.overlay && status.obs && status.testAlertSeen;
   const loading = !status;
 
-  const linkBtn = "mt-2 text-xs font-semibold text-indigo-300 hover:text-indigo-200 underline cursor-pointer";
+  useEffect(() => {
+    onAllDone?.(allDone);
+  }, [allDone, onAllDone]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-[#0a0a0f] border border-white/10 rounded-3xl p-6 sm:p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl relative">
-        <button
-          onClick={onClose}
-          aria-label={t.setup.close}
-          className="absolute top-4 right-4 p-2 text-white/50 hover:text-white transition cursor-pointer bg-white/5 rounded-full hover:bg-white/10"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
-        <h2 className="text-2xl font-black text-white font-display uppercase tracking-tight mb-1">{t.setup.title}</h2>
-        <p className="text-sm text-slate-400 mb-6">{t.setup.subtitle}</p>
-
-        <ul className="flex flex-col gap-5">
-          <Row done={!!status?.bot} loading={loading} title={t.setup.botTitle}>
-            {botHint}
-            {status && !status.bot && (
-              <div>
-                <button
-                  onClick={() =>
-                    goToBotTab("bot-channel-issue", d?.channelConfigured ? "bot-token-field" : "bot-channel-field")
-                  }
-                  className={linkBtn}
-                >
-                  {t.setup.botGo}
-                </button>
-              </div>
-            )}
-          </Row>
-
-          <Row done={!!status?.overlay} loading={loading} title={t.setup.overlayTitle}>
-            {status?.overlay ? t.setup.overlayOk : t.setup.overlayWaiting}
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                readOnly
-                value={overlayUrl}
-                onFocus={(e) => e.target.select()}
-                className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-indigo-300 focus:outline-none"
-              />
-              <button
-                onClick={copyUrl}
-                className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer"
-              >
-                {copied ? <CheckCircle2 className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                {copied ? t.display.copied : t.display.copy}
-              </button>
-            </div>
-            {!status?.overlay && <p className="mt-2 text-slate-400">{t.setup.overlayHow}</p>}
-            <p className="mt-2 text-slate-500">{t.setup.overlayUrlChanges}</p>
-          </Row>
-
-          <Row done={!!status?.obs} loading={loading} title={t.setup.obsTitle}>
-            {obsHint}
-            {status && !status.obs && (
-              <div>
-                <button onClick={() => goToBotTab("obs-connection-section")} className={linkBtn}>
-                  {t.setup.obsGo}
-                </button>
-              </div>
-            )}
-          </Row>
-
-          <Row done={!!status?.testAlertSeen} loading={loading} title={t.setup.testTitle}>
-            {status?.testAlertSeen ? t.setup.testOk : status?.overlay ? t.setup.testWaiting : t.setup.testNeedsOverlay}
+    <>
+      <ul className="flex flex-col gap-5">
+        <Row done={!!status?.bot} loading={loading} title={t.setup.botTitle}>
+          {botHint}
+          {status && !status.bot && (
             <div>
               <button
-                onClick={sendTestAlert}
-                disabled={sending}
-                className="mt-2 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white cursor-pointer"
+                type="button"
+                onClick={() =>
+                  goToConnections("bot-channel-issue", d?.channelConfigured ? "bot-token-field" : "bot-channel-field")
+                }
+                className={linkBtn}
               >
-                {t.setup.testButton}
+                {t.setup.botGo}
               </button>
             </div>
-          </Row>
+          )}
+        </Row>
 
-          {/* Optional: not counted in allDone */}
-          <Row done={!!status?.cookies} loading={loading} title={t.setup.cookiesTitle} badge={t.setup.cookiesOptional}>
-            {status?.cookies ? t.setup.cookiesOk : t.setup.cookiesMissing}
-            {status && !status.cookies && (
-              <div>
-                <button onClick={() => goToBotTab("cookies-section")} className={linkBtn}>
-                  {t.setup.cookiesGo}
-                </button>
-              </div>
-            )}
-          </Row>
-        </ul>
+        <Row done={!!status?.overlay} loading={loading} title={t.setup.overlayTitle}>
+          {status?.overlay ? t.setup.overlayOk : t.setup.overlayWaiting}
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              readOnly
+              aria-label={t.setup.overlayTitle}
+              value={overlayUrl}
+              onFocus={(e) => e.target.select()}
+              className="flex-1 min-w-0 bg-field border border-line rounded-control px-2.5 py-1.5 text-[11px] font-mono text-accent-text focus-ring"
+            />
+            <Button variant="primary" onClick={copyUrl} className="shrink-0 gap-1 px-2.5 py-1.5 text-[11px]">
+              {copied ? <CheckCircle2 className="w-3 h-3" aria-hidden /> : <Copy className="w-3 h-3" aria-hidden />}
+              {copied ? t.display.copied : t.display.copy}
+            </Button>
+          </div>
+          {!status?.overlay && <p className="mt-2 text-fg-muted">{t.setup.overlayHow}</p>}
+          <p className="mt-2 text-fg-subtle">{t.setup.overlayUrlChanges}</p>
+        </Row>
 
+        <Row done={!!status?.obs} loading={loading} title={t.setup.obsTitle}>
+          {obsHint}
+          {status && !status.obs && (
+            <div>
+              <button type="button" onClick={() => goToConnections("obs-connection-section")} className={linkBtn}>
+                {t.setup.obsGo}
+              </button>
+            </div>
+          )}
+        </Row>
+
+        <Row done={!!status?.testAlertSeen} loading={loading} title={t.setup.testTitle}>
+          {status?.testAlertSeen ? t.setup.testOk : status?.overlay ? t.setup.testWaiting : t.setup.testNeedsOverlay}
+          <div className="mt-2">
+            <Button variant="primary" onClick={sendTestAlert} disabled={sending} className="px-3 py-1.5 text-xs">
+              {t.setup.testButton}
+            </Button>
+          </div>
+        </Row>
+
+        {/* Optional: not counted in allDone */}
+        <Row done={!!status?.cookies} loading={loading} title={t.setup.cookiesTitle} badge={t.setup.cookiesOptional}>
+          {status?.cookies ? t.setup.cookiesOk : t.setup.cookiesMissing}
+          {status && !status.cookies && (
+            <div>
+              <button type="button" onClick={() => goToConnections("cookies-section")} className={linkBtn}>
+                {t.setup.cookiesGo}
+              </button>
+            </div>
+          )}
+        </Row>
+      </ul>
+
+      <div role="status" aria-live="polite">
         {allDone && (
-          <div className="mt-6 flex items-center gap-2 text-sm font-bold text-emerald-400">
-            <Check className="w-4 h-4" />
+          <div className="mt-6 flex items-center gap-2 text-sm font-bold text-ok-text">
+            <Check className="w-4 h-4" aria-hidden />
             {t.setup.allDone}
           </div>
         )}
-
-        <button
-          onClick={onClose}
-          className="mt-6 w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-bold tracking-wide transition cursor-pointer"
-        >
-          {t.setup.close}
-        </button>
       </div>
-    </div>
+    </>
+  );
+}
+
+interface SetupChecklistProps {
+  onClose: () => void;
+  onGoToConnections: () => void;
+  t: Translations;
+}
+
+export default function SetupChecklist({ onClose, onGoToConnections, t }: SetupChecklistProps) {
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title={t.setup.title}
+      description={t.setup.subtitle}
+      closeLabel={t.setup.close}
+    >
+      <SetupChecklistBody t={t} onGoToConnections={onGoToConnections} onNavigated={onClose} />
+      <Button variant="secondary" onClick={onClose} className="mt-6 w-full py-3">
+        {t.setup.close}
+      </Button>
+    </Dialog>
   );
 }
