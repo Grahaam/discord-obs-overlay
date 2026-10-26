@@ -71,9 +71,8 @@ Signing adds publisher checks (`publisherName`).
 
 1. Add a `zip` target next to `dmg` (Squirrel.Mac updates from the zip).
 2. Build both arches in **one** electron-builder run (`--mac --x64 --arm64`)
-   so a single `latest-mac.yml` lists both, which means rebuilding
-   better-sqlite3 per arch inside electron-builder (`npmRebuild`) instead of in
-   `scripts/electron-rebuild.cjs`.
+   so a single `latest-mac.yml` lists both, which means shipping both
+   `darwin-x64` and `darwin-arm64` better-sqlite3 prebuilds (both ship by default).
 3. Upload `latest-mac.yml`, `*.zip` and `*.zip.blockmap` in `release.yml`.
 4. Remove the `darwin` early return in `electron/updater.cjs`.
 
