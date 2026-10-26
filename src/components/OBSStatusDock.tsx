@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Bot, Activity, AlertTriangle, RefreshCw, RotateCcw, Pause, Play } from "lucide-react";
+import { Bot, Activity, AlertTriangle, RefreshCw, RotateCcw, Pause, Play, ShieldCheck } from "lucide-react";
+import { useApprovals } from "../hooks/useApprovals";
 import { LogEntry, BotStatus, ServerLogEntry } from "../types";
 import { useQueueStore } from "../store/queueStore";
 import { locales, Language } from "../locales";
@@ -25,6 +26,7 @@ export default function OBSStatusDock() {
   const [t, setT] = useState(locales["fr"]);
 
   const socket = useQueueStore((s) => s.socket);
+  const { approvals } = useApprovals();
 
   // Always fetch initial state via HTTP — no socket dependency
   useEffect(() => {
@@ -164,6 +166,19 @@ export default function OBSStatusDock() {
           <span>{isOverlayPaused ? t.dock.paused : t.dock.pause}</span>
         </button>
       </div>
+
+      {approvals.length > 0 && (
+        <div
+          data-testid="dock-approvals"
+          className="px-3 py-1.5 bg-amber-950/30 border-b border-amber-900/30 flex items-center gap-1.5"
+        >
+          <ShieldCheck className="w-2.5 h-2.5 text-amber-400" />
+          <span className="text-[9px] font-bold text-amber-300 uppercase tracking-widest">{t.approval.dock}</span>
+          <span className="ml-auto bg-amber-500/30 text-amber-200 text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+            {approvals.length}
+          </span>
+        </div>
+      )}
 
       {isError && botStatus.errorMsg && (
         <div className="px-3 py-2 bg-red-950/30 border-b border-red-900/20 text-[9px] font-mono text-red-300/70 truncate">

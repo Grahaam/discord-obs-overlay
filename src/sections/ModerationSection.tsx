@@ -15,6 +15,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useDashboard } from "../dashboard/DashboardContext";
+import ApprovalSettings from "./moderation/ApprovalSettings";
 import { Button, EmptyState, Field, SettingRow, Switch, cx, inputClass } from "../ui";
 
 const CARD = "bg-panel border border-line rounded-card p-4 flex flex-col gap-4";
@@ -107,6 +108,8 @@ export default function ModerationSection() {
           </div>
         </div>
       </section>
+
+      <ApprovalSettings />
 
       <section aria-labelledby="antispam-title" className={CARD}>
         <h2 id="antispam-title" className="flex items-center gap-2 text-sm font-bold text-fg">

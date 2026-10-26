@@ -9,6 +9,7 @@ import NowPlayingPreview from "../components/NowPlayingPreview";
 import { SortableQueueItem } from "../components/SortableQueueItem";
 import { SetupChecklistBody } from "../components/SetupChecklist";
 import { Button, EmptyState, cx } from "../ui";
+import ApprovalInbox from "./live/ApprovalInbox";
 
 function Card({
   icon,
@@ -102,7 +103,7 @@ function Steps({ steps }: { steps: string[] }) {
 }
 
 export default function LiveSection() {
-  const { t, goTo, setup } = useDashboard();
+  const { t, goTo, setup, config, approvals } = useDashboard();
   const { queue: pendingQueue, nowPlaying, reorder } = useQueueStore();
 
   const sensors = useSensors(
@@ -136,6 +137,8 @@ export default function LiveSection() {
           </div>
         </Card>
       )}
+
+      {(approvals.length > 0 || (config.approvalMode ?? "new") !== "off") && <ApprovalInbox />}
 
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-7">

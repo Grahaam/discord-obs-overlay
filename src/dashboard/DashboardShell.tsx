@@ -145,7 +145,7 @@ function ShellControls({ theme, setTheme }: { theme: ThemePreference; setTheme: 
 }
 
 function Shell({ section, navigate }: { section: SectionId; navigate: (id: SectionId) => void }) {
-  const { t } = useDashboard();
+  const { t, approvals } = useDashboard();
   const [theme, setTheme] = useTheme();
   const [showSetup, setShowSetup] = useState(() => !localStorage.getItem("hasSeenTutorial"));
 
@@ -158,8 +158,15 @@ function Shell({ section, navigate }: { section: SectionId; navigate: (id: Secti
         { id: "poses", label: t.nav.poses, icon: <Eye className="h-4 w-4" /> },
         { id: "connections", label: t.nav.connections, icon: <Plug className="h-4 w-4" /> },
         { id: "system", label: t.nav.system, icon: <HeartPulse className="h-4 w-4" /> },
-      ].map((item) => ({ ...item, href: SECTION_PATH[item.id as SectionId] })),
-    [t]
+      ].map((item) => ({
+        ...item,
+        href: SECTION_PATH[item.id as SectionId],
+        ...(item.id === "live" && {
+          badge: approvals.length,
+          badgeLabel: t.approval.badge.replace("{n} ", ""),
+        }),
+      })),
+    [t, approvals.length]
   );
 
   const View = SECTION_VIEWS[section];
