@@ -6,6 +6,9 @@ Toutes les modifications notables sont listées ici. Format : [Keep a Changelog]
 
 ### Ajouté
 
+- **Tableau de bord réorganisé** : une barre latérale à six sections (En direct, Modération, Look & son, Poses, Connexions, Système), chacune avec sa propre adresse (`/moderation`, `/look`, `/poses`, `/connections`, `/system`), et une bande d'état toujours visible (bot, OBS, overlay, moteur média).
+- **Thème clair** en plus du thème sombre : suit le thème du système, avec un sélecteur dans l'en-tête.
+- **Enregistrement automatique** : les réglages s'enregistrent seuls quelques instants après chaque changement, avec une notification « Enregistré ». Le bouton Enregistrer disparaît. Le jeton Discord et le mot de passe OBS gardent un champ « Remplacer » explicite.
 - **Poses personnalisées** : nouvel onglet **Poses** dans le tableau de bord. Enregistrez vos propres poses devant la caméra (compte à rebours 3-2-1, capture jusqu'à 10 images nettes), avec le squelette en direct et le pourcentage de correspondance de chaque pose.
 - **Poses de mains** : pour chaque doigt, levé / baissé / indifférent (corrigeable après l'enregistrement), plus la position et la direction de la main (👍 ≠ 👎) et l'écart entre les deux mains (🫶, 🙏). Le mode miroir reconnaît aussi l'autre main.
 - **Média par pose** : image/GIF + son, ou vidéo, avec volume, durée maximale, plein écran OBS ou non, délai entre deux déclenchements, et prévisualisation sur l'overlay. Les fichiers s'envoient depuis le tableau de bord (plus besoin de les copier dans `user-assets/`).
@@ -13,6 +16,7 @@ Toutes les modifications notables sont listées ici. Format : [Keep a Changelog]
 
 ### Modifié
 
+- Composants d'interface accessibles (Radix) avec états de focus visibles et libellés ; couleurs, rayons et espacements centralisés dans des variables de thème. L'overlay OBS est inchangé.
 - La pose « Absolute Cinema » devient une pose intégrée avec les mêmes réglages ; elle peut être supprimée puis restaurée. Les anciens réglages (image, son, délai) sont repris automatiquement dans `poses.json`.
 - Application plus légère : environ 467 Mo installée au lieu de 570 Mo (langues Electron limitées à fr/en, paquets du tableau de bord plus embarqués deux fois, seul le moteur MediaPipe utilisé est fourni).
 
