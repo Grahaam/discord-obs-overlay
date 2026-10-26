@@ -16,10 +16,11 @@ import { logManager } from "./logManager.js";
 import { processBannedWords } from "./bannedWords.js";
 import { resolveMediaFromLink } from "./mediaParser.js";
 import { alertManager } from "./alertManager.js";
+import { approvalManager, type Poster } from "./approvalManager.js";
 import { addJob } from "./mediaWorkerQueue.js";
 import { logger } from "./logger.js";
 import { checkChannelAccess, inviteUrl, listGuildChannels } from "./channelCheck.js";
-import type { ChannelIssue } from "../src/types.js";
+import type { ChannelIssue, DiscordRole, PendingApproval } from "../src/types.js";
 
 export class DiscordBotManager {
   private client: Client | null = null;
@@ -33,8 +34,55 @@ export class DiscordBotManager {
   private guildId: string = "";
   private handledMessageIds = new Set<string>();
 
+  constructor() {
+    approvalManager.isPaused = () => this.overlayPaused;
+    approvalManager.onHeld = (item) => void this.reactToSource(item, "⏳");
+    approvalManager.onSettled = (item, outcome) => void this.reactToSource(item, outcome === "approved" ? "✅" : "❌");
+  }
+
   public setIo(io: SocketServer) {
     this.io = io;
+  }
+
+  private posterOf(message: Message): Poster {
+    return {
+      id: message.author.id,
+      roleIds: [...(message.member?.roles.cache.keys() ?? [])],
+      channelId: message.channelId,
+      messageId: message.id,
+    };
+  }
+
+  /** ⏳ while an alert is held, then ✅ / ❌ on the source message. Best effort: the bot may lack Add Reactions. */
+  private async reactToSource(item: PendingApproval, emoji: string): Promise<void> {
+    if (!settingsManager.settings.approvalReactions || !item.channelId || !item.messageId) return;
+    const me = this.client?.user?.id;
+    if (!this.client?.isReady() || !me) return;
+    try {
+      const channel = await this.client.channels.fetch(item.channelId);
+      if (!channel?.isTextBased()) return;
+      const message = await channel.messages.fetch(item.messageId);
+      if (emoji !== "⏳") await message.reactions.resolve("⏳")?.users.remove(me);
+      await message.react(emoji);
+    } catch (err) {
+      logger.debug({ err }, "Could not react on the source Discord message");
+    }
+  }
+
+  /** Roles of the server of the alert channel, highest first, without @everyone and bot-managed roles. */
+  public async getGuildRoles(): Promise<DiscordRole[] | null> {
+    if (!this.client?.isReady()) return null;
+    let guild = this.guildId ? this.client.guilds.cache.get(this.guildId) : undefined;
+    if (!guild && settingsManager.settings.channelId) {
+      const channel = await this.client.channels.fetch(settingsManager.settings.channelId).catch(() => null);
+      if (channel && !channel.isDMBased() && "guild" in channel) guild = channel.guild;
+    }
+    if (!guild) return null;
+    const roles = await guild.roles.fetch();
+    return [...roles.values()]
+      .filter((r) => r.id !== guild.id && !r.managed)
+      .sort((a, b) => b.position - a.position)
+      .map((r) => ({ id: r.id, name: r.name, color: r.color ? r.hexColor : undefined }));
   }
 
   public async connectBot(token: string, channelId: string) {
@@ -432,34 +480,24 @@ export class DiscordBotManager {
                 timestamp: Date.now(),
               };
 
-              logManager.addLog({
-                author: alertPayload.authorName,
-                authorAvatar: alertPayload.authorAvatar,
-                text: alertPayload.text,
-                title: alertPayload.title,
-                thumbnailUrl: alertPayload.thumbnailUrl,
-                type: alertPayload.type,
-                mediaUrl: alertPayload.mediaUrl,
-                status: textCheck.wasCensored ? "censored" : "approved",
-                reason: alertPayload.ytDlpError
-                  ? `Fallback to iframe due to yt-dlp Error: ${alertPayload.ytDlpError.substring(0, 100).replace(/\n/g, " ")}`
-                  : textCheck.wasCensored
-                    ? "Contenu censuré par filtre de mots"
-                    : "Approuvé par filtre de mots",
+              approvalManager.submit(alertPayload, this.posterOf(message), {
+                censored: textCheck.wasCensored,
+                approvedLog: {
+                  author: alertPayload.authorName,
+                  authorAvatar: alertPayload.authorAvatar,
+                  text: alertPayload.text,
+                  title: alertPayload.title,
+                  thumbnailUrl: alertPayload.thumbnailUrl,
+                  type: alertPayload.type,
+                  mediaUrl: alertPayload.mediaUrl,
+                  status: textCheck.wasCensored ? "censored" : "approved",
+                  reason: alertPayload.ytDlpError
+                    ? `Fallback to iframe due to yt-dlp Error: ${alertPayload.ytDlpError.substring(0, 100).replace(/\n/g, " ")}`
+                    : textCheck.wasCensored
+                      ? "Contenu censuré par filtre de mots"
+                      : "Approuvé par filtre de mots",
+                },
               });
-
-              alertManager.addAlert(alertPayload);
-
-              if (this.io) {
-                if (!this.overlayPaused) {
-                  this.io.emit("new_alert", alertPayload);
-                  logger.info({ author: alertPayload.authorName }, "New Alert broadcasted");
-                } else {
-                  logger.info({ author: alertPayload.authorName }, "Alert queued (overlay paused)");
-                }
-              } else {
-                logger.error("Alerts socket not initialized");
-              }
             } catch (jobErr) {
               logger.error({ err: jobErr }, "Exception inside media job queue");
             }
@@ -550,26 +588,18 @@ export class DiscordBotManager {
                 timestamp: Date.now(),
               };
 
-              logManager.addLog({
-                author: alertPayload.authorName,
-                authorAvatar: alertPayload.authorAvatar,
-                text: alertPayload.text,
-                type: alertPayload.type,
-                mediaUrl: alertPayload.mediaUrl,
-                status: textCheck.wasCensored ? "censored" : "approved",
-                reason: textCheck.wasCensored ? "Contenu censuré par filtre de mots" : "Approuvé par filtre de mots",
+              approvalManager.submit(alertPayload, this.posterOf(fullMessage), {
+                censored: textCheck.wasCensored,
+                approvedLog: {
+                  author: alertPayload.authorName,
+                  authorAvatar: alertPayload.authorAvatar,
+                  text: alertPayload.text,
+                  type: alertPayload.type,
+                  mediaUrl: alertPayload.mediaUrl,
+                  status: textCheck.wasCensored ? "censored" : "approved",
+                  reason: textCheck.wasCensored ? "Contenu censuré par filtre de mots" : "Approuvé par filtre de mots",
+                },
               });
-
-              alertManager.addAlert(alertPayload);
-
-              if (this.io) {
-                if (!this.overlayPaused) {
-                  this.io.emit("new_alert", alertPayload);
-                  logger.info({ author: alertPayload.authorName }, "New Alert broadcasted (embed update)");
-                } else {
-                  logger.info({ author: alertPayload.authorName }, "Alert queued (overlay paused, embed update)");
-                }
-              }
             } catch (jobErr) {
               logger.error({ err: jobErr }, "Exception inside embed update job");
             }

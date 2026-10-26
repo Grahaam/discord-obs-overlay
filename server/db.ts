@@ -1,6 +1,6 @@
 import { createRequire } from "module";
 import { AlertPayload } from "../src/types.js";
-import type { LogEntry } from "../src/types.js";
+import type { LogEntry, PendingApproval } from "../src/types.js";
 import { logger } from "./logger.js";
 import { DATA_PATHS } from "./paths.js";
 
@@ -50,6 +50,16 @@ export function initDb(): void {
           id TEXT PRIMARY KEY,
           data TEXT NOT NULL,
           created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS pending_approvals (
+          id TEXT PRIMARY KEY,
+          data TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS poster_trust (
+          user_id TEXT PRIMARY KEY,
+          approved_count INTEGER NOT NULL DEFAULT 0,
+          always INTEGER NOT NULL DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS media_plays (
           filename TEXT PRIMARY KEY,
@@ -154,4 +164,52 @@ export function updateLogInDb(log: LogEntry): void {
       log.timestamp
     );
   }, "updateLogInDb");
+}
+
+export function persistPendingApproval(item: PendingApproval): void {
+  withDb((d) => {
+    d.prepare("INSERT OR REPLACE INTO pending_approvals (id, data, created_at) VALUES (?, ?, ?)").run(
+      item.id,
+      JSON.stringify(item),
+      item.createdAt
+    );
+  }, "persistPendingApproval");
+}
+
+export function removePendingApproval(id: string): void {
+  withDb((d) => {
+    d.prepare("DELETE FROM pending_approvals WHERE id = ?").run(id);
+  }, "removePendingApproval");
+}
+
+export function loadPendingApprovals(): PendingApproval[] {
+  return (
+    withDb((d) => {
+      const rows = d.prepare("SELECT data FROM pending_approvals ORDER BY created_at ASC").all() as { data: string }[];
+      return rows.map((r) => JSON.parse(r.data) as PendingApproval);
+    }, "loadPendingApprovals") ?? []
+  );
+}
+
+export function persistPosterTrust(userId: string, trust: { approvedCount: number; always: boolean }): void {
+  withDb((d) => {
+    d.prepare("INSERT OR REPLACE INTO poster_trust (user_id, approved_count, always) VALUES (?, ?, ?)").run(
+      userId,
+      trust.approvedCount,
+      trust.always ? 1 : 0
+    );
+  }, "persistPosterTrust");
+}
+
+export function loadPosterTrust(): Map<string, { approvedCount: number; always: boolean }> {
+  const rows =
+    withDb(
+      (d) =>
+        d.prepare("SELECT user_id, approved_count, always FROM poster_trust").all() as {
+          user_id: string;
+          approved_count: number;
+          always: number;
+        }[]
+    ) ?? [];
+  return new Map(rows.map((r) => [r.user_id, { approvedCount: r.approved_count, always: r.always === 1 }]));
 }
