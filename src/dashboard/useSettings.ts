@@ -39,7 +39,11 @@ const DEBOUNCE_MS = 600;
  * pause. Secrets (Discord token, OBS password) never travel through it: the server returns them masked,
  * and the mask means "keep the stored value", so they are only changed by `applySecrets`.
  */
-export function useSettings(notify: React.RefObject<SettingsNotifier | null>) {
+export function useSettings() {
+  const notify = useRef<SettingsNotifier | null>(null);
+  const setNotifier = useCallback((n: SettingsNotifier) => {
+    notify.current = n;
+  }, []);
   const [config, setConfigState] = useState<UIConfig>(DEFAULT_CONFIG);
   const [loaded, setLoaded] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -143,7 +147,8 @@ export function useSettings(notify: React.RefObject<SettingsNotifier | null>) {
   );
 
   useEffect(() => {
-    void load();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load(); // async initial fetch — setState happens after the await
     // Do not lose an edit made in the last moments before leaving the page
     const onHide = () => {
       if (timer.current) void flush();
@@ -155,5 +160,5 @@ export function useSettings(notify: React.RefObject<SettingsNotifier | null>) {
     };
   }, [load, flush]);
 
-  return { config, setConfig, saveNow, applySecrets, saveState, loaded, reload: load };
+  return { setNotifier, config, setConfig, saveNow, applySecrets, saveState, loaded, reload: load };
 }

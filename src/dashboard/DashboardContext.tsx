@@ -4,7 +4,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type Dispatch,
   type ReactNode,
@@ -68,28 +67,21 @@ export function useDashboard(): DashboardState {
 const post = (url: string) => fetch(url, { method: "POST" }).catch((err) => console.error(err));
 
 /** Hands the toast function to useSettings, which is created above the ToastProvider (it picks the language). */
-function ToastBridge({ notifier, t }: { notifier: React.RefObject<SettingsNotifier | null>; t: DashboardState["t"] }) {
+function ToastBridge({ register, t }: { register: (n: SettingsNotifier) => void; t: DashboardState["t"] }) {
   const toast = useToast();
   useEffect(() => {
-    notifier.current = {
+    register({
       saved: () => toast("success", t.save.saved),
       secretSaved: () => toast("success", t.secret.applied),
       failed: (message) => toast("error", `${t.save.error}: ${message}`),
-    };
-  }, [notifier, toast, t]);
+    });
+  }, [register, toast, t]);
   return null;
 }
 
-export function DashboardProvider({
-  goTo,
-  children,
-}: {
-  goTo: (section: SectionId) => void;
-  children: ReactNode;
-}) {
+export function DashboardProvider({ goTo, children }: { goTo: (section: SectionId) => void; children: ReactNode }) {
   const { socket, wsStatus } = useQueueStore();
-  const notifier = useRef<SettingsNotifier | null>(null);
-  const settings = useSettings(notifier);
+  const settings = useSettings();
   const { config, reload } = settings;
 
   const [botStatus, setBotStatus] = useState<BotStatus>({ status: "disconnected", botUser: "", errorMsg: "" });
@@ -238,7 +230,7 @@ export function DashboardProvider({
   return (
     <DashboardContext.Provider value={value}>
       <ToastProvider closeLabel={t.save.close} regionLabel={t.save.notifications}>
-        <ToastBridge notifier={notifier} t={t} />
+        <ToastBridge register={settings.setNotifier} t={t} />
         {children}
       </ToastProvider>
     </DashboardContext.Provider>

@@ -83,11 +83,7 @@ function StatusStrip() {
     <ul aria-label={t.status.label} className="flex flex-wrap items-center gap-2">
       {items.map((item) => (
         <li key={item.key} className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => goTo(item.target)}
-            className="rounded-full focus-ring cursor-pointer"
-          >
+          <button type="button" onClick={() => goTo(item.target)} className="rounded-full focus-ring cursor-pointer">
             <StatusPill tone={item.tone} pulse={item.pulse}>
               <span className="opacity-70">{item.label}</span>
               <span>{item.text}</span>
@@ -154,14 +150,15 @@ function Shell({ section, navigate }: { section: SectionId; navigate: (id: Secti
   const [showSetup, setShowSetup] = useState(() => !localStorage.getItem("hasSeenTutorial"));
 
   const items = useMemo<NavItem[]>(
-    () => [
-      { id: "live", label: t.nav.live, icon: <Activity className="h-4 w-4" /> },
-      { id: "moderation", label: t.nav.moderation, icon: <Shield className="h-4 w-4" /> },
-      { id: "look", label: t.nav.look, icon: <Palette className="h-4 w-4" /> },
-      { id: "poses", label: t.nav.poses, icon: <Eye className="h-4 w-4" /> },
-      { id: "connections", label: t.nav.connections, icon: <Plug className="h-4 w-4" /> },
-      { id: "system", label: t.nav.system, icon: <HeartPulse className="h-4 w-4" /> },
-    ].map((item) => ({ ...item, href: SECTION_PATH[item.id as SectionId] })),
+    () =>
+      [
+        { id: "live", label: t.nav.live, icon: <Activity className="h-4 w-4" /> },
+        { id: "moderation", label: t.nav.moderation, icon: <Shield className="h-4 w-4" /> },
+        { id: "look", label: t.nav.look, icon: <Palette className="h-4 w-4" /> },
+        { id: "poses", label: t.nav.poses, icon: <Eye className="h-4 w-4" /> },
+        { id: "connections", label: t.nav.connections, icon: <Plug className="h-4 w-4" /> },
+        { id: "system", label: t.nav.system, icon: <HeartPulse className="h-4 w-4" /> },
+      ].map((item) => ({ ...item, href: SECTION_PATH[item.id as SectionId] })),
     [t]
   );
 
