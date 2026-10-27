@@ -288,6 +288,19 @@ export default function PosesSection() {
         </div>
       )}
 
+      <details
+        open={!visible.some((p) => p.kind === "custom")}
+        className="rounded-control border border-line bg-surface px-3 py-2"
+      >
+        <summary className="cursor-pointer text-sm font-medium text-fg">{labels.howTitle}</summary>
+        <ol className="mt-2 flex list-none flex-col gap-1.5 text-xs leading-relaxed text-fg-muted">
+          <li>{labels.howStep1}</li>
+          <li>{labels.howStep2}</li>
+          <li>{labels.howStep3}</li>
+          <li>{labels.howStep4}</li>
+        </ol>
+      </details>
+
       <section aria-labelledby="poses-list" className="flex flex-col gap-2">
         <h2 id="poses-list" className="text-base font-semibold text-fg">
           {labels.listTitle}

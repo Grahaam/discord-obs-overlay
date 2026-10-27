@@ -275,6 +275,7 @@ export default function PoseCard({
                   <Button
                     disabled={recordDisabled || examples > MAX_EXTRA_TEMPLATES}
                     onClick={onAddExample}
+                    title={labels.tipAddExample}
                     className="self-start"
                   >
                     <Circle aria-hidden className="w-3 h-3 fill-danger text-danger" />
@@ -297,6 +298,7 @@ export default function PoseCard({
                   <Button
                     disabled={recordDisabled || calibration?.kind === "running"}
                     onClick={onCalibrate}
+                    title={labels.tipCalibrate}
                     className="self-start"
                   >
                     <Gauge aria-hidden className="w-4 h-4" />

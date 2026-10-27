@@ -200,6 +200,16 @@ export const locales = {
       missingRightHand:
         "Main droite introuvable : gardez-la dans le cadre, face à la caméra. L’ancienne pose est conservée.",
       handNotRecorded: "Pas encore enregistrée : réenregistrez la pose.",
+      howTitle: "Comment ça marche ?",
+      howStep1: "1. Enregistrez : choisissez ce qui compte (corps, mains), puis tenez la pose face à la caméra.",
+      howStep2:
+        "2. Ajoutez des exemples : refaites la pose un peu différemment (assis, debout, légèrement penché). La plus proche compte, donc elle se déclenche plus souvent.",
+      howStep3:
+        "3. Calibrez le seuil : restez naturel 8 s sans faire la pose. Une valeur est proposée pour éviter les déclenchements par erreur.",
+      howStep4:
+        "4. Essayez : tant que la pose ne se déclenche pas, la ligne « Point faible » dit ce qui cloche (une articulation ou un doigt).",
+      tipAddExample: "Enregistre une variante de la même pose (6 maximum). Seul l’exemple le plus proche compte.",
+      tipCalibrate: "Observe 8 s de stream normal, sans la pose, pour proposer un seuil sans faux déclenchements.",
       addExample: "Ajouter un exemple",
       examples: "Exemples du corps : {n}",
       removeExample: "Retirer le dernier",
@@ -724,6 +734,16 @@ export const locales = {
       missingLeftHand: "Left hand not seen: keep it inside the frame, facing the camera. The old pose is kept.",
       missingRightHand: "Right hand not seen: keep it inside the frame, facing the camera. The old pose is kept.",
       handNotRecorded: "Not recorded yet: re-record the pose.",
+      howTitle: "How does it work?",
+      howStep1: "1. Record: pick what matters (body, hands), then hold the pose facing the camera.",
+      howStep2:
+        "2. Add examples: redo the pose slightly differently (sitting, standing, leaning a little). The closest one counts, so it triggers more reliably.",
+      howStep3:
+        "3. Calibrate the threshold: stay natural for 8 s without making the pose. A value is suggested so it doesn’t trigger by mistake.",
+      howStep4:
+        "4. Try it: while the pose doesn’t trigger, the “Weakest point” line tells you what is off (a joint or a finger).",
+      tipAddExample: "Records a variant of the same pose (6 at most). Only the closest example counts.",
+      tipCalibrate: "Watches 8 s of normal streaming, without the pose, to suggest a threshold with no false triggers.",
       addExample: "Add an example",
       examples: "Body examples: {n}",
       removeExample: "Remove the last one",
@@ -1242,6 +1262,16 @@ export const locales = {
       missingLeftHand: "Weft hand not seen >_< keep it inside the fwame, facing the camewa. The owd pose is kept.",
       missingRightHand: "Wight hand not seen >_< keep it inside the fwame, facing the camewa. The owd pose is kept.",
       handNotRecorded: "Not wecowded yet: we-wecowd the pose~",
+      howTitle: "How does it wowk?",
+      howStep1: "1. Wecowd: pick what mattews (body, hands), then howd the pose facing the camewa~",
+      howStep2:
+        "2. Add exampwes: wedo the pose swightwy diffewentwy (sitting, standing, weaning a wittwe). The cwosest one counts, so it twiggews mowe wewiabwy~",
+      howStep3:
+        "3. Cawibwate the thweshowd: stay natuwaw fow 8 s without making the pose. A vawue is suggested so it doesn’t twiggew by mistake~",
+      howStep4:
+        "4. Twy it: whiwe the pose doesn’t twiggew, the “Weakest point” wine tewws you what is off (a joint ow a fingew)~",
+      tipAddExample: "Wecowds a vawiant of the same pose (6 at most). Onwy the cwosest exampwe counts~",
+      tipCalibrate: "Watches 8 s of nowmaw stweaming, without the pose, to suggest a thweshowd with no fawse twiggews~",
       addExample: "Add an exampwe~",
       examples: "Body exampwes: {n}",
       removeExample: "Wemove the wast one",
@@ -1763,6 +1793,16 @@ export const locales = {
       missingRightHand:
         "Main dwoite intwouvabwe >_< gawdez-wa dans we cadwe, face à wa caméwa. W’ancienne pose est consewvée.",
       handNotRecorded: "Pas encowe enwegistwée : wéenwegistwez wa pose~",
+      howTitle: "Comment ça mawche ?",
+      howStep1: "1. Enwegistwez : choisissez ce qui compte (cowps, mains), puis tenez wa pose face à wa caméwa~",
+      howStep2:
+        "2. Ajoutez des exemples : wefaites wa pose un peu différemment (assis, debout, wégèwement penché). Wa pwus pwoche compte, donc ewwe se déclenche pwus souvent~",
+      howStep3:
+        "3. Cawibwez we seuiw : westez natuwew 8 s sans faiwe wa pose. Une vaweuw est pwoposée pouw éviteuw wes déclenchements paw ewweuw~",
+      howStep4:
+        "4. Essayez : tant que wa pose ne se déclenche pas, wa wigne « Point faibwe » dit ce qui cwoche (une awticuwation ou un doigt)~",
+      tipAddExample: "Enwegistwe une vawiante de wa même pose (6 maximum). Seuw w’exemple we pwus pwoche compte~",
+      tipCalibrate: "Obsewve 8 s de stweam nowmaw, sans wa pose, pouw pwoposew un seuiw sans faux déclenchements~",
       addExample: "Ajoutew un exempwe~",
       examples: "Exempwes du cowps : {n}",
       removeExample: "Wetiwew we dewniew",
