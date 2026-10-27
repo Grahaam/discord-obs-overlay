@@ -236,10 +236,12 @@ function lockNavigation(contents, isAllowed) {
 function setupPermissionHandlers() {
   const ses = session.defaultSession;
   ses.setPermissionRequestHandler((_wc, permission, callback, details) => {
-    callback(permission === "media" && isLocalUrl(details.requestingUrl));
+    const types = Array.isArray(details.mediaTypes) ? details.mediaTypes : [];
+    const videoOnly = types.length > 0 && types.every((m) => m === "video");
+    callback(permission === "media" && videoOnly && isLocalUrl(details.requestingUrl));
   });
-  ses.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
-    return permission === "media" && isLocalUrl(requestingOrigin);
+  ses.setPermissionCheckHandler((_wc, permission, requestingOrigin, details) => {
+    return permission === "media" && details?.mediaType === "video" && isLocalUrl(requestingOrigin);
   });
 }
 

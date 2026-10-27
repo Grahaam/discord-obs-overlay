@@ -128,7 +128,7 @@ async function runServer() {
   const OVERLAY_CSP = buildCsp(true);
 
   app.use((req, res, next) => {
-    res.setHeader("Content-Security-Policy", req.path === "/overlay" ? OVERLAY_CSP : CSP);
+    res.setHeader("Content-Security-Policy", req.path.replace(/\/+$/, "") === "/overlay" ? OVERLAY_CSP : CSP);
     next();
   });
 

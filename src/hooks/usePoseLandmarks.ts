@@ -149,12 +149,15 @@ export function usePoseLandmarks({
     const reportFailure = (err: unknown) => {
       const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
       if (message === lastReported) return;
-      lastReported = message;
       fetch("/api/overlay-diagnostics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stage, message, userAgent: navigator.userAgent }),
-      }).catch(() => {});
+      })
+        .then((res) => {
+          if (res.ok) lastReported = message; // a failed delivery is retried on the next occurrence
+        })
+        .catch(() => {});
     };
 
     const onCspViolation = (e: SecurityPolicyViolationEvent) =>
