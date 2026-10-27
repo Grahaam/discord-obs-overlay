@@ -45,3 +45,12 @@ export const DATA_PATHS = {
   // Streamer-provided image/sound for the pose alert (served at /user-assets).
   userAssetsDir: path.join(dataDir, "user-assets"),
 };
+
+/**
+ * Packaged builds ship as app.asar. Files inside it can be read through Electron's patched fs, but a
+ * binary we exec (ffmpeg, yt-dlp) must be a real file: electron-builder's asarUnpack puts it under
+ * app.asar.unpacked, so point at that copy. No-op for any path that is not inside an asar.
+ */
+export function unpackedPath(p: string): string {
+  return p.replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`);
+}

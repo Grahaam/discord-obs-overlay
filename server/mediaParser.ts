@@ -12,13 +12,13 @@ import metascraperAuthor from "metascraper-author";
 import { execFileSync, execFile } from "child_process";
 import { createRequire } from "module";
 import { logger } from "./logger.js";
-import { APP_PATHS, DATA_PATHS } from "./paths.js";
+import { APP_PATHS, DATA_PATHS, unpackedPath } from "./paths.js";
 import { CACHE_DIR } from "./binaries.js";
 
 const _require = createRequire(import.meta.url);
 const _ffmpegStatic: string | null = (() => {
   try {
-    return _require("ffmpeg-static") as string;
+    return unpackedPath(_require("ffmpeg-static") as string);
   } catch {
     return null;
   }

@@ -1,7 +1,7 @@
 import { createRequire } from "module";
 import { execFileSync } from "child_process";
 import { logger } from "./logger.js";
-import { DATA_PATHS } from "./paths.js";
+import { DATA_PATHS, unpackedPath } from "./paths.js";
 
 const _require = createRequire(import.meta.url);
 
@@ -10,7 +10,8 @@ export const CACHE_DIR = DATA_PATHS.mediaCacheDir;
 export const FFMPEG_BIN: string = (() => {
   // Try ffmpeg-static first
   try {
-    const bin = _require("ffmpeg-static") as string | null;
+    const staticBin = _require("ffmpeg-static") as string | null;
+    const bin = staticBin && unpackedPath(staticBin);
     if (bin) {
       logger.info({ ffmpegBin: bin }, "Using ffmpeg binary (ffmpeg-static)");
       return bin;
