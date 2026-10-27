@@ -48,6 +48,7 @@ const poseObjectSchema = z.object({
   builtinId: z.literal("absolute-cinema").optional(),
   enabled: z.boolean(),
   template: z.array(pointSchema).length(33).optional(),
+  extraTemplates: z.array(z.array(pointSchema).length(33)).max(5).optional(),
   bodyParts: z.array(bodyPartSchema),
   threshold: z.number().min(0).max(100),
   mirror: z.boolean(),

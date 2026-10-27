@@ -2,7 +2,8 @@ import type { BodyPart, NormalizedPoint, Pose, PosesFile } from "../types";
 import { isAbsoluteCinemaPose } from "./absoluteCinemaPose";
 import { gapScore, HAND_MIN, handCentre, mirrorHands, scoreHand } from "./handMatcher";
 import type { HandReading } from "./hands";
-import { normalise, scorePose, scorePoseBoth } from "./poseMatcher";
+import { normalise, scorePoseBoth } from "./poseMatcher";
+import { bestExampleScore, bodyTemplates } from "./poseCalibration";
 import { hasMedia, visiblePoses } from "./poseMedia";
 
 export interface PoseScore {
@@ -81,6 +82,22 @@ function mean(parts: Array<number | null>): number | null {
   return (parts as number[]).reduce((sum, part) => sum + part, 0) / parts.length;
 }
 
+/** Direct and mirrored body scores, each taken from the closest example. */
+function bestBoth(
+  live: NormalizedPoint[],
+  templates: NormalizedPoint[][],
+  bodyParts: BodyPart[]
+): { direct: number | null; flipped: number | null } {
+  let direct: number | null = null;
+  let flipped: number | null = null;
+  for (const template of templates) {
+    const both = scorePoseBoth(live, template, bodyParts);
+    if (both.direct !== null && (direct === null || both.direct > direct)) direct = both.direct;
+    if (both.flipped !== null && (flipped === null || both.flipped > flipped)) flipped = both.flipped;
+  }
+  return { direct, flipped };
+}
+
 function scoreCustom(pose: Pose, landmarks: NormalizedPoint[], aspect: number, hands: LiveHands): number | null {
   const bodyParts = pose.bodyParts.filter(isBodyPart);
   const ticked = (["left", "right"] as const).filter((side) =>
@@ -88,12 +105,13 @@ function scoreCustom(pose: Pose, landmarks: NormalizedPoint[], aspect: number, h
   );
   const live = normalise(landmarks, aspect);
   if (!live) return null;
+  const templates = bodyTemplates(pose);
   if (ticked.length === 0) {
-    return pose.template ? scorePose(live, pose.template, { bodyParts, mirror: pose.mirror }) : null;
+    return templates.length > 0 ? bestExampleScore(live, templates, { bodyParts, mirror: pose.mirror }) : null;
   }
   if (!pose.hands) return null;
 
-  const body = bodyParts.length > 0 && pose.template ? scorePoseBoth(live, pose.template, bodyParts) : null;
+  const body = bodyParts.length > 0 && pose.template ? bestBoth(live, templates, bodyParts) : null;
   if (bodyParts.length > 0 && !body) return null;
   const direct = mean([...(body ? [body.direct] : []), scoreHands(pose, ticked, pose.hands, landmarks, aspect, hands)]);
   if (!pose.mirror) return direct;
