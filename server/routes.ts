@@ -19,7 +19,7 @@ import { resolveMediaFromLink, _ytDlpCustomPath } from "./mediaParser.js";
 import { approvalManager } from "./approvalManager.js";
 import { alertManager } from "./alertManager.js";
 import { testObsConnection } from "./obsManager.js";
-import { computeSetupStatus, cached, overlayClients, wasAlertStarted } from "./setupStatus.js";
+import { computeSetupStatus, cached, overlayClients, wasAlertStarted, markTestAlert, hasTestAlertPlayed } from "./setupStatus.js";
 import { poseStore, posesFileSchema } from "./poseStore.js";
 import { emitPoseAlert, poseAlertController } from "./poseAlert.js";
 import { safeAssetName, validateUpload } from "./userAssets.js";
@@ -196,7 +196,7 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
         channelIssue: botManager.channelIssue,
         overlayClients: overlayClients.count(),
         obs: await cachedObsTest(),
-        testAlertSeen: wasAlertStarted(testAlertId),
+        testAlertSeen: hasTestAlertPlayed() || wasAlertStarted(testAlertId),
         // Same source syncCookiesFile uses (it deletes cookies.txt when the content is empty)
         cookiesConfigured: !!settingsManager.settings.youtubeCookiesContent?.trim(),
       })
@@ -560,8 +560,10 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
       }
     }
 
+    const testAlertId = crypto.randomUUID();
+    markTestAlert(testAlertId);
     const testPayload = {
-      id: crypto.randomUUID(),
+      id: testAlertId,
       authorName: authorName || "Viewer_Random_99",
       authorAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=128&q=80",
       text: text || "Regardez ce clip que je viens de faire sur le stream !",

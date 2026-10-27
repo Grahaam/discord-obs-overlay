@@ -61,8 +61,21 @@ export const overlayClients = {
 // Ids of alerts the overlay has started playing (alert_started); bounded, we only ever look up recent test alerts
 const MAX_STARTED = 50;
 const startedAlertIds: string[] = [];
+const testAlertIds: string[] = [];
+// Sticky for the server's lifetime: the checklist must not untick when the dashboard reloads and forgets the test alert id
+let testAlertPlayed = false;
+/** Remembers an id created by the "Test Alert" button, so playing it ticks the checklist for good */
+export function markTestAlert(id: string) {
+  testAlertIds.push(id);
+  if (testAlertIds.length > MAX_STARTED) testAlertIds.shift();
+}
+export function hasTestAlertPlayed(): boolean {
+  return testAlertPlayed;
+}
 export function markAlertStarted(id: string) {
-  if (typeof id !== "string" || startedAlertIds.includes(id)) return;
+  if (typeof id !== "string") return;
+  if (testAlertIds.includes(id)) testAlertPlayed = true;
+  if (startedAlertIds.includes(id)) return;
   startedAlertIds.push(id);
   if (startedAlertIds.length > MAX_STARTED) startedAlertIds.shift();
 }
