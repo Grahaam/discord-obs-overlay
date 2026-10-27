@@ -26,6 +26,11 @@ function withDb<T>(fn: (d: any) => T, caller: string): T | undefined {
 /** Close the DB so WAL contents are checkpointed into overlay.db before exit. */
 export function closeDb(): void {
   try {
+    db?.pragma("wal_checkpoint(TRUNCATE)");
+  } catch (err: any) {
+    logger.error({ err: err.message }, "WAL checkpoint failed");
+  }
+  try {
     db?.close();
   } catch (err: any) {
     logger.error({ err: err.message }, "Failed to close database");
@@ -40,6 +45,7 @@ export function initDb(): void {
     withDb((d) => {
       d.pragma("journal_mode = WAL");
       d.pragma("synchronous = NORMAL");
+      d.pragma("busy_timeout = 5000");
       d.exec(`
         CREATE TABLE IF NOT EXISTS alerts (
           id TEXT PRIMARY KEY,
