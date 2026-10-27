@@ -66,10 +66,15 @@ export default function ModerationSection() {
   const removeRoleId = (id: string) => setConfig({ ...config, allowedRoleIds: roleIds.filter((r) => r !== id) });
 
   const copyRoleId = (id: string) => {
-    navigator.clipboard.writeText(id).then(() => {
-      setCopiedRoleId(id);
-      setTimeout(() => setCopiedRoleId(null), 2000);
-    });
+    navigator.clipboard
+      .writeText(id)
+      .then(() => {
+        setCopiedRoleId(id);
+        setTimeout(() => setCopiedRoleId(null), 2000);
+      })
+      .catch(() => {
+        // the button simply doesn't switch to "Copied"
+      });
   };
 
   const replay = (logId: string | number | undefined) =>

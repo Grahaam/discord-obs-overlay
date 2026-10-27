@@ -51,9 +51,15 @@ function UrlRow({ label, path }: { label: string; path: string }) {
   const inputId = `obs-url-${path.slice(1)}`;
 
   const copy = () => {
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      })
+      .catch(() => {
+        // the URL stays selectable in the field next to the button
+      });
   };
 
   return (

@@ -232,15 +232,20 @@ function lockNavigation(contents, isAllowed) {
   });
 }
 
-/** Only the local dashboard may use the camera (pose detection); everything else is refused. */
+/**
+ * Only the local dashboard may use the camera (pose detection) and write to the clipboard (copy
+ * buttons); everything else is refused.
+ */
 function setupPermissionHandlers() {
   const ses = session.defaultSession;
   ses.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    if (permission === "clipboard-sanitized-write") return callback(isLocalUrl(details.requestingUrl));
     const types = Array.isArray(details.mediaTypes) ? details.mediaTypes : [];
     const videoOnly = types.length > 0 && types.every((m) => m === "video");
     callback(permission === "media" && videoOnly && isLocalUrl(details.requestingUrl));
   });
   ses.setPermissionCheckHandler((_wc, permission, requestingOrigin, details) => {
+    if (permission === "clipboard-sanitized-write") return isLocalUrl(requestingOrigin);
     return permission === "media" && details?.mediaType === "video" && isLocalUrl(requestingOrigin);
   });
 }
@@ -340,7 +345,7 @@ function refreshTrayMenu(port) {
       },
       {
         label: "Copy OBS Overlay URL",
-        click: () => clipboard.writeText(`http://127.0.0.1:${port}/overlay?k=${apiToken}`).catch(() => {}),
+        click: () => clipboard.writeText(`http://127.0.0.1:${port}/overlay?k=${apiToken}`),
       },
       { type: "separator" },
       {

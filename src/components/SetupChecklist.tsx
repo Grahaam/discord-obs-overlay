@@ -130,9 +130,15 @@ export function SetupChecklistBody({
   };
 
   const copyUrl = () => {
-    navigator.clipboard.writeText(overlayUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    navigator.clipboard
+      .writeText(overlayUrl)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      })
+      .catch(() => {
+        // the button simply doesn't switch to "Copied"
+      });
   };
 
   // Both the bot and the OBS connection settings live in the Connections section.
