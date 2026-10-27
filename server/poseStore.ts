@@ -37,7 +37,7 @@ const poseMediaSchema = z.object({
   videoUrl: z.string().optional(),
   volume: z.number().min(0).max(1),
   durationSeconds: z.number().positive().optional(),
-  maxDurationSeconds: z.number().min(5).max(120),
+  maxDurationSeconds: z.number().min(1).max(120),
   fullscreen: z.boolean(),
 });
 
@@ -48,6 +48,7 @@ const poseObjectSchema = z.object({
   builtinId: z.literal("absolute-cinema").optional(),
   enabled: z.boolean(),
   template: z.array(pointSchema).length(33).optional(),
+  extraTemplates: z.array(z.array(pointSchema).length(33)).max(5).optional(),
   bodyParts: z.array(bodyPartSchema),
   threshold: z.number().min(0).max(100),
   mirror: z.boolean(),
@@ -100,7 +101,7 @@ export function defaultBuiltinPose(settings: LegacyPoseSettings): Pose {
     soundUrl: settings.poseAlertSoundUrl || "",
     volume: 0.8,
     durationSeconds: 4,
-    maxDurationSeconds: 30,
+    maxDurationSeconds: 5,
     fullscreen: true,
   };
   return {

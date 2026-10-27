@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { AlertTriangle, ChevronDown, Circle, Eye, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, Circle, Eye, Gauge, Trash2 } from "lucide-react";
 import type { BodyPart, Finger, Pose } from "../../types";
+import type { CalibrationPhase } from "../../hooks/usePoseCalibration";
+import { JOINT_PARTS, MAX_EXTRA_TEMPLATES, weakestFinger, type WeakJoint } from "../../lib/poseCalibration";
 import { hasMedia } from "../../lib/poseMedia";
 import { liveHandFor } from "../../lib/handRecording";
 import { Button, Field, StatusPill, Switch, cx, inputClass } from "../../ui";
@@ -23,6 +25,15 @@ interface Props {
   /** Re-records the template (custom poses only); `parts` limits it, e.g. to one hand */
   onRecord?: (parts?: BodyPart[]) => void;
   recordDisabled: boolean;
+  /** Records one more body example (custom poses only) */
+  onAddExample?: () => void;
+  /** Starts the "streaming normally" calibration (custom poses only) */
+  onCalibrate?: () => void;
+  /** Calibration state, only when it concerns this pose */
+  calibration?: Exclude<CalibrationPhase, { kind: "idle" }>;
+  onDismissCalibration: () => void;
+  /** Joint farthest from the pose, from the dashboard camera */
+  weakJoint?: WeakJoint;
   /** Live match % from the dashboard camera; undefined while the camera is off */
   liveScore?: number | null;
   /** Name of another pose this one looks too much like */
@@ -31,6 +42,9 @@ interface Props {
   liveCurls?: { left?: Record<Finger, number>; right?: Record<Finger, number> };
   labels: Record<string, string>;
 }
+
+// A joint is off by shoulder widths, a finger by a 0–1 curl: a joint counts double to compare them
+const JOINT_VS_FINGER = 2;
 
 function MatchBar({ score, threshold, label }: { score: number | null; threshold: number; label: string }) {
   const value = Math.round(score ?? 0);
@@ -61,6 +75,11 @@ export default function PoseCard({
   onOpenChange,
   onRecord,
   recordDisabled,
+  onAddExample,
+  onCalibrate,
+  calibration,
+  onDismissCalibration,
+  weakJoint,
   liveScore,
   similarTo,
   liveCurls,
@@ -82,6 +101,29 @@ export default function PoseCard({
     const bodyParts = checked ? [...pose.bodyParts, part] : pose.bodyParts.filter((p) => p !== part);
     if (bodyParts.length > 0) set({ bodyParts });
   };
+  // "Why didn't it fire": the joint or finger farthest from the recorded pose, while the match is under the threshold
+  const weakText = (() => {
+    if (pose.kind !== "custom" || liveScore === undefined || (liveScore !== null && liveScore >= pose.threshold)) {
+      return null;
+    }
+    let finger: { name: Finger; distance: number } | null = null;
+    for (const { part, side } of HAND_SIDES) {
+      const template = pose.hands?.[side];
+      const curls = liveCurls && liveHandFor(side, liveCurls, pose.mirror);
+      if (!pose.bodyParts.includes(part) || !template || !curls) continue;
+      const weak = weakestFinger(curls, template);
+      if (weak && (!finger || weak.distance > finger.distance)) finger = { name: weak.finger, distance: weak.distance };
+    }
+    const joint = weakJoint && JOINT_PARTS[weakJoint.joint];
+    if (joint && weakJoint && (!finger || weakJoint.distance * JOINT_VS_FINGER >= finger.distance)) {
+      const side = joint.side ? labels[joint.side === "left" ? "sideLeft" : "sideRight"] : null;
+      const name = labels[`joint${joint.part}`];
+      return side ? `${name} (${side})` : name;
+    }
+    return finger ? labels[finger.name] : null;
+  })();
+  const examples = (pose.extraTemplates?.length ?? 0) + (pose.template ? 1 : 0);
+  const bodyRecorded = !!pose.template && pose.bodyParts.some((p) => p !== "leftHand" && p !== "rightHand");
   const preview = async () => {
     setPreviewError(null);
     setPreviewError(await onPreview());
@@ -133,6 +175,10 @@ export default function PoseCard({
           <AlertTriangle aria-hidden className="w-3.5 h-3.5 shrink-0" />
           {labels.tooSimilar.replace("{name}", similarTo)}
         </div>
+      )}
+
+      {weakText && (
+        <div className="px-4 pb-3 -mt-1 text-xs text-fg-subtle">{labels.weakest.replace("{part}", weakText)}</div>
       )}
 
       {open && (
@@ -223,6 +269,82 @@ export default function PoseCard({
                   <Circle aria-hidden className="w-3 h-3 fill-danger text-danger" />
                   {labels.rerecord}
                 </Button>
+              )}
+              {bodyRecorded && onAddExample && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    disabled={recordDisabled || examples > MAX_EXTRA_TEMPLATES}
+                    onClick={onAddExample}
+                    title={labels.tipAddExample}
+                    className="self-start"
+                  >
+                    <Circle aria-hidden className="w-3 h-3 fill-danger text-danger" />
+                    {labels.addExample}
+                  </Button>
+                  <span className="text-xs text-fg-subtle">{labels.examples.replace("{n}", String(examples))}</span>
+                  {examples > 1 && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => set({ extraTemplates: (pose.extraTemplates ?? []).slice(0, -1) })}
+                      className="px-2 py-1 text-xs"
+                    >
+                      {labels.removeExample}
+                    </Button>
+                  )}
+                </div>
+              )}
+              {onCalibrate && bodyRecorded && (
+                <div className="flex flex-col gap-1.5">
+                  <Button
+                    disabled={recordDisabled || calibration?.kind === "running"}
+                    onClick={onCalibrate}
+                    title={labels.tipCalibrate}
+                    className="self-start"
+                  >
+                    <Gauge aria-hidden className="w-4 h-4" />
+                    {labels.calibrate}
+                  </Button>
+                  {!calibration && <span className="text-xs text-fg-subtle">{labels.calibrateHelp}</span>}
+                  {calibration?.kind === "running" && (
+                    <span role="status" className="text-xs text-fg-muted">
+                      {labels.calibrating.replace("{s}", String(calibration.secondsLeft))}
+                    </span>
+                  )}
+                  {calibration?.kind === "done" && (
+                    <div role="status" className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
+                      {!calibration.suggestion ? (
+                        <span className="text-warn-text">{labels.calibrateTooFew}</span>
+                      ) : calibration.suggestion.fine ? (
+                        <span>
+                          {labels.calibrateOk
+                            .replace("{threshold}", String(pose.threshold))
+                            .replace("{peak}", String(Math.round(calibration.suggestion.peak)))}
+                        </span>
+                      ) : (
+                        <>
+                          <span>
+                            {labels.calibrateResult
+                              .replace("{peak}", String(Math.round(calibration.suggestion.peak)))
+                              .replace("{suggested}", String(calibration.suggestion.suggested))}
+                          </span>
+                          <Button
+                            variant="primary"
+                            className="px-2.5 py-1 text-xs"
+                            onClick={() => {
+                              set({ threshold: calibration.suggestion!.suggested });
+                              onDismissCalibration();
+                            }}
+                          >
+                            {labels.calibrateApply.replace("{suggested}", String(calibration.suggestion.suggested))}
+                          </Button>
+                        </>
+                      )}
+                      <Button variant="ghost" className="px-2.5 py-1 text-xs" onClick={onDismissCalibration}>
+                        {labels.calibrateDismiss}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               )}
             </>
           )}

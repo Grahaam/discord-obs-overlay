@@ -65,7 +65,7 @@ function angleFeatures(points: NormalizedPoint[], bodyParts: BodyPart[]): number
   return features;
 }
 
-function mirrored(points: NormalizedPoint[]): NormalizedPoint[] {
+export function mirrored(points: NormalizedPoint[]): NormalizedPoint[] {
   const result = points.map((point) => ({ ...point, x: -point.x }));
   for (const [left, right] of MIRROR_PAIRS) {
     [result[left], result[right]] = [result[right], result[left]];

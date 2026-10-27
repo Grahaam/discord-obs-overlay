@@ -4,11 +4,13 @@ import type { BodyPart, NormalizedPoint, Pose, UIConfig } from "../types";
 import { usePoses } from "../hooks/usePoses";
 import { usePoseLandmarks, type PoseFrame, type PoseLandmarksStatus } from "../hooks/usePoseLandmarks";
 import { usePoseRecorder } from "../hooks/usePoseRecorder";
+import { usePoseCalibration } from "../hooks/usePoseCalibration";
+import { MAX_EXTRA_TEMPLATES, bodyTemplates, weakestJoint, type WeakJoint } from "../lib/poseCalibration";
 import { visiblePoses } from "../lib/poseMedia";
 import { posesNeedHands, scoreFrame } from "../lib/poseScoring";
 import { fingerCurls, handsLookAlike } from "../lib/handMatcher";
 import { mergeHandRecording, ticksToParts, type RecordPart, type RecordTicks } from "../lib/handRecording";
-import { SIMILAR_WARN, similarity } from "../lib/poseMatcher";
+import { SIMILAR_WARN, normalise, similarity } from "../lib/poseMatcher";
 import { useDashboard } from "../dashboard/DashboardContext";
 import { Button, EmptyState, Field, SettingRow, Switch, inputClass } from "../ui";
 import PoseCard from "../components/poses/PoseCard";
@@ -21,7 +23,7 @@ const RECORD_ERROR: Record<RecordPart, string> = {
   rightHand: "missingRightHand",
 };
 
-type RecordTarget = { kind: "new" } | { kind: "rerecord"; poseId: string };
+type RecordTarget = { kind: "new" } | { kind: "rerecord"; poseId: string } | { kind: "example"; poseId: string };
 
 function newPose(template: NormalizedPoint[] | null, hands: Pose["hands"], bodyParts: BodyPart[], name: string): Pose {
   return {
@@ -42,7 +44,7 @@ function newPose(template: NormalizedPoint[] | null, hands: Pose["hands"], bodyP
       soundUrl: "",
       volume: 0.8,
       durationSeconds: 4,
-      maxDurationSeconds: 30,
+      maxDurationSeconds: 5,
       fullscreen: true,
     },
   };
@@ -100,6 +102,16 @@ export default function PosesSection() {
       const pose = newPose(template, hands, partsRef.current, `${labels.myPose} ${count + 1}`);
       update({ ...current, poses: [...current.poses, pose] });
       setSelectedId(pose.id);
+    } else if (target.kind === "example") {
+      if (!template) return;
+      update({
+        ...current,
+        poses: current.poses.map((p) =>
+          p.id === target.poseId && (p.extraTemplates?.length ?? 0) < MAX_EXTRA_TEMPLATES
+            ? { ...p, extraTemplates: [...(p.extraTemplates ?? []), template] }
+            : p
+        ),
+      });
     } else {
       // Parts not recorded this time keep their old template; recorded ones become ticked
       const parts = partsRef.current;
@@ -112,16 +124,25 @@ export default function PosesSection() {
   });
 
   const sourceName = config.poseCameraSource?.trim() ?? "";
+  const visible = useMemo(() => (file ? visiblePoses(file) : []), [file]);
+  const calibration = usePoseCalibration(
+    (poseId, frame) => {
+      const pose = visible.find((p) => p.id === poseId);
+      return pose ? (scoreFrame([pose], frame.landmarks, frame.aspect, frame.hands)[0].score ?? null) : null;
+    },
+    (poseId) => visible.find((p) => p.id === poseId)?.threshold ?? 80
+  );
   const { feed } = recorder;
+  const feedCalibration = calibration.feed;
   const onFrame = useCallback(
     (frame: PoseFrame) => {
       // Dev only: lets real hand/body readings be copied out as test fixtures (window.__poseFrame)
       if (import.meta.env.DEV) (window as unknown as { __poseFrame?: PoseFrame }).__poseFrame = frame;
       feed(frame);
+      feedCalibration(frame);
     },
-    [feed]
+    [feed, feedCalibration]
   );
-  const visible = useMemo(() => (file ? visiblePoses(file) : []), [file]);
   // Hands are read when a visible pose uses them (enabled or not, for the live chips) or a recording tick asks
   const posesHands = useMemo(() => posesNeedHands(visible.map((p) => ({ ...p, enabled: true }))), [visible]);
   const hands = { left: posesHands.left || ticks.leftHand, right: posesHands.right || ticks.rightHand };
@@ -132,6 +153,19 @@ export default function PosesSection() {
   const scores = useMemo(() => {
     if (!frame) return null;
     return new Map(scoreFrame(visible, frame.landmarks, frame.aspect, frame.hands).map((s) => [s.poseId, s.score]));
+  }, [visible, frame]);
+  // Which joint is farthest from each custom pose: shown while the pose is not matching
+  const weakJoints = useMemo(() => {
+    const result = new Map<string, WeakJoint>();
+    const live = frame?.landmarks && normalise(frame.landmarks, frame.aspect);
+    if (!live) return result;
+    for (const pose of visible) {
+      const bodyParts = pose.bodyParts.filter((p) => p !== "leftHand" && p !== "rightHand");
+      if (pose.kind !== "custom" || bodyParts.length === 0) continue;
+      const weak = weakestJoint(live, bodyTemplates(pose), { bodyParts, mirror: pose.mirror });
+      if (weak) result.set(pose.id, weak);
+    }
+    return result;
   }, [visible, frame]);
   const liveCurls = useMemo(
     () => ({
@@ -254,6 +288,19 @@ export default function PosesSection() {
         </div>
       )}
 
+      <details
+        open={!visible.some((p) => p.kind === "custom")}
+        className="rounded-control border border-line bg-surface px-3 py-2"
+      >
+        <summary className="cursor-pointer text-sm font-medium text-fg">{labels.howTitle}</summary>
+        <ol className="mt-2 flex list-none flex-col gap-1.5 text-xs leading-relaxed text-fg-muted">
+          <li>{labels.howStep1}</li>
+          <li>{labels.howStep2}</li>
+          <li>{labels.howStep3}</li>
+          <li>{labels.howStep4}</li>
+        </ol>
+      </details>
+
       <section aria-labelledby="poses-list" className="flex flex-col gap-2">
         <h2 id="poses-list" className="text-base font-semibold text-fg">
           {labels.listTitle}
@@ -272,7 +319,22 @@ export default function PosesSection() {
                 ? (parts) => record({ kind: "rerecord", poseId: pose.id }, parts ?? pose.bodyParts)
                 : undefined
             }
-            recordDisabled={!cameraReady || recorder.busy}
+            recordDisabled={!cameraReady || recorder.busy || calibration.busy}
+            onAddExample={
+              pose.kind === "custom"
+                ? () =>
+                    record(
+                      { kind: "example", poseId: pose.id },
+                      pose.bodyParts.filter((p) => p !== "leftHand" && p !== "rightHand")
+                    )
+                : undefined
+            }
+            onCalibrate={pose.kind === "custom" ? () => calibration.start(pose.id) : undefined}
+            calibration={
+              calibration.phase.kind !== "idle" && calibration.phase.poseId === pose.id ? calibration.phase : undefined
+            }
+            onDismissCalibration={calibration.dismiss}
+            weakJoint={weakJoints.get(pose.id)}
             liveScore={scores ? (scores.get(pose.id) ?? null) : undefined}
             similarTo={lookAlikes.get(pose.id)}
             liveCurls={liveCurls}

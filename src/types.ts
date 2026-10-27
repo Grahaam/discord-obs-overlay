@@ -52,6 +52,8 @@ export interface Pose {
   builtinId?: "absolute-cinema";
   enabled: boolean;
   template?: NormalizedPoint[];
+  /** More recorded examples of the same body pose: the live frame is scored against the closest one */
+  extraTemplates?: NormalizedPoint[][];
   bodyParts: BodyPart[];
   threshold: number;
   mirror: boolean;

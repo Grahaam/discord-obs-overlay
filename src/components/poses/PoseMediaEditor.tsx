@@ -186,7 +186,7 @@ export default function PoseMediaEditor({ media, onChange, labels }: Props) {
         <NumberField
           label={labels.max}
           value={media.maxDurationSeconds}
-          min={5}
+          min={1}
           max={120}
           onCommit={(maxDurationSeconds) => set({ maxDurationSeconds })}
         />
