@@ -560,6 +560,7 @@ app.whenReady().then(async () => {
 
   try {
     serverPort = await pickPort(dataDir);
+    apiToken = loadApiToken(dataDir);
     forkServer(serverPort, dataDir);
     await waitForServer(serverPort);
     createMainWindow(serverPort);
