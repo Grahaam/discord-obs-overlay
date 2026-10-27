@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { DATA_PATHS } from "./paths.js";
+import { DATA_PATHS, unpackedPath } from "./paths.js";
 
 const ASSET_BY_PLATFORM: Record<string, string> = {
   win32: "yt-dlp.exe",
@@ -46,7 +46,7 @@ export function resolveStandalone(opts: ResolveOpts = {}): StandaloneResult | nu
   const platform = opts.platform ?? process.platform;
   const name = standaloneBinaryName(platform);
 
-  const bundled = path.join(appPath, "electron", "bin", name);
+  const bundled = unpackedPath(path.join(appPath, "electron", "bin", name));
   if (!fs.existsSync(bundled)) return null;
 
   const target = path.join(dataDir, "bin", name);

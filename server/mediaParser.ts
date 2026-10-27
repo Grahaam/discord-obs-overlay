@@ -12,13 +12,13 @@ import metascraperAuthor from "metascraper-author";
 import { execFileSync, execFile } from "child_process";
 import { createRequire } from "module";
 import { logger } from "./logger.js";
-import { APP_PATHS, DATA_PATHS } from "./paths.js";
+import { APP_PATHS, DATA_PATHS, unpackedPath } from "./paths.js";
 import { CACHE_DIR } from "./binaries.js";
 
 const _require = createRequire(import.meta.url);
 const _ffmpegStatic: string | null = (() => {
   try {
-    return _require("ffmpeg-static") as string;
+    return unpackedPath(_require("ffmpeg-static") as string);
   } catch {
     return null;
   }
@@ -591,7 +591,9 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
     noPart: true, // Avoid rename issues
     noSimulate: true, // Ensure download happens
     ...(_ffmpegBin && { mergeOutputFormat: "mp4", ffmpegLocation: path.dirname(_ffmpegBin) }),
-    ...(isYouTube && { extractorArgs: "youtube:player-client=android_vr", noCookies: true }),
+    // Same client list as the info step: android_vr alone now only offers format 18, whose
+    // download YouTube answers with 403 Forbidden.
+    ...(isYouTube && { extractorArgs: "youtube:player-client=default,android_vr", noCookies: true }),
     ...(!isYouTube && hasCookies && { cookies: cookiesPath }),
   };
 

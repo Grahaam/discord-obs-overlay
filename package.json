@@ -8,7 +8,22 @@
   "build": {
     "appId": "com.livechat",
     "productName": "LiveChat",
-    "asar": false,
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "node_modules/ffmpeg-static/**",
+      "electron/bin/**",
+      "dist/mediapipe/**",
+      "models/**"
+    ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "enableCookieEncryption": true
+    },
     "npmRebuild": false,
     "directories": {
       "output": "dist-electron"
