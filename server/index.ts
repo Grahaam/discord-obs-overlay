@@ -103,26 +103,32 @@ async function runServer() {
 
   // Phase 4: CSP hardening — set via HTTP headers (more reliable in OBS than meta tags)
   const isDev = env.NODE_ENV === "development";
-  const CSP = [
-    "default-src 'self'",
-    // Production: no inline scripts, no eval. Only the MediaPipe wasm needs 'wasm-unsafe-eval'.
-    // Dev keeps both because Vite's HMR preamble is inline.
-    isDev
-      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://www.youtube.com https://s.ytimg.com *"
-      : "script-src 'self' 'wasm-unsafe-eval' https://www.youtube.com https://s.ytimg.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "worker-src 'self' blob:",
-    "img-src 'self' data: blob: https:",
-    "media-src 'self' data: blob: https:",
-    `connect-src 'self' ws: wss: ${isDev ? "*" : ""}`,
-    "frame-src https://www.youtube.com https://youtube.com https://player.vimeo.com",
-  ]
-    .filter(Boolean)
-    .join("; ");
+  const buildCsp = (allowEval: boolean) =>
+    [
+      "default-src 'self'",
+      // Production: no inline scripts, no eval. Only the MediaPipe wasm needs 'wasm-unsafe-eval'.
+      // Dev keeps both because Vite's HMR preamble is inline.
+      isDev
+        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://www.youtube.com https://s.ytimg.com *"
+        : `script-src 'self' ${allowEval ? "'unsafe-eval' " : ""}'wasm-unsafe-eval' https://www.youtube.com https://s.ytimg.com`,
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "worker-src 'self' blob:",
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' data: blob: https:",
+      `connect-src 'self' ws: wss: ${isDev ? "*" : ""}`,
+      "frame-src https://www.youtube.com https://youtube.com https://player.vimeo.com",
+    ]
+      .filter(Boolean)
+      .join("; ");
 
-  app.use((_req, res, next) => {
-    res.setHeader("Content-Security-Policy", CSP);
+  const CSP = buildCsp(false);
+  // OBS's embedded browser is older Chromium and doesn't recognise 'wasm-unsafe-eval',
+  // so MediaPipe wasm compilation needs 'unsafe-eval' there. Scoped to /overlay only.
+  const OVERLAY_CSP = buildCsp(true);
+
+  app.use((req, res, next) => {
+    res.setHeader("Content-Security-Policy", req.path === "/overlay" ? OVERLAY_CSP : CSP);
     next();
   });
 
