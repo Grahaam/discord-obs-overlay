@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert";
-import { computeSetupStatus, cached, markAlertStarted, wasAlertStarted, overlayClients } from "./setupStatus.js";
+import { computeSetupStatus, cached, markAlertStarted, wasAlertStarted, markTestAlert, hasTestAlertPlayed, overlayClients } from "./setupStatus.js";
 
 const ok = {
   botStatus: "connected",
@@ -55,6 +55,15 @@ test("alert started tracking", () => {
   assert.ok(wasAlertStarted("x"));
   assert.ok(!wasAlertStarted("y"));
   assert.ok(!wasAlertStarted(undefined));
+});
+
+test("test alert played stays ticked without the client remembering its id", () => {
+  assert.ok(!hasTestAlertPlayed());
+  markAlertStarted("not-a-test");
+  assert.ok(!hasTestAlertPlayed());
+  markTestAlert("t1");
+  markAlertStarted("t1");
+  assert.ok(hasTestAlertPlayed());
 });
 
 test("cached: reuses the result within the ttl, refreshes after", async () => {
