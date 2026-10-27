@@ -35,10 +35,12 @@ function getYtDlpVersion(): Promise<string> {
   const ytDlpBin = _ytDlpCustomPath ?? "yt-dlp";
   return new Promise((resolve) => {
     exec(`"${ytDlpBin}" --version`, (error, stdout) => {
-      const version = error ? "Not installed / Error" : stdout.trim();
-      _ytDlpVersionCache = version;
+      // Only cache a real version: at startup `yt-dlp -U` may be swapping the binary, and a
+      // failure cached for 5 minutes kept the dashboard showing an error after it had finished.
+      if (error) return resolve("Not installed / Error");
+      _ytDlpVersionCache = stdout.trim();
       _ytDlpVersionExpiry = Date.now() + 5 * 60_000;
-      resolve(version);
+      resolve(_ytDlpVersionCache);
     });
   });
 }
