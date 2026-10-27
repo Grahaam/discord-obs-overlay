@@ -143,8 +143,28 @@ export function usePoseLandmarks({
       }
     };
 
+    // OBS browser sources have no devtools: send each new failure to the server log (dashboard "server logs")
+    let stage = "start";
+    let lastReported = "";
+    const reportFailure = (err: unknown) => {
+      const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      if (message === lastReported) return;
+      lastReported = message;
+      fetch("/api/overlay-diagnostics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage, message, userAgent: navigator.userAgent }),
+      }).catch(() => {});
+    };
+
+    const onCspViolation = (e: SecurityPolicyViolationEvent) =>
+      !e.blockedURI.includes("googleapis.com/v1/log") && // MediaPipe telemetry, blocked on purpose
+      reportFailure(new Error(`CSP blocked ${e.violatedDirective} (${e.blockedURI || "inline/eval"})`));
+    document.addEventListener("securitypolicyviolation", onCspViolation);
+
     const tick = async () => {
       try {
+        stage = "load-model";
         if (!landmarker) {
           setStatus("loading");
           vision ??= await FilesetResolver.forVisionTasks("/mediapipe/wasm");
@@ -160,6 +180,7 @@ export function usePoseLandmarks({
           );
         }
         // Re-read the settings now and then: a changed port/password must replace a healthy connection
+        stage = "obs-connect";
         if (!obsConnected || performance.now() - lastConnCheck >= CONN_CHECK_MS) {
           lastConnCheck = performance.now();
           const res = await fetch("/api/obs-connection");
@@ -181,6 +202,7 @@ export function usePoseLandmarks({
           }
         }
 
+        stage = "screenshot";
         let imageData: string;
         try {
           ({ imageData } = await obs.call("GetSourceScreenshot", {
@@ -194,6 +216,7 @@ export function usePoseLandmarks({
           else if (/render screenshot/i.test((err as Error).message)) setStatus("no-picture");
           throw err;
         }
+        stage = "detect";
         const bitmap = await createImageBitmap(dataUrlToBlob(imageData));
         const aspect = bitmap.width / bitmap.height;
         let next: PoseFrame;
@@ -210,6 +233,7 @@ export function usePoseLandmarks({
         schedule(FRAME_INTERVAL_MS);
       } catch (err) {
         console.warn("[usePoseLandmarks]", err);
+        reportFailure(err);
         setStatus((s) => (s === "no-obs" || s === "no-source" || s === "no-picture" ? s : "error"));
         schedule(RETRY_MS);
       }
@@ -256,6 +280,7 @@ export function usePoseLandmarks({
 
     return () => {
       stopped = true;
+      document.removeEventListener("securitypolicyviolation", onCspViolation);
       clearTimeout(timer);
       landmarker?.close();
       handLandmarker?.close();

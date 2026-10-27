@@ -398,6 +398,16 @@ export function setupRoutes(app: express.Express, io: SocketServer) {
     res.json(serverLogManager.getLogs());
   });
 
+  // The OBS browser source has no devtools: the overlay reports why pose detection fails here.
+  app.post("/api/overlay-diagnostics", (req, res) => {
+    const { stage, message, userAgent } = req.body ?? {};
+    logger.warn(
+      { stage: String(stage ?? "").slice(0, 40), userAgent: String(userAgent ?? "").slice(0, 200) },
+      `[overlay] pose detection: ${String(message ?? "").slice(0, 300)}`
+    );
+    res.json({ success: true });
+  });
+
   app.post("/api/server-logs/clear", (req, res) => {
     serverLogManager.clearLogs();
     io.emit("server_logs_cleared");
