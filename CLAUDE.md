@@ -46,8 +46,8 @@ Express + Socket.IO server (Vite React SPA) that runs **standalone** (`npm start
 | File          | Role                                                                                                                                                                                           |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `main.cjs`    | Lifecycle: free-port probe, `utilityProcess` server fork, health wait, main/wizard windows, tray, IPC                                                                                          |
-| `preload.cjs` | `contextBridge` exposes `electronAPI.setupToken` / `listChannels` / `setupChannel` / `openExternal` / `getPort` (contextIsolation on, nodeIntegration off)                                     |
-| `wizard.html` | First-run setup UI; `setup-token` / `setup-channel` IPC push token then channelId through the server's `/api/settings` (reconnects bot), surface bad-token errors before opening the dashboard |
+| `preload-wizard.cjs` / `preload-main.cjs` | Sandboxed preloads (`sandbox: true`, contextIsolation on): wizard exposes `setupToken` / `listChannels` / `setupChannel` / `openExternal`; dashboard exposes `getPort` / `openUserAssets`. `main.cjs` also locks navigation to the local origin and allows only the camera (`media`) for it |
+| `wizard.html` + `wizard.js` | First-run setup UI; `setup-token` / `setup-channel` IPC push token then channelId through the server's `/api/settings` (reconnects bot), surface bad-token errors before opening the dashboard |
 
 **UX goal**: one-click installer → one-click launch → first-run wizard. Main window hides to tray on close (`app.isQuitting` gates real quit); tray "Quit" asks the server to shut down over `parentPort` (restores OBS, closes DB), hard kill after 5 s.
 

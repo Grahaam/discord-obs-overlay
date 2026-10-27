@@ -20,6 +20,8 @@ Toutes les modifications notables sont listées ici. Format : [Keep a Changelog]
 
 ### Sécurité
 
+- **Application de bureau durcie** : fenêtres isolées (sandbox), un script de préchargement distinct pour l'assistant de démarrage et pour le tableau de bord, navigation limitée à l'adresse locale (les liens externes s'ouvrent dans le navigateur), caméra (vidéo seulement) autorisée uniquement pour le tableau de bord, et en-tête de sécurité sans scripts en ligne en production, et sans `unsafe-eval` sauf sur `/overlay` (nécessaire au moteur de poses dans OBS).
+- La base de données attend jusqu'à 5 s si elle est occupée et vide son journal à l'arrêt ; l'intégration continue utilise `npm ci` avec des droits en lecture seule.
 - **Clé d'accès locale** : une page web visitée pendant le live ne peut plus piloter LiveChat à votre insu (lire le mot de passe OBS, remplacer le jeton du bot…). Toutes les routes `/api` et les connexions Socket.IO exigent maintenant une clé propre à votre installation, les requêtes qui modifient quelque chose doivent venir de LiveChat lui-même (contrôle `Sec-Fetch-Site` / `Origin`), et les WebSockets d'une autre origine sont refusées.
 - **Les URL OBS contiennent désormais `?k=…`** (overlay, dock) : recopiez-les depuis le tableau de bord ou depuis « Copy OBS Overlay URL » dans le menu de l'icône de la zone de notification. La clé est conservée entre deux lancements, donc l'URL ne change plus. Hors Electron, l'adresse complète s'affiche dans la console au démarrage.
 - Les corps JSON sont limités à 1 Mo (50 Mo seulement pour l'envoi de médias de pose) et les formulaires `x-www-form-urlencoded` ne sont plus acceptés.
