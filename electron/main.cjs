@@ -9,8 +9,10 @@ const {
   nativeImage,
   dialog,
   shell,
+  session,
 } = require("electron");
 const path = require("path");
+const { pathToFileURL } = require("url");
 const { randomBytes } = require("crypto");
 const fs = require("fs");
 const http = require("http");
@@ -198,6 +200,49 @@ function forkServer(port, dataDir) {
   });
 }
 
+// ── Navigation & permission guards ─────────────────────────────────────────────
+/** True when `url` belongs to the local server's origin (http://127.0.0.1:<port>). */
+function isLocalUrl(url, port = serverPort) {
+  try {
+    return !!port && new URL(url).origin === `http://127.0.0.1:${port}`;
+  } catch {
+    return false;
+  }
+}
+
+/** Hand an http(s) link to the default browser; anything else is dropped. */
+function openExternalSafe(url) {
+  if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+}
+
+/**
+ * Keep a window on its own pages. Links with target="_blank" (Discord invite, Developer Portal)
+ * and cross-origin navigations go to the default browser instead of a bare Electron window
+ * where the user is not logged in.
+ */
+function lockNavigation(contents, isAllowed) {
+  contents.setWindowOpenHandler(({ url }) => {
+    openExternalSafe(url);
+    return { action: "deny" };
+  });
+  contents.on("will-navigate", (event, url) => {
+    if (isAllowed(url)) return;
+    event.preventDefault();
+    openExternalSafe(url);
+  });
+}
+
+/** Only the local dashboard may use the camera (pose detection); everything else is refused. */
+function setupPermissionHandlers() {
+  const ses = session.defaultSession;
+  ses.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    callback(permission === "media" && isLocalUrl(details.requestingUrl));
+  });
+  ses.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
+    return permission === "media" && isLocalUrl(requestingOrigin);
+  });
+}
+
 // ── Windows ────────────────────────────────────────────────────────────────────
 function createMainWindow(port) {
   mainWindow = new BrowserWindow({
@@ -205,20 +250,15 @@ function createMainWindow(port) {
     height: 800,
     title: "LiveChat",
     webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
+      preload: path.join(__dirname, "preload-main.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
   // ?k= makes the server plant its auth cookie for this window (every later fetch / socket carries it)
   mainWindow.loadURL(`http://127.0.0.1:${port}/?k=${apiToken}`);
-  // Links with target="_blank" (Discord invite, Developer Portal) would open in a
-  // bare Electron window where the user is not logged in. Send them to the
-  // default browser instead, and only for http(s) URLs.
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) shell.openExternal(url);
-    return { action: "deny" };
-  });
+  lockNavigation(mainWindow.webContents, (url) => isLocalUrl(url, port));
   mainWindow.on("close", (e) => {
     if (!app.isQuitting) {
       e.preventDefault();
@@ -237,17 +277,16 @@ function createWizardWindow() {
     resizable: false,
     title: "LiveChat — Setup",
     webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
+      preload: path.join(__dirname, "preload-wizard.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
-  wizardWindow.loadFile(path.join(__dirname, "wizard.html"));
-  // Same as the main window: never let a link spawn a bare Electron window.
-  wizardWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//.test(url)) shell.openExternal(url);
-    return { action: "deny" };
-  });
+  const wizardFile = path.join(__dirname, "wizard.html");
+  wizardWindow.loadFile(wizardFile);
+  // The wizard never navigates: only its own file may be (re)loaded.
+  lockNavigation(wizardWindow.webContents, (url) => url === pathToFileURL(wizardFile).href);
   wizardWindow.on("closed", () => {
     wizardWindow = null;
     // If setup was never completed there is no tray or main window — quit cleanly.
@@ -475,9 +514,20 @@ ipcMain.handle("open-external", (event, url) => {
   return shell.openExternal(url);
 });
 
-ipcMain.handle("get-port", () => serverPort);
+/** Only the dashboard window, showing a page of the local server, may call these. */
+function assertMainSender(event) {
+  if (!mainWindow || event.sender !== mainWindow.webContents || !isLocalUrl(event.senderFrame?.url ?? "")) {
+    throw new Error("Unauthorized sender");
+  }
+}
 
-ipcMain.handle("open-user-assets", async () => {
+ipcMain.handle("get-port", (event) => {
+  assertMainSender(event);
+  return serverPort;
+});
+
+ipcMain.handle("open-user-assets", async (event) => {
+  assertMainSender(event);
   const dir = path.join(isDev ? app.getAppPath() : app.getPath("userData"), "user-assets");
   fs.mkdirSync(dir, { recursive: true });
   // openPath resolves to an error string ("" on success) instead of throwing.
@@ -501,6 +551,7 @@ function isSetupComplete(dataDir) {
 
 // ── App lifecycle ──────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
+  setupPermissionHandlers();
   const dataDir = isDev ? app.getAppPath() : app.getPath("userData");
   if (!isSetupComplete(dataDir)) {
     createWizardWindow();

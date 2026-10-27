@@ -105,7 +105,11 @@ async function runServer() {
   const isDev = env.NODE_ENV === "development";
   const CSP = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.youtube.com https://s.ytimg.com ${isDev ? "*" : ""}`,
+    // Production: no inline scripts, no eval. Only the MediaPipe wasm needs 'wasm-unsafe-eval'.
+    // Dev keeps both because Vite's HMR preamble is inline.
+    isDev
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://www.youtube.com https://s.ytimg.com *"
+      : "script-src 'self' 'wasm-unsafe-eval' https://www.youtube.com https://s.ytimg.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "worker-src 'self' blob:",
