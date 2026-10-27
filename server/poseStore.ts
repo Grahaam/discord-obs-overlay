@@ -37,7 +37,7 @@ const poseMediaSchema = z.object({
   videoUrl: z.string().optional(),
   volume: z.number().min(0).max(1),
   durationSeconds: z.number().positive().optional(),
-  maxDurationSeconds: z.number().min(5).max(120),
+  maxDurationSeconds: z.number().min(1).max(120),
   fullscreen: z.boolean(),
 });
 
@@ -101,7 +101,7 @@ export function defaultBuiltinPose(settings: LegacyPoseSettings): Pose {
     soundUrl: settings.poseAlertSoundUrl || "",
     volume: 0.8,
     durationSeconds: 4,
-    maxDurationSeconds: 30,
+    maxDurationSeconds: 5,
     fullscreen: true,
   };
   return {

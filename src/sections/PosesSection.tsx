@@ -44,7 +44,7 @@ function newPose(template: NormalizedPoint[] | null, hands: Pose["hands"], bodyP
       soundUrl: "",
       volume: 0.8,
       durationSeconds: 4,
-      maxDurationSeconds: 30,
+      maxDurationSeconds: 5,
       fullscreen: true,
     },
   };
