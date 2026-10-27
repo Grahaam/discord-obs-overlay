@@ -40,6 +40,7 @@ Toutes les modifications notables sont listées ici. Format : [Keep a Changelog]
 
 ### Corrigé
 
+- Les liens YouTube échouaient avec « HTTP Error 403: Forbidden » : le téléchargement n'utilisait qu'un seul client YouTube (`android_vr`), que YouTube bloque désormais.
 - Les boutons **Copier** de l'application de bureau (URL de l'overlay et du dock, identifiants de rôle) ne copiaient rien tout en affichant « Copié » : le presse-papiers est maintenant autorisé pour le tableau de bord, et « Copié » ne s'affiche que si la copie a réussi.
 - En production, les pages autres que `/` (dont `/overlay`) renvoyaient une erreur quand l'application était installée dans un dossier dont le chemin contient un dossier commençant par un point.
 

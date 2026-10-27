@@ -591,7 +591,9 @@ async function fetchWithYtDlp(url: string, audioOnly = false): Promise<{ filenam
     noPart: true, // Avoid rename issues
     noSimulate: true, // Ensure download happens
     ...(_ffmpegBin && { mergeOutputFormat: "mp4", ffmpegLocation: path.dirname(_ffmpegBin) }),
-    ...(isYouTube && { extractorArgs: "youtube:player-client=android_vr", noCookies: true }),
+    // Same client list as the info step: android_vr alone now only offers format 18, whose
+    // download YouTube answers with 403 Forbidden.
+    ...(isYouTube && { extractorArgs: "youtube:player-client=default,android_vr", noCookies: true }),
     ...(!isYouTube && hasCookies && { cookies: cookiesPath }),
   };
 
